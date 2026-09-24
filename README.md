@@ -6,8 +6,11 @@ partecipanti.
 
 ## Cosa fa
 
-- **Accesso con Google.** Ognuno entra con il proprio account e collega il suo
-  profilo (quello importato dal LinkedIn, con «Sono io») oppure ne crea uno.
+- **Accesso con Google.** Ognuno entra con il proprio account. Se il nome
+  Google corrisponde a un solo profilo libero (senza badare ad accenti,
+  maiuscole, titoli o secondi nomi) il collegamento e' automatico; se no la
+  prima schermata chiede «Chi sei?» con un campo che completa il nome.
+  Chi sbaglia persona si scollega da solo con «Questo non è il mio profilo».
 - **Il mio profilo.** Dati LinkedIn più quello che la persona aggiunge:
   passioni, preferenza B2B/B2C, settori, ruolo che vorrebbe, idee che ha già,
   cose che non vuole fare, disponibilità. Può incollare il testo del proprio

@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.2.0
+// VERSION: 1.3.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -9,6 +9,7 @@
 //   POST esci
 //   GET  dati              -> io, profili, bacheca, le mie generazioni
 //   POST rivendica {id}    -> "questo profilo sono io"
+//   POST lascia            -> "questo non e' il mio profilo"
 //   POST nuovo-profilo     -> se il proprio profilo non e' stato importato
 //   POST profilo {...}     -> aggiorna il MIO profilo (passioni, preferenze...)
 //   POST idea {...}        -> pubblica o modifica una mia idea in bacheca
@@ -66,6 +67,7 @@ export default async function handler(req, res) {
 
     switch (a) {
       case "rivendica": return await rivendica(chi, corpo, res);
+      case "lascia": return await lascia(chi, res);
       case "nuovo-profilo": return await nuovoProfilo(chi, corpo, res);
       case "profilo": return await aggiornaProfilo(chi, corpo, res);
       case "idea": return await idea(chi, corpo, res);
@@ -110,15 +112,18 @@ async function entra(req, res) {
   const u = { profilo: null, primo: adesso, accessi: 0, ...(prima || {}), email: g.email, nome: g.nome, foto: g.foto, ultimo: adesso };
   u.accessi = (u.accessi || 0) + 1;
 
-  // Primo accesso: se Dario ha importato un profilo con questa email, e' suo.
+  // Primo accesso: il profilo importato con questa email, oppure quello con
+  // lo stesso nome dell'account Google.
   if (!u.profilo) {
     const profili = await tutti("profili");
-    const suo = Object.values(profili).find((p) => p.emailAttesa && p.emailAttesa.toLowerCase() === g.email && !p.email);
+    const suo = Object.values(profili).find((p) => p.emailAttesa && p.emailAttesa.toLowerCase() === g.email && !p.email)
+      || profiloPerNome(g.nome, profili);
     if (suo) {
       suo.email = g.email;
       if (!suo.foto && g.foto) suo.foto = g.foto;
       await scrivi("profili", suo.id, suo);
       u.profilo = suo.id;
+      await segna(g.email, "collegato-da-solo", { profilo: suo.id, nome: suo.nome });
     }
   }
   await scrivi("utenti", g.email, u);
@@ -128,11 +133,47 @@ async function entra(req, res) {
   return res.status(200).json({ email: g.email, nome: g.nome, admin: sonoAmministratore(g.email) });
 }
 
+// Il nome dell'account Google contro i nomi dei profili non ancora presi.
+// Si confrontano le parole, senza accenti ne' titoli: "Cosimo Senni" trova
+// "Cosimo Senni Guidotti Magnani, Ph.D.". Deve esserci un solo candidato,
+// se no si lascia scegliere alla persona con "Sono io".
+function paroleNome(nome) {
+  return new Set(String(nome || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z\s'-]/g, " ").split(/[\s'-]+/)
+    .filter((w) => w.length > 1 && !["ph", "dott", "ing", "avv", "prof", "dr", "mba"].includes(w)));
+}
+export function profiloPerNome(nome, profili) {
+  const g = paroleNome(nome);
+  if (g.size < 2) return null;
+  const contiene = (a, b) => [...a].every((w) => b.has(w));
+  const attaccato = (a) => [...a].sort().join("");   // "dall ara" e "dallara" sono lo stesso nome
+  const unito = (nome) => String(nome || "").toLowerCase().normalize("NFD").replace(/[^a-z]/g, "");
+  const candidati = Object.values(profili).filter((p) => {
+    if (p.email) return false;
+    const n = paroleNome(p.nome);
+    return n.size >= 2 && (contiene(g, n) || contiene(n, g) || attaccato(g) === attaccato(n) || unito(nome) === unito(p.nome));
+  });
+  return candidati.length === 1 ? candidati[0] : null;
+}
+
 async function dati(chi, res) {
-  const [profili, aziende, bacheca, generazioni, u] = await Promise.all([
+  const [profili, aziende, bacheca, generazioni, letto] = await Promise.all([
     tutti("profili"), tutti("aziende"), tutti("bacheca"), ultimi("generazioni", 300),
     uno("utenti", chi.email),
   ]);
+  const u = letto || { email: chi.email, nome: chi.nome, profilo: null };
+  // Chi e' entrato prima che il suo profilo esistesse: si collega adesso.
+  if (!u.profilo) {
+    const liberi = Object.fromEntries(Object.entries(profili).filter(([id]) => id !== u.lasciato));
+    const suo = profiloPerNome(chi.nome, liberi);
+    if (suo) {
+      suo.email = chi.email;
+      if (!suo.foto && u.foto) suo.foto = u.foto;
+      u.profilo = suo.id;
+      await Promise.all([scrivi("profili", suo.id, suo), scrivi("utenti", chi.email, u)]);
+      await segna(chi.email, "collegato-da-solo", { profilo: suo.id, nome: suo.nome });
+    }
+  }
   const io = u && u.profilo && profili[u.profilo] && profili[u.profilo].email === chi.email ? u.profilo : null;
   return res.status(200).json({
     io: { email: chi.email, nome: chi.nome, admin: chi.admin, profilo: io, foto: u && u.foto },
@@ -155,6 +196,19 @@ async function rivendica(chi, corpo, res) {
   await scrivi("utenti", chi.email, u);
   await segna(chi.email, "rivendica", { profilo: p.id, nome: p.nome });
   return res.status(200).json({ ok: true, id: p.id });
+}
+
+// "Questo non e' il mio profilo": chi ha cliccato Sono io sulla persona
+// sbagliata si scollega da solo, e il profilo torna libero.
+async function lascia(chi, res) {
+  const p = await mioProfilo(chi.email);
+  const u = (await uno("utenti", chi.email)) || { email: chi.email };
+  if (p) { delete p.email; await scrivi("profili", p.id, p); }
+  u.profilo = null;
+  u.lasciato = p ? p.id : null;   // non ricollegarlo da solo allo stesso profilo
+  await scrivi("utenti", chi.email, u);
+  await segna(chi.email, "lascia", { profilo: p && p.id, nome: p && p.nome });
+  return res.status(200).json({ ok: true });
 }
 
 async function nuovoProfilo(chi, corpo, res) {

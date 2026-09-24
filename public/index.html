@@ -96,6 +96,14 @@
   .rp-dettagli dt{color:var(--grigio)}
   .rp-dettagli dd{margin:0;white-space:pre-line}
   @media (max-width:760px){.rp-etichette{display:none}.rp-dettagli{padding-left:14px;grid-template-columns:1fr}.rp-dettagli dt{margin-top:6px}}
+  .chi-sei{max-width:560px;margin:30px auto}
+  .completa{position:relative}
+  .completa input{font-size:17px;padding:12px 14px}
+  .suggerimenti{position:absolute;left:0;right:0;top:100%;z-index:4;background:var(--carta);border:1px solid var(--bordo);border-top:0;border-radius:0 0 10px 10px;box-shadow:var(--ombra);overflow:hidden}
+  .suggerimenti:empty{display:none}
+  .sugg{padding:9px 14px;cursor:pointer;border-top:1px solid var(--bordo)}
+  .sugg.attivo{background:var(--accento-chiaro)}
+  .sugg.preso{color:var(--grigio);cursor:default}
   .scelti{position:sticky;bottom:12px;margin-top:16px}
   .num{font-size:28px;font-weight:700;letter-spacing:-.02em}
   table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -120,7 +128,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "1.4.0";
+const VERSION = "1.6.0";
 const $main = document.getElementById("main");
 const S = { aperti: new Set(), dati: null, scheda: "persone", scelti: new Set(), filtro: "", ultima: null, stat: null, generando: false };
 
@@ -189,11 +197,11 @@ const SCHEDE_ADMIN = [["statistiche", "Statistiche"]];
 
 function disegna() {
   const d = S.dati;
+  if (!d.io.profilo && !(d.io.admin && ["statistiche", "importa"].includes(S.scheda))) S.scheda = "profilo";
   const schede = SCHEDE.concat(d.io.admin ? SCHEDE_ADMIN : []);
   document.getElementById("nav").innerHTML = schede.map(([k, t]) =>
     `<button data-scheda="${k}" class="${S.scheda === k ? "attivo" : ""}">${t}</button>`).join("");
   document.getElementById("chi").innerHTML = `<span>${esc(d.io.email)}</span><button class="btn piccolo" id="esci">Esci</button>`;
-  if (!d.io.profilo && S.scheda !== "profilo" && !d.io.admin) S.scheda = "profilo";
   ({ persone, genera, bacheca, profilo: schedaProfilo, statistiche, importa })[S.scheda]();
 }
 document.addEventListener("click", (ev) => {
@@ -578,7 +586,13 @@ function schedaProfilo() {
       </div>
     </div>
     <div id="msgProf"></div>
-    <div class="riga" style="margin-top:14px"><button class="btn primario" id="salvaProf">Salva profilo</button></div>`;
+    <div class="riga" style="margin-top:14px"><button class="btn primario" id="salvaProf">Salva profilo</button>
+      <span class="spazio"></span><button class="btn pericolo" id="lasciaProf">Questo non è il mio profilo</button></div>`;
+  document.getElementById("lasciaProf").onclick = async () => {
+    if (!confirm("Scollegarti da " + p.nome + "? Potrai scegliere il tuo profilo con «Sono io».")) return;
+    try { await api("lascia", {}); S.dati = await api("dati"); disegna(); }
+    catch (e) { avvisa("msgProf", e.message, "male"); }
+  };
   document.getElementById("salvaProf").onclick = async () => {
     const v = (id) => document.getElementById(id).value;
     const campi = ["nome", "titolo", "ruolo", "azienda", "citta", "linkedin", "competenze", "esperienze", "formazione", "linkedinTesto",
@@ -604,28 +618,69 @@ function schedaProfilo() {
   };
 }
 
+// "Chi sei?": la prima cosa che vede chi entra e non e' stato riconosciuto
+// dal nome Google. Si scrive il nome e il menu completa, come nella mappa del
+// vino; frecce e Invio funzionano, poi si conferma.
 function collega() {
-  const liberi = S.dati.profili.filter((p) => !p.rivendicato);
-  $main.innerHTML = `<h2>Collega il tuo profilo</h2>
-    <p class="sotto">Cerca il tuo nome fra i profili importati dal LinkedIn e dì «sono io». Se non ci sei, crea il tuo profilo.</p>
-    <input type="search" id="cercaMe" placeholder="Il tuo nome">
-    <div class="griglia" id="liberi" style="margin-top:12px"></div>
-    <div class="carta" style="margin-top:18px"><h3 style="margin-top:0">Non mi trovo</h3>
+  const tutti = S.dati.profili;
+  $main.innerHTML = `<div class="chi-sei carta">
+    <h2>Chi sei?</h2>
+    <p class="sotto">Scrivi il tuo nome e sceglilo dall'elenco: così colleghiamo il tuo account al tuo profilo del master.</p>
+    <div class="completa">
+      <input type="text" id="cercaMe" placeholder="Nome e cognome" autocomplete="off" value="${esc(S.dati.io.nome || "")}">
+      <div class="suggerimenti" id="sugg"></div>
+    </div>
+    <div id="conferma"></div>
+    <div id="msgCol"></div>
+    <details style="margin-top:18px"><summary class="piccolo">Non sono nell'elenco</summary>
       <label>Nome e cognome</label><input type="text" id="nNome" value="${esc(S.dati.io.nome)}">
       <label>Link al tuo profilo LinkedIn</label><input type="text" id="nLi" placeholder="https://www.linkedin.com/in/…">
-      <div class="riga" style="margin-top:12px"><button class="btn primario" id="nCrea">Crea il mio profilo</button></div></div>
-    <div id="msgCol"></div>`;
-  const disegnaLiberi = () => {
-    const f = document.getElementById("cercaMe").value.toLowerCase();
-    document.getElementById("liberi").innerHTML = liberi.filter((p) => !f || p.nome.toLowerCase().includes(f)).slice(0, 24).map((p) =>
-      `<div class="carta persona"><div class="testa"><div class="avatar">${esc(iniziali(p.nome))}</div><div><div class="nome">${esc(p.nome)}</div>
-      <div class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · "))}</div></div></div>
-      <button class="btn primario piccolo" data-rivendica="${p.id}">Sono io</button></div>`).join("") || '<p class="piccolo">Nessun profilo libero con questo nome.</p>';
+      <div class="riga" style="margin-top:12px"><button class="btn" id="nCrea">Crea il mio profilo</button></div>
+    </details>
+  </div>`;
+  const inp = document.getElementById("cercaMe"), box = document.getElementById("sugg");
+  let trovati = [], sel = 0;
+  const scegli = (p) => {
+    box.innerHTML = ""; inp.value = p.nome;
+    document.getElementById("conferma").innerHTML = `<div class="avviso info riga" style="margin-top:14px">
+      <div class="avatar piccolo-av">${esc(iniziali(p.nome))}</div>
+      <div style="flex:1;min-width:0"><b>${esc(p.nome)}</b><div class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || p.titolo || "")}</div></div>
+      <button class="btn primario" data-rivendica="${p.id}">Sì, sono io</button></div>`;
   };
-  document.getElementById("cercaMe").oninput = disegnaLiberi;
-  disegnaLiberi();
+  const mostra = () => {
+    document.getElementById("conferma").innerHTML = "";
+    const parole = senzaAccenti(inp.value).split(/[\s'’-]+/).filter(Boolean);
+    trovati = !parole.length ? [] : tutti.filter((p) => {
+      const n = senzaAccenti(p.nome).split(/[\s'’,.-]+/);
+      return parole.every((w) => n.some((x) => x.startsWith(w)));
+    }).sort((x, y) => Number(!!x.rivendicato) - Number(!!y.rivendicato)).slice(0, 8);
+    sel = trovati.findIndex((p) => !p.rivendicato);
+    box.innerHTML = trovati.map((p, i) => `<div class="sugg ${i === sel ? "attivo" : ""} ${p.rivendicato ? "preso" : ""}" data-i="${i}">
+      <b>${esc(p.nome)}</b> <span class="piccolo">${p.rivendicato ? "già collegato a un altro account" : esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || (p.titolo || "").slice(0, 70))}</span></div>`).join("")
+      || (parole.length ? '<div class="sugg preso">Nessun nome così: prova con il cognome, oppure «Non sono nell\'elenco» qui sotto.</div>' : "");
+  };
+  inp.oninput = mostra;
+  inp.onkeydown = (e) => {
+    if (!trovati.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const liberi = trovati.map((p, i) => (p.rivendicato ? -1 : i)).filter((i) => i >= 0);
+      if (!liberi.length) return;
+      const k = liberi.indexOf(sel);
+      sel = liberi[(k + (e.key === "ArrowDown" ? 1 : liberi.length - 1)) % liberi.length];
+      box.querySelectorAll(".sugg").forEach((el, i) => el.classList.toggle("attivo", i === sel));
+    } else if (e.key === "Enter" && sel >= 0) { e.preventDefault(); scegli(trovati[sel]); }
+  };
+  box.onmousedown = (e) => {
+    const el = e.target.closest("[data-i]");
+    if (!el) return;
+    e.preventDefault();
+    const p = trovati[Number(el.dataset.i)];
+    if (p && !p.rivendicato) scegli(p);
+  };
+  mostra(); inp.focus(); inp.select();
   document.getElementById("nCrea").onclick = async () => {
-    try { await api("nuovo-profilo", { nome: nNome.value, linkedin: nLi.value }); S.dati = await api("dati"); schedaProfilo(); }
+    try { await api("nuovo-profilo", { nome: document.getElementById("nNome").value, linkedin: document.getElementById("nLi").value }); S.dati = await api("dati"); S.scheda = "profilo"; disegna(); }
     catch (e) { avvisa("msgCol", e.message, "male"); }
   };
 }
