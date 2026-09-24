@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.3.0
+// VERSION: 1.4.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -12,13 +12,15 @@
 //   POST lascia            -> "questo non e' il mio profilo"
 //   POST nuovo-profilo     -> se il proprio profilo non e' stato importato
 //   POST profilo {...}     -> aggiorna il MIO profilo (passioni, preferenze...)
-//   POST idea {...}        -> pubblica o modifica una mia idea in bacheca
+//   POST idea {...}        -> pubblica o modifica un mio post in bacheca: da 1 a 5
+//                             idee, per tutti o solo per persone scelte
 //   POST idea-elimina {id}
 //   POST interesse {id,on} -> "mi interessa / voglio partecipare"
 //   POST membro {id,profilo,on} -> l'autore accoglie (o toglie) qualcuno
 //   Solo amministratori:
 //   GET  statistiche
 //   POST importa-profili {righe}   POST importa-aziende {righe}
+//   POST crediti {email, piu}      -> aggiunge crediti a una persona
 //   POST scollega {id}              POST elimina-profilo {id}
 //
 // I dati stanno su Postgres (Neon), vedi lib/db.js.
@@ -28,6 +30,7 @@ import { firma, cookieDaMettere, cookieDaTogliere } from "../lib/sessione.js";
 import {
   esigiAccesso, sonoAmministratore, puoEntrare, corpoDi, nuovoId, tutti, uno, scrivi, scriviMolti,
   togli, ultimi, eventi, conta, ceArchivio, segna, chiaveAzienda, profiloPubblico,
+  creditiDi, vedeIdea,
 } from "../lib/bbs.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
@@ -83,6 +86,7 @@ export default async function handler(req, res) {
       case "importa-aziende": return await importaAziende(chi, corpo, res);
       case "scollega": return await scollega(chi, corpo, res);
       case "elimina-profilo": return await eliminaProfilo(chi, corpo, res);
+      case "crediti": return await aggiungiCrediti(chi, corpo, res);
     }
     return res.status(404).json({ error: "Azione sconosciuta" });
   } catch (e) {
@@ -175,11 +179,13 @@ async function dati(chi, res) {
     }
   }
   const io = u && u.profilo && profili[u.profilo] && profili[u.profilo].email === chi.email ? u.profilo : null;
+  const crediti = chi.admin ? null : await creditiDi(chi.email, u);
   return res.status(200).json({
-    io: { email: chi.email, nome: chi.nome, admin: chi.admin, profilo: io, foto: u && u.foto },
+    io: { email: chi.email, nome: chi.nome, admin: chi.admin, adminVero: chi.adminVero, profilo: io, foto: u && u.foto, crediti },
     profili: Object.values(profili).map((p) => profiloPubblico(p, aziende, chi.admin))
       .sort((x, y) => String(x.nome).localeCompare(String(y.nome))),
-    bacheca: Object.values(bacheca).sort((x, y) => String(y.creata).localeCompare(String(x.creata))),
+    bacheca: Object.values(bacheca).filter((i) => vedeIdea(i, io, chi.admin))
+      .sort((x, y) => String(y.creata).localeCompare(String(x.creata))),
     generazioni: generazioni.filter((g) => g.chi === chi.email).slice(0, 30),
   });
 }
@@ -236,26 +242,51 @@ async function aggiornaProfilo(chi, corpo, res) {
   return res.status(200).json({ ok: true });
 }
 
+// Un post della bacheca contiene da 1 a 5 idee (scritte a mano o generate)
+// ed e' per tutti, oppure solo per le persone scelte.
+function ideeDalCorpo(corpo) {
+  const grezze = Array.isArray(corpo.idee) ? corpo.idee
+    : [{ titolo: corpo.titolo, descrizione: corpo.descrizione, modello: corpo.modello, settore: corpo.settore }];
+  return grezze.slice(0, 5).map((x) => ({
+    titolo: testo(x && x.titolo, 160),
+    descrizione: testo(x && x.descrizione, 4000),
+    modello: testo(x && x.modello, 20),
+    settore: testo(x && x.settore, 120),
+    generata: !!(x && x.generata),
+  })).filter((x) => x.titolo);
+}
+
 async function idea(chi, corpo, res) {
   const io = await mioProfilo(chi.email);
   if (!io) return res.status(404).json({ error: "Prima collega il tuo profilo." });
-  const titolo = testo(corpo.titolo, 160);
-  if (!titolo) return res.status(400).json({ error: "Serve almeno un titolo." });
+  const idee = ideeDalCorpo(corpo);
+  if (!idee.length) return res.status(400).json({ error: "Serve almeno un'idea con un titolo." });
+  const visibilita = corpo.visibilita === "scelti" ? "scelti" : "tutti";
+  let destinatari = [];
+  if (visibilita === "scelti") {
+    const profili = await tutti("profili");
+    destinatari = [...new Set((Array.isArray(corpo.destinatari) ? corpo.destinatari : []).map(String))]
+      .filter((id) => profili[id] && id !== io.id).slice(0, 40);
+    if (!destinatari.length) return res.status(400).json({ error: "Scegli almeno una persona con cui condividere." });
+  }
   let i = corpo.id ? await uno("bacheca", testo(corpo.id, 80)) : null;
   if (i && i.autore !== io.id && !chi.admin) return res.status(403).json({ error: "Puoi modificare solo le tue idee." });
   if (!i) i = { id: nuovoId("i"), autore: io.id, autoreNome: io.nome, creata: new Date().toISOString(), membri: [io.id], interessati: [] };
   Object.assign(i, {
-    titolo,
-    descrizione: testo(corpo.descrizione, 4000),
-    modello: testo(corpo.modello, 20),
-    settore: testo(corpo.settore, 120),
+    titolo: testo(corpo.titolo, 160) || (idee.length === 1 ? idee[0].titolo : idee.length + " idee di " + io.nome),
+    idee, visibilita, destinatari,
+    descrizione: idee.length === 1 ? idee[0].descrizione : "",
+    modello: idee.length === 1 ? idee[0].modello : "",
+    settore: idee.length === 1 ? idee[0].settore : "",
     cerco: testo(corpo.cerco, 1000),
     posti: Math.max(2, Math.min(8, Number(corpo.posti) || 5)),
-    origine: corpo.origine === "generata" ? "generata" : (i.origine || "manuale"),
+    origine: idee.some((x) => x.generata) ? "generata" : "manuale",
+    generazione: testo(corpo.generazione, 80) || i.generazione || "",
     aggiornata: new Date().toISOString(),
   });
   await scrivi("bacheca", i.id, i);
-  await segna(chi.email, corpo.id ? "idea-modificata" : "idea-pubblicata", { idea: i.id, titolo: i.titolo, origine: i.origine });
+  await segna(chi.email, corpo.id ? "idea-modificata" : "idea-pubblicata",
+    { idea: i.id, titolo: i.titolo, origine: i.origine, quante: idee.length, visibilita, destinatari });
   return res.status(200).json({ ok: true, id: i.id });
 }
 
@@ -273,7 +304,7 @@ async function interesse(chi, corpo, res) {
   const io = await mioProfilo(chi.email);
   if (!io) return res.status(404).json({ error: "Prima collega il tuo profilo." });
   const i = await uno("bacheca", testo(corpo.id, 80));
-  if (!i) return res.status(404).json({ error: "Idea non trovata" });
+  if (!i || !vedeIdea(i, io.id, chi.admin)) return res.status(404).json({ error: "Idea non trovata" });
   const s = new Set(i.interessati || []);
   if (corpo.on) s.add(io.id); else s.delete(io.id);
   i.interessati = [...s];
@@ -358,6 +389,16 @@ async function scollega(chi, corpo, res) {
   return res.status(200).json({ ok: true });
 }
 
+async function aggiungiCrediti(chi, corpo, res) {
+  const email = testo(corpo.email, 200).toLowerCase();
+  const u = await uno("utenti", email);
+  if (!u) return res.status(404).json({ error: "Utente non trovato" });
+  u.bonus = Math.max(-100, Math.min(1000, Number(u.bonus || 0) + Math.round(Number(corpo.piu) || 0)));
+  await scrivi("utenti", email, u);
+  await segna(chi.email, "crediti", { a: email, piu: Number(corpo.piu) || 0, bonus: u.bonus });
+  return res.status(200).json({ ok: true, ...(await creditiDi(email, u)) });
+}
+
 async function eliminaProfilo(chi, corpo, res) {
   const id = testo(corpo.id, 80);
   await togli("profili", id);
@@ -391,6 +432,7 @@ async function statistiche(res) {
   }
   for (const i of Object.values(bacheca)) {
     contaCoppie(i.membri || [], 3);
+    for (const d of i.destinatari || []) contaCoppie([i.autore, d], 2);
     for (const p of i.interessati || []) contaCoppie([i.autore, p], 1);
   }
 
@@ -420,10 +462,12 @@ async function statistiche(res) {
     coppie: ordina(coppie, 40).map(([k, n]) => { const [a, b] = k.split("|"); return { a: nomeDi(a), b: nomeDi(b), n }; }),
     cercati: ordina(cercati, 30).map(([id, n]) => ({ nome: nomeDi(id), n })),
     settori: ordina(settori), modelli: ordina(modelli),
-    utenti: Object.values(utenti).sort((a, b) => String(b.ultimo).localeCompare(String(a.ultimo)))
-      .map((u) => ({ ...u, profiloNome: u.profilo ? nomeDi(u.profilo) : null })),
+    utenti: await Promise.all(Object.values(utenti).sort((a, b) => String(b.ultimo).localeCompare(String(a.ultimo)))
+      .map(async (u) => ({ ...u, profiloNome: u.profilo ? nomeDi(u.profilo) : null, crediti: await creditiDi(u.email, u) }))),
     generazioni: generazioni.map((g) => ({ ...g, personeNomi: (g.persone || []).map(nomeDi) })),
-    bacheca: Object.values(bacheca).map((i) => ({ ...i, membriNomi: (i.membri || []).map(nomeDi), interessatiNomi: (i.interessati || []).map(nomeDi) })),
+    bacheca: Object.values(bacheca).sort((x, y) => String(y.creata).localeCompare(String(x.creata)))
+      .map((i) => ({ ...i, membriNomi: (i.membri || []).map(nomeDi), interessatiNomi: (i.interessati || []).map(nomeDi),
+        destinatariNomi: (i.destinatari || []).map(nomeDi) })),
     eventi: registro.slice(0, 400),
   });
 }

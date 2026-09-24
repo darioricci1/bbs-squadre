@@ -1,20 +1,23 @@
 // api/genera.js
-// VERSION: 1.1.0
+// VERSION: 1.2.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
 //   modo "scopri": solo io -> idee su misura per me, e con chi farle
 // Ogni generazione finisce nella tabella generazioni (per le statistiche).
 //
+// Ogni generazione costa 1 credito (vedi lib/bbs.js): il credito si prenota
+// prima di chiamare Claude e si restituisce se la generazione non va a buon
+// fine. L'amministratore non ha limiti.
+//
 // Richiede ANTHROPIC_API_KEY. Il modello si cambia con BBS_MODELLO.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { esigiAccesso, corpoDi, nuovoId, tutti, uno, scrivi, conta, segna, aziendaPer } from "../lib/bbs.js";
+import { esigiAccesso, corpoDi, nuovoId, tutti, uno, scrivi, conta, correggi, segna, aziendaPer, creditiDi, chiaveCrediti, CREDITI_BASE, DIECI_ANNI } from "../lib/bbs.js";
 
 export const config = { maxDuration: 300 };
 
 const MODELLO = process.env.BBS_MODELLO || "claude-opus-5";
-const TETTO_GIORNALIERO = Number(process.env.BBS_TETTO_GIORNO || 15);
 
 const SCHEMA = {
   type: "object",
@@ -119,10 +122,17 @@ export default async function handler(req, res) {
     .filter((id) => id !== io.id && profili[id]).slice(0, 7);
   if (modo === "gruppo" && !scelti.length) return res.status(400).json({ error: "Scegli almeno una persona con cui lavorare." });
 
+  let prenotato = false;
   if (!chi.admin) {
-    const n = await conta("tetto:" + chi.email + ":" + new Date().toISOString().slice(0, 10), 90000);
-    if (n > TETTO_GIORNALIERO) return res.status(429).json({ error: `Hai gia' fatto ${TETTO_GIORNALIERO} generazioni oggi: riprova domani.` });
+    const totale = CREDITI_BASE + Number((u && u.bonus) || 0);
+    const usati = await conta(chiaveCrediti(chi.email), DIECI_ANNI);
+    prenotato = true;
+    if (usati > totale) {
+      await correggi(chiaveCrediti(chi.email), -1);
+      return res.status(402).json({ error: `Hai usato tutti i tuoi ${totale} crediti. Se te ne servono altri, chiedi a Dario.` });
+    }
   }
+  const restituisci = () => (prenotato ? correggi(chiaveCrediti(chi.email), -1).catch(() => {}) : null);
 
   const gruppo = [io, ...scelti.map((id) => profili[id])];
   const idGruppo = new Set(gruppo.map((p) => p.id));
@@ -152,15 +162,17 @@ export default async function handler(req, res) {
       messages: [{ role: "user", content: testo }],
     });
   } catch (e) {
+    await restituisci();
     const stato = e instanceof Anthropic.RateLimitError ? 429 : 502;
     return res.status(stato).json({ error: "Claude non ha risposto: " + (e.message || e) });
   }
+  if (risposta.stop_reason === "refusal" || risposta.stop_reason === "max_tokens") await restituisci();
   if (risposta.stop_reason === "refusal") return res.status(422).json({ error: "Claude ha rifiutato questa richiesta. Prova a cambiare le indicazioni." });
   if (risposta.stop_reason === "max_tokens") return res.status(502).json({ error: "Risposta troppo lunga e tagliata: riprova." });
 
   const blocco = risposta.content.find((b) => b.type === "text");
   let idee;
-  try { idee = JSON.parse(blocco.text).idee; } catch { return res.status(502).json({ error: "Risposta di Claude non leggibile: riprova." }); }
+  try { idee = JSON.parse(blocco.text).idee; } catch { await restituisci(); return res.status(502).json({ error: "Risposta di Claude non leggibile: riprova." }); }
 
   const nomeDi = (id) => (profili[id] && profili[id].nome) || null;
   for (const i of idee) {
@@ -171,5 +183,5 @@ export default async function handler(req, res) {
   const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idee, modello: risposta.model };
   await scrivi("generazioni", g.id, g);
   await segna(chi.email, "generazione", { modo, persone: scelti, titoli: idee.map((i) => i.titolo) });
-  return res.status(200).json(g);
+  return res.status(200).json({ ...g, crediti: chi.admin ? null : await creditiDi(chi.email, u) });
 }

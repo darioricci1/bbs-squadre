@@ -6,29 +6,42 @@ partecipanti.
 
 ## Cosa fa
 
-- **Accesso con Google.** Ognuno entra con il proprio account. Se il nome
-  Google corrisponde a un solo profilo libero (senza badare ad accenti,
-  maiuscole, titoli o secondi nomi) il collegamento e' automatico; se no la
-  prima schermata chiede «Chi sei?» con un campo che completa il nome.
-  Chi sbaglia persona si scollega da solo con «Questo non è il mio profilo».
-- **Il mio profilo.** Dati LinkedIn più quello che la persona aggiunge:
-  passioni, preferenza B2B/B2C, settori, ruolo che vorrebbe, idee che ha già,
-  cose che non vuole fare, disponibilità. Può incollare il testo del proprio
-  profilo LinkedIn (Salva come PDF, poi copia) per dare più contesto.
-- **Persone.** Tutti i profili, con ricerca libera (nome, azienda, settore,
-  passione) e i dati AIDA dell'azienda quando ci sono. Da qui si sceglie il
-  gruppo.
-- **Genera idee.** Claude propone 5 idee (3 top e 2 di riserva) in due modi:
-  per me più le persone scelte, oppure solo per me con i compagni suggeriti.
-  Ogni idea ha problema, soluzione, clienti, ricavi, perché questo team, ruoli,
-  rischi e primo passo, e si pubblica in bacheca con un clic.
-- **Bacheca.** Chiunque pubblica un'idea e dice chi cerca; gli altri si
-  candidano, l'autore accoglie chi vuole nella squadra.
-- **Statistiche e Importa** (solo amministratori; Importa non è nel menu, si apre da `/#importa`): chi si mette con chi,
-  persone più cercate, settori e B2B/B2C delle idee, tutte le idee generate, la
-  bacheca, gli accessi, il registro completo, esportazione JSON. Import dei
-  profili (CSV o JSON, oppure molti PDF di LinkedIn insieme) e delle aziende
-  esportate da AIDA (CSV).
+Chi usa la piattaforma vede due schede.
+
+- **Bacheca** (la home). In alto i post del master: ognuno contiene da 1 a 5
+  idee, scritte a mano o generate, ed e' visibile a tutti oppure solo alle
+  persone scelte da chi lo pubblica. Ci si candida con «Voglio partecipare» e
+  l'autore accoglie chi vuole nella squadra. Sotto ci sono i due motori:
+  - **motore 1**: idee per me e le persone che scelgo (campo con
+    completamento del nome, oppure «Sfoglia tutte le persone»);
+  - **motore 2**: idee per me, con i compagni suggeriti da Claude.
+  Ogni generazione propone 5 idee (3 top e 2 di riserva) e costa **1
+  credito**: ognuno ne ha 10 (`BBS_CREDITI`), l'amministratore ne aggiunge da
+  Statistiche. Il credito si restituisce se la generazione fallisce. Le idee
+  si selezionano (da 1 a 5) e si condividono con un clic.
+- **Il mio profilo**: dati LinkedIn (anche dal PDF «Salva come PDF») piu'
+  passioni, preferenza B2B/B2C, settori, ruolo nel team, idee, vincoli.
+
+Al primo accesso il profilo si collega da solo se il nome Google corrisponde
+a un solo profilo libero; se no la prima schermata chiede «Chi sei?» con
+completamento del nome. Chi sbaglia si scollega con «Questo non è il mio
+profilo». Un **tutorial a fumetti** parte da solo la prima volta: i passi che
+chiedono un'azione vanno avanti quando la persona la fa. Si rivede da **?**.
+
+Solo per l'amministratore (`AMMINISTRATORI`):
+
+- **Regia**: tutte le idee generate da tutti, chi ha scelto chi, i compagni
+  suggeriti da Claude, e ogni post con chi e' stato invitato, chi e' in
+  squadra e chi si e' candidato. Filtro per persona o idea.
+- **Statistiche**: coppie che si formano, persone piu' cercate, settori,
+  B2B/B2C, accessi, crediti per persona (con «+5 crediti»), registro,
+  esportazione CSV e JSON.
+- **Importa** (non e' nel menu, si apre da `/#importa`): profili da CSV, JSON
+  o PDF di LinkedIn, aziende da AIDA.
+- **Vedi come utente**: pulsante in alto per usare la piattaforma come un
+  collega qualsiasi (niente Regia, bacheca e crediti come i loro). Il server
+  lo sa dall'intestazione `x-bbs-come-utente`, che puo' solo togliere
+  permessi.
 
 ## Struttura
 
@@ -57,7 +70,7 @@ database.
 | `AMMINISTRATORI` (o `BBS_AMMINISTRATORI`) | email di chi vede Statistiche e Importa |
 | `BBS_DOMINI`, `BBS_INVITATI` | facoltative: limitano l'accesso a certi domini o a un elenco di email; senza, entra qualunque account Google |
 | `BBS_MODELLO` | facoltativa, modello Claude (predefinito `claude-opus-5`) |
-| `BBS_TETTO_GIORNO` | facoltativa, generazioni al giorno per persona (predefinito 15) |
+| `BBS_CREDITI` | facoltativa, crediti di partenza per persona (predefinito 10) |
 
 ## Formato dell'import profili
 
