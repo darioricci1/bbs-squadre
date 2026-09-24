@@ -102,7 +102,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "1.2.2";
+const VERSION = "1.2.3";
 const $main = document.getElementById("main");
 const S = { dati: null, scheda: "persone", scelti: new Set(), filtro: "", ultima: null, stat: null, generando: false };
 
@@ -712,6 +712,7 @@ function importa() {
     </table></div>`;
   const leggi = (testo, regole) => {
     const t = testo.trim();
+    if (!t) throw new Error("Il riquadro è vuoto: scegli un file o incolla il testo, poi riprova.");
     let righe = t.startsWith("[") ? JSON.parse(t) : leggiCsv(t);
     return righe.map((r) => { const [o, altro] = mappa(r, regole); if (Object.keys(altro).length) o.altro = JSON.stringify(altro).slice(0, 480); return o; }).filter((r) => r.nome);
   };
