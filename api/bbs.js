@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.0.0
+// VERSION: 1.2.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -20,14 +20,13 @@
 //   POST importa-profili {righe}   POST importa-aziende {righe}
 //   POST scollega {id}              POST elimina-profilo {id}
 //
-// I dati stanno nel KV Upstash (lib/kv.js), sotto "bbs:".
+// I dati stanno su Postgres (Neon), vedi lib/db.js.
 
 import { verificaIdToken, clientDiAccesso } from "../lib/google-id.js";
 import { firma, cookieDaMettere, cookieDaTogliere } from "../lib/sessione.js";
-import { ceArchivio, comandi } from "../lib/kv.js";
 import {
-  K, esigiAccesso, sonoAmministratore, puoEntrare, corpoDi, nuovoId, tuttoHash, unoHash,
-  scriviHash, lista, segna, chiaveAzienda, profiloPubblico,
+  esigiAccesso, sonoAmministratore, puoEntrare, corpoDi, nuovoId, tutti, uno, scrivi, scriviMolti,
+  togli, ultimi, eventi, conta, ceArchivio, segna, chiaveAzienda, profiloPubblico,
 } from "../lib/bbs.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
@@ -41,9 +40,9 @@ function testo(v, max = 4000) { return String(v == null ? "" : v).trim().slice(0
 function ipDi(req) { return String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "?"; }
 
 async function mioProfilo(email) {
-  const u = await unoHash(K.utenti, email);
+  const u = await uno("utenti", email);
   if (!u || !u.profilo) return null;
-  const p = await unoHash(K.profili, u.profilo);
+  const p = await uno("profili", u.profilo);
   return p && p.email === email ? p : null;
 }
 
@@ -95,9 +94,8 @@ async function entra(req, res) {
   if (segreto.length < 16) return res.status(500).json({ error: "Accesso non configurato: manca SESSIONE_SEGRETO." });
   if (!ceArchivio()) return res.status(500).json({ error: "Archivio non configurato." });
 
-  const k = "bbs:porta:" + ipDi(req) + ":" + Math.floor(Date.now() / 600000);
-  const [n] = await comandi([["INCR", k], ["EXPIRE", k, 900]]);
-  if (Number(n) > 30) return res.status(429).json({ error: "Troppi tentativi. Riprova fra qualche minuto." });
+  const n = await conta("porta:" + ipDi(req), 600);
+  if (n > 30) return res.status(429).json({ error: "Troppi tentativi. Riprova fra qualche minuto." });
 
   let g;
   try { g = await verificaIdToken(corpoDi(req).credential); }
@@ -108,22 +106,22 @@ async function entra(req, res) {
   }
 
   const adesso = new Date().toISOString();
-  const prima = await unoHash(K.utenti, g.email);
+  const prima = await uno("utenti", g.email);
   const u = { profilo: null, primo: adesso, accessi: 0, ...(prima || {}), email: g.email, nome: g.nome, foto: g.foto, ultimo: adesso };
   u.accessi = (u.accessi || 0) + 1;
 
   // Primo accesso: se Dario ha importato un profilo con questa email, e' suo.
   if (!u.profilo) {
-    const profili = await tuttoHash(K.profili);
+    const profili = await tutti("profili");
     const suo = Object.values(profili).find((p) => p.emailAttesa && p.emailAttesa.toLowerCase() === g.email && !p.email);
     if (suo) {
       suo.email = g.email;
       if (!suo.foto && g.foto) suo.foto = g.foto;
-      await scriviHash(K.profili, suo.id, suo);
+      await scrivi("profili", suo.id, suo);
       u.profilo = suo.id;
     }
   }
-  await scriviHash(K.utenti, g.email, u);
+  await scrivi("utenti", g.email, u);
   await segna(g.email, prima ? "accesso" : "primo-accesso");
 
   res.setHeader("Set-Cookie", cookieDaMettere(await firma({ e: g.email, n: g.nome }, segreto)));
@@ -132,8 +130,8 @@ async function entra(req, res) {
 
 async function dati(chi, res) {
   const [profili, aziende, bacheca, generazioni, u] = await Promise.all([
-    tuttoHash(K.profili), tuttoHash(K.aziende), tuttoHash(K.bacheca), lista(K.generazioni, 300),
-    unoHash(K.utenti, chi.email),
+    tutti("profili"), tutti("aziende"), tutti("bacheca"), ultimi("generazioni", 300),
+    uno("utenti", chi.email),
   ]);
   const io = u && u.profilo && profili[u.profilo] && profili[u.profilo].email === chi.email ? u.profilo : null;
   return res.status(200).json({
@@ -147,27 +145,27 @@ async function dati(chi, res) {
 
 async function rivendica(chi, corpo, res) {
   if (await mioProfilo(chi.email)) return res.status(409).json({ error: "Hai gia' un profilo collegato." });
-  const p = await unoHash(K.profili, testo(corpo.id, 80));
+  const p = await uno("profili", testo(corpo.id, 80));
   if (!p) return res.status(404).json({ error: "Profilo non trovato" });
   if (p.email) return res.status(409).json({ error: "Questo profilo e' gia' stato preso. Se e' il tuo, scrivi a Dario." });
   p.email = chi.email;
-  await scriviHash(K.profili, p.id, p);
-  const u = (await unoHash(K.utenti, chi.email)) || { email: chi.email };
+  await scrivi("profili", p.id, p);
+  const u = (await uno("utenti", chi.email)) || { email: chi.email };
   u.profilo = p.id;
-  await scriviHash(K.utenti, chi.email, u);
+  await scrivi("utenti", chi.email, u);
   await segna(chi.email, "rivendica", { profilo: p.id, nome: p.nome });
   return res.status(200).json({ ok: true, id: p.id });
 }
 
 async function nuovoProfilo(chi, corpo, res) {
   if (await mioProfilo(chi.email)) return res.status(409).json({ error: "Hai gia' un profilo collegato." });
-  const u = (await unoHash(K.utenti, chi.email)) || { email: chi.email };
+  const u = (await uno("utenti", chi.email)) || { email: chi.email };
   const p = { id: nuovoId("p"), email: chi.email, nome: testo(corpo.nome, 120) || chi.nome, origine: "creato", creato: new Date().toISOString() };
   for (const c of CAMPI_PROFILO) if (corpo[c] != null && c !== "nome") p[c] = testo(corpo[c], c === "linkedinTesto" ? 20000 : 4000);
   if (!p.foto && u.foto) p.foto = u.foto;
-  await scriviHash(K.profili, p.id, p);
+  await scrivi("profili", p.id, p);
   u.profilo = p.id;
-  await scriviHash(K.utenti, chi.email, u);
+  await scrivi("utenti", chi.email, u);
   await segna(chi.email, "nuovo-profilo", { profilo: p.id, nome: p.nome });
   return res.status(200).json({ ok: true, id: p.id });
 }
@@ -179,7 +177,7 @@ async function aggiornaProfilo(chi, corpo, res) {
   p.extra = p.extra || {};
   for (const c of CAMPI_MIEI) if (corpo[c] != null) p.extra[c] = testo(corpo[c], 2000);
   p.aggiornato = new Date().toISOString();
-  await scriviHash(K.profili, p.id, p);
+  await scrivi("profili", p.id, p);
   await segna(chi.email, "profilo", { profilo: p.id });
   return res.status(200).json({ ok: true });
 }
@@ -189,7 +187,7 @@ async function idea(chi, corpo, res) {
   if (!io) return res.status(404).json({ error: "Prima collega il tuo profilo." });
   const titolo = testo(corpo.titolo, 160);
   if (!titolo) return res.status(400).json({ error: "Serve almeno un titolo." });
-  let i = corpo.id ? await unoHash(K.bacheca, testo(corpo.id, 80)) : null;
+  let i = corpo.id ? await uno("bacheca", testo(corpo.id, 80)) : null;
   if (i && i.autore !== io.id && !chi.admin) return res.status(403).json({ error: "Puoi modificare solo le tue idee." });
   if (!i) i = { id: nuovoId("i"), autore: io.id, autoreNome: io.nome, creata: new Date().toISOString(), membri: [io.id], interessati: [] };
   Object.assign(i, {
@@ -202,17 +200,17 @@ async function idea(chi, corpo, res) {
     origine: corpo.origine === "generata" ? "generata" : (i.origine || "manuale"),
     aggiornata: new Date().toISOString(),
   });
-  await scriviHash(K.bacheca, i.id, i);
+  await scrivi("bacheca", i.id, i);
   await segna(chi.email, corpo.id ? "idea-modificata" : "idea-pubblicata", { idea: i.id, titolo: i.titolo, origine: i.origine });
   return res.status(200).json({ ok: true, id: i.id });
 }
 
 async function ideaElimina(chi, corpo, res) {
   const io = await mioProfilo(chi.email);
-  const i = await unoHash(K.bacheca, testo(corpo.id, 80));
+  const i = await uno("bacheca", testo(corpo.id, 80));
   if (!i) return res.status(404).json({ error: "Idea non trovata" });
   if (!chi.admin && (!io || i.autore !== io.id)) return res.status(403).json({ error: "Puoi eliminare solo le tue idee." });
-  await comandi([["HDEL", K.bacheca, i.id]]);
+  await togli("bacheca", i.id);
   await segna(chi.email, "idea-eliminata", { idea: i.id, titolo: i.titolo });
   return res.status(200).json({ ok: true });
 }
@@ -220,19 +218,19 @@ async function ideaElimina(chi, corpo, res) {
 async function interesse(chi, corpo, res) {
   const io = await mioProfilo(chi.email);
   if (!io) return res.status(404).json({ error: "Prima collega il tuo profilo." });
-  const i = await unoHash(K.bacheca, testo(corpo.id, 80));
+  const i = await uno("bacheca", testo(corpo.id, 80));
   if (!i) return res.status(404).json({ error: "Idea non trovata" });
   const s = new Set(i.interessati || []);
   if (corpo.on) s.add(io.id); else s.delete(io.id);
   i.interessati = [...s];
-  await scriviHash(K.bacheca, i.id, i);
+  await scrivi("bacheca", i.id, i);
   await segna(chi.email, corpo.on ? "interesse" : "interesse-tolto", { idea: i.id, titolo: i.titolo, autore: i.autore });
   return res.status(200).json({ ok: true });
 }
 
 async function membro(chi, corpo, res) {
   const io = await mioProfilo(chi.email);
-  const i = await unoHash(K.bacheca, testo(corpo.id, 80));
+  const i = await uno("bacheca", testo(corpo.id, 80));
   if (!i) return res.status(404).json({ error: "Idea non trovata" });
   if (!chi.admin && (!io || i.autore !== io.id)) return res.status(403).json({ error: "Solo chi ha pubblicato l'idea sceglie la squadra." });
   const pid = testo(corpo.profilo, 80);
@@ -242,7 +240,7 @@ async function membro(chi, corpo, res) {
     s.add(pid);
   } else if (pid !== i.autore) s.delete(pid);
   i.membri = [...s];
-  await scriviHash(K.bacheca, i.id, i);
+  await scrivi("bacheca", i.id, i);
   await segna(chi.email, corpo.on ? "membro-aggiunto" : "membro-tolto", { idea: i.id, titolo: i.titolo, profilo: pid });
   return res.status(200).json({ ok: true });
 }
@@ -252,14 +250,14 @@ async function membro(chi, corpo, res) {
 async function importaProfili(chi, corpo, res) {
   const righe = Array.isArray(corpo.righe) ? corpo.righe : [];
   if (!righe.length) return res.status(400).json({ error: "Nessuna riga da importare." });
-  const esistenti = await tuttoHash(K.profili);
+  const esistenti = await tutti("profili");
   const perLinkedin = {}, perNome = {};
   for (const p of Object.values(esistenti)) {
     if (p.linkedin) perLinkedin[String(p.linkedin).toLowerCase().replace(/\/+$/, "")] = p;
     perNome[chiaveAzienda(p.nome)] = p;
   }
   let nuovi = 0, aggiornati = 0;
-  const cmd = [];
+  const scritti = [];
   for (const r of righe.slice(0, 500)) {
     const nome = testo(r.nome, 120);
     if (!nome) continue;
@@ -268,9 +266,9 @@ async function importaProfili(chi, corpo, res) {
     if (p) aggiornati++; else { p = { id: nuovoId("p"), origine: "import", creato: new Date().toISOString() }; nuovi++; }
     for (const c of CAMPI_PROFILO) if (r[c] != null && String(r[c]).trim()) p[c] = testo(r[c], c === "linkedinTesto" ? 20000 : 4000);
     if (r.email) p.emailAttesa = testo(r.email, 200).toLowerCase();
-    cmd.push(["HSET", K.profili, p.id, JSON.stringify(p)]);
+    scritti.push({ id: p.id, dati: p });
   }
-  for (let i = 0; i < cmd.length; i += 100) await comandi(cmd.slice(i, i + 100));
+  await scriviMolti("profili", scritti);
   await segna(chi.email, "import-profili", { nuovi, aggiornati });
   return res.status(200).json({ ok: true, nuovi, aggiornati });
 }
@@ -278,29 +276,29 @@ async function importaProfili(chi, corpo, res) {
 async function importaAziende(chi, corpo, res) {
   const righe = Array.isArray(corpo.righe) ? corpo.righe : [];
   if (!righe.length) return res.status(400).json({ error: "Nessuna riga da importare." });
-  const cmd = [];
+  const scritti = [];
   for (const r of righe.slice(0, 2000)) {
     const k = chiaveAzienda(r.nome);
     if (!k) continue;
     const a = {};
     for (const [c, v] of Object.entries(r)) if (v != null && String(v).trim()) a[c] = testo(v, 500);
     a.chiave = k;
-    cmd.push(["HSET", K.aziende, k, JSON.stringify(a)]);
+    scritti.push({ id: k, dati: a });
   }
-  for (let i = 0; i < cmd.length; i += 100) await comandi(cmd.slice(i, i + 100));
-  await segna(chi.email, "import-aziende", { quante: cmd.length });
-  return res.status(200).json({ ok: true, importate: cmd.length });
+  await scriviMolti("aziende", scritti);
+  await segna(chi.email, "import-aziende", { quante: scritti.length });
+  return res.status(200).json({ ok: true, importate: scritti.length });
 }
 
 async function scollega(chi, corpo, res) {
-  const p = await unoHash(K.profili, testo(corpo.id, 80));
+  const p = await uno("profili", testo(corpo.id, 80));
   if (!p) return res.status(404).json({ error: "Profilo non trovato" });
   const email = p.email;
   delete p.email;
-  await scriviHash(K.profili, p.id, p);
+  await scrivi("profili", p.id, p);
   if (email) {
-    const u = await unoHash(K.utenti, email);
-    if (u) { u.profilo = null; await scriviHash(K.utenti, email, u); }
+    const u = await uno("utenti", email);
+    if (u) { u.profilo = null; await scrivi("utenti", email, u); }
   }
   await segna(chi.email, "scollega", { profilo: p.id, email });
   return res.status(200).json({ ok: true });
@@ -308,22 +306,22 @@ async function scollega(chi, corpo, res) {
 
 async function eliminaProfilo(chi, corpo, res) {
   const id = testo(corpo.id, 80);
-  await comandi([["HDEL", K.profili, id]]);
+  await togli("profili", id);
   await segna(chi.email, "elimina-profilo", { profilo: id });
   return res.status(200).json({ ok: true });
 }
 
 async function statistiche(res) {
-  const [profili, utenti, bacheca, generazioni, eventi, aziende] = await Promise.all([
-    tuttoHash(K.profili), tuttoHash(K.utenti), tuttoHash(K.bacheca),
-    lista(K.generazioni, 1000), lista(K.eventi, 1000), tuttoHash(K.aziende),
+  const [profili, utenti, bacheca, generazioni, registro, aziende] = await Promise.all([
+    tutti("profili"), tutti("utenti"), tutti("bacheca"),
+    ultimi("generazioni", 1000), eventi(1000), tutti("aziende"),
   ]);
   const nomeDi = (id) => (profili[id] && profili[id].nome) || id;
 
   // Chi viene messo insieme a chi: selezioni nella generazione, squadre e
   // interessi in bacheca. Ogni coppia pesa quante volte compare.
   const coppie = {}, cercati = {};
-  const conta = (ids, peso) => {
+  const contaCoppie = (ids, peso) => {
     const u = [...new Set(ids.filter(Boolean))].sort();
     for (let i = 0; i < u.length; i++) for (let j = i + 1; j < u.length; j++) {
       const k = u[i] + "|" + u[j];
@@ -333,13 +331,13 @@ async function statistiche(res) {
   for (const g of generazioni) {
     const autore = utenti[g.chi] && utenti[g.chi].profilo;
     if (g.modo === "gruppo") {
-      conta([autore, ...(g.persone || [])], 1);
+      contaCoppie([autore, ...(g.persone || [])], 1);
       for (const p of g.persone || []) if (p !== autore) cercati[p] = (cercati[p] || 0) + 1;
     }
   }
   for (const i of Object.values(bacheca)) {
-    conta(i.membri || [], 3);
-    for (const p of i.interessati || []) conta([i.autore, p], 1);
+    contaCoppie(i.membri || [], 3);
+    for (const p of i.interessati || []) contaCoppie([i.autore, p], 1);
   }
 
   const settori = {}, modelli = {};
@@ -372,6 +370,6 @@ async function statistiche(res) {
       .map((u) => ({ ...u, profiloNome: u.profilo ? nomeDi(u.profilo) : null })),
     generazioni: generazioni.map((g) => ({ ...g, personeNomi: (g.persone || []).map(nomeDi) })),
     bacheca: Object.values(bacheca).map((i) => ({ ...i, membriNomi: (i.membri || []).map(nomeDi), interessatiNomi: (i.interessati || []).map(nomeDi) })),
-    eventi: eventi.slice(0, 400),
+    eventi: registro.slice(0, 400),
   });
 }

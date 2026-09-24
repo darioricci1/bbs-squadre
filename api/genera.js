@@ -1,16 +1,15 @@
 // api/genera.js
-// VERSION: 1.0.0
+// VERSION: 1.1.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
 //   modo "scopri": solo io -> idee su misura per me, e con chi farle
-// Ogni generazione finisce in bbs:generazioni (per le statistiche).
+// Ogni generazione finisce nella tabella generazioni (per le statistiche).
 //
 // Richiede ANTHROPIC_API_KEY. Il modello si cambia con BBS_MODELLO.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { K, esigiAccesso, corpoDi, nuovoId, tuttoHash, unoHash, inTesta, segna, aziendaPer } from "../lib/bbs.js";
-import { comandi } from "../lib/kv.js";
+import { esigiAccesso, corpoDi, nuovoId, tutti, uno, scrivi, conta, segna, aziendaPer } from "../lib/bbs.js";
 
 export const config = { maxDuration: 300 };
 
@@ -111,8 +110,8 @@ export default async function handler(req, res) {
   const modo = corpo.modo === "scopri" ? "scopri" : "gruppo";
   const note = String(corpo.note || "").slice(0, 1500);
 
-  const u = await unoHash(K.utenti, chi.email);
-  const [profili, aziende] = await Promise.all([tuttoHash(K.profili), tuttoHash(K.aziende)]);
+  const u = await uno("utenti", chi.email);
+  const [profili, aziende] = await Promise.all([tutti("profili"), tutti("aziende")]);
   const io = u && u.profilo && profili[u.profilo] && profili[u.profilo].email === chi.email ? profili[u.profilo] : null;
   if (!io) return res.status(400).json({ error: "Prima collega il tuo profilo (scheda Il mio profilo)." });
 
@@ -121,9 +120,8 @@ export default async function handler(req, res) {
   if (modo === "gruppo" && !scelti.length) return res.status(400).json({ error: "Scegli almeno una persona con cui lavorare." });
 
   if (!chi.admin) {
-    const k = "bbs:tetto:" + chi.email + ":" + new Date().toISOString().slice(0, 10);
-    const [n] = await comandi([["INCR", k], ["EXPIRE", k, 90000]]);
-    if (Number(n) > TETTO_GIORNALIERO) return res.status(429).json({ error: `Hai gia' fatto ${TETTO_GIORNALIERO} generazioni oggi: riprova domani.` });
+    const n = await conta("tetto:" + chi.email + ":" + new Date().toISOString().slice(0, 10), 90000);
+    if (n > TETTO_GIORNALIERO) return res.status(429).json({ error: `Hai gia' fatto ${TETTO_GIORNALIERO} generazioni oggi: riprova domani.` });
   }
 
   const gruppo = [io, ...scelti.map((id) => profili[id])];
@@ -171,7 +169,7 @@ export default async function handler(req, res) {
   }
 
   const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idee, modello: risposta.model };
-  await inTesta(K.generazioni, g, 2000);
+  await scrivi("generazioni", g.id, g);
   await segna(chi.email, "generazione", { modo, persone: scelti, titoli: idee.map((i) => i.titolo) });
   return res.status(200).json(g);
 }

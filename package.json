@@ -1,10 +1,11 @@
 {
   "name": "bbs-squadre",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "Piattaforma per formare i gruppi del project work BBS e generare idee di startup",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.128.0"
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@neondatabase/serverless": "^1.1.0"
   }
 }

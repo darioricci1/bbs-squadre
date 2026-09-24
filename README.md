@@ -32,11 +32,14 @@ partecipanti.
 public/index.html   l'applicazione (una pagina)
 api/bbs.js          accesso, profili, bacheca, import, statistiche (?a=...)
 api/genera.js       generazione delle idee con Claude
-lib/                accesso Google, cookie firmato, archivio KV, funzioni comuni
+lib/                accesso Google, cookie firmato, database Neon, funzioni comuni
 ```
 
-I dati stanno nell'archivio KV (Upstash), sotto le chiavi `bbs:`. Nel repo,
-che è pubblico, non c'è nessun dato delle persone.
+I dati stanno su Postgres (Neon): le tabelle `profili`, `aziende`, `bacheca`,
+`utenti`, `generazioni`, `eventi` e `contatori` si creano da sole alla prima
+richiesta (vedi `lib/db.js`). Nel repo, che è pubblico, non c'è nessun dato
+delle persone. Le funzioni girano a Francoforte (`vercel.json`), vicino al
+database.
 
 ## Variabili d'ambiente su Vercel
 
@@ -44,7 +47,7 @@ che è pubblico, non c'è nessun dato delle persone.
 |---|---|
 | `GOOGLE_CLIENT_ID_ACCESSO` (o `GOOGLE_CLIENT_ID`) | client OAuth per il pulsante Google; nel client va aggiunta l'origine del sito |
 | `SESSIONE_SEGRETO` | segreto per firmare il cookie (almeno 16 caratteri) |
-| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | archivio Upstash |
+| `DATABASE_URL` (o `POSTGRES_URL`) | database Neon; la mette Vercel quando colleghi il database al progetto |
 | `ANTHROPIC_API_KEY` | generazione delle idee |
 | `AMMINISTRATORI` (o `BBS_AMMINISTRATORI`) | email di chi vede Statistiche e Importa |
 | `BBS_DOMINI`, `BBS_INVITATI` | facoltative: limitano l'accesso a certi domini o a un elenco di email; senza, entra qualunque account Google |
