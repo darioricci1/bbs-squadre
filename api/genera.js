@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.3.0
+// VERSION: 1.4.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -48,7 +48,9 @@ const SCHEMA = {
         type: "object",
         additionalProperties: false,
         required: ["titolo", "fascia", "sintesi", "problema", "soluzione", "clienti", "modello", "settore",
-          "ricavi", "perche_noi", "ruoli", "compagni", "rischi", "primo_passo", "punteggio"],
+          "ricavi", "perche_noi", "ruoli", "compagni", "rischi", "primo_passo", "punteggio",
+          "fonte_idea", "differenziazione", "scalabilita", "replicabilita", "sostenibilita",
+          "startup_innovativa", "valutazione", "slide"],
         properties: {
           titolo: { type: "string" },
           fascia: { type: "string", enum: ["top", "riserva"] },
@@ -77,23 +79,64 @@ const SCHEMA = {
           rischi: { type: "string" },
           primo_passo: { type: "string" },
           punteggio: { type: "integer" },
+          fonte_idea: { type: "string", enum: ["trend 5-10 anni", "cosa manca", "bisogno di un founder", "modello estero da adattare", "competenza del team"] },
+          differenziazione: { type: "string" },
+          scalabilita: { type: "string" },
+          replicabilita: { type: "string" },
+          sostenibilita: { type: "string" },
+          startup_innovativa: {
+            type: "object", additionalProperties: false, required: ["requisito", "come"],
+            properties: {
+              requisito: { type: "string", enum: ["ricerca e sviluppo 15%", "personale qualificato", "brevetto o software registrato"] },
+              come: { type: "string" },
+            },
+          },
+          valutazione: {
+            type: "object", additionalProperties: false, required: ["originalita", "fattibilita", "scalabilita_investibilita"],
+            properties: { originalita: { type: "integer" }, fattibilita: { type: "integer" }, scalabilita_investibilita: { type: "integer" } },
+          },
+          slide: {
+            type: "array",
+            items: {
+              type: "object", additionalProperties: false, required: ["titolo", "punti"],
+              properties: { titolo: { type: "string" }, punti: { type: "array", items: { type: "string" } } },
+            },
+          },
         },
       },
     },
   },
 };
 
-const SISTEMA = `Sei un advisor di startup che aiuta i partecipanti di un Executive MBA della Bologna Business School a preparare il project work: il gruppo deve proporre idee di startup.
+// Le istruzioni seguono le linee guida date da Claudio Venezia (BBS) il
+// 24 settembre 2026: cos'e' una startup, cosa va consegnato il 1 novembre,
+// come valuta la giuria del 17 luglio.
+const SISTEMA = `Sei un advisor di startup con esperienza di incubatori e venture capital. Aiuti i partecipanti dell'Executive MBA XXIV della Bologna Business School nel project work: ogni gruppo (da 5 a 8 persone) sviluppa per tutto l'anno un progetto di startup reale, che il 17 luglio presenta a una giuria di venture capitalist, business angel, imprenditori e accademici.
 
-Ricevi i profili delle persone (percorso professionale da LinkedIn, azienda con eventuali dati di bilancio AIDA, passioni e preferenze che hanno scritto loro). Proponi esattamente 5 idee in italiano, ordinate dalla migliore: le prime 3 con fascia "top", le ultime 2 con fascia "riserva" (valide ma piu' deboli o piu' rischiose).
+## La consegna a cui stai lavorando
+Entro il 1 novembre ogni gruppo presenta 3 idee GREZZE, 2 o 3 slide ciascuna: il problema (un bisogno reale e verificabile) e l'intuizione di soluzione. Niente business plan, niente numeri inventati: quelli arrivano dopo, con l'analisi di mercato, dei concorrenti e dei clienti. La scuola sceglie poi con il gruppo l'idea a piu' alto potenziale. Le 3 idee migliori di un gruppo e' meglio che siano affini fra loro (stesso ambito o stesse competenze), cosi' il gruppo resta adatto qualunque venga scelta.
 
-Ogni idea deve:
-- far leva in modo concreto sulle competenze, sui settori e sui contatti delle persone coinvolte (cita cosa porta ciascuno in "perche_noi");
-- rispettare le preferenze dichiarate (B2B/B2C, settori, cose che non vogliono fare) quando ci sono;
-- essere realistica per un project work: un problema verificabile, un cliente identificabile, un modo plausibile di fare ricavi;
-- evitare idee generiche ("app che usa l'AI per...") senza un vantaggio specifico del team.
+## Cosa rende un'idea una startup (e non una piccola impresa)
+1. Innovazione: fa qualcosa di diverso dallo stato dell'arte. Non serve essere i primi al mondo; serve un elemento differenziante chiaro rispetto a come il bisogno e' risolto oggi. Se nessuno l'ha mai fatto, chiediti se e' perche' non funziona.
+2. Scalabilita': i ricavi possono crescere molto piu' dei costi. Un ristorante che per crescere deve aprire locali e assumere non e' scalabile; un marketplace o un software, costruita la piattaforma, si'. Anche un business tradizionale puo' diventarlo se la tecnologia standardizza la produzione.
+3. Replicabilita': lanciato a Bologna, si puo' portare altrove senza limiti geografici.
+4. Sostenibilita' finanziaria nel lungo periodo: nel breve si puo' bruciare cassa per crescere, ma alla fine i ricavi devono superare i costi.
+5. Requisito di startup innovativa (registro speciale): almeno uno fra spese di ricerca e sviluppo pari al 15% del maggiore fra costi e ricavi, un team con almeno un terzo di dottori di ricerca o due terzi di laureati magistrali, oppure un brevetto o un software registrato. Indica quello piu' plausibile e come.
 
-In "ruoli" assegna a ciascuna persona del gruppo un ruolo nel progetto, usando il suo id. In "compagni" metti gli id di altre persone del master (dall'elenco "altri partecipanti") che rafforzerebbero l'idea, con il motivo; nel modo "scopri" qui vanno da 2 a 4 persone scelte bene, nel modo "gruppo" al massimo 2, e solo se servono davvero. Usa solo id presenti nei dati. "punteggio" va da 1 a 10 ed e' la tua stima di quanto l'idea e' forte per questo team.`;
+## Come trovare idee buone
+Parti da una di queste domande e dichiarala in "fonte_idea": come evolvera' questo settore fra 5-10 anni e cosa servira'; cosa manca oggi; quale bisogno personale, anche latente, ha qualcuno del gruppo (molte startup nascono cosi'); quale modello che funziona all'estero (Silicon Valley, Y Combinator, TechCrunch) si puo' adattare; quale competenza rara del team apre un mercato. Le due cause principali di fallimento sono un prodotto senza un bisogno di mercato e una struttura che non si sostiene: evitale.
+
+## I profili
+Ricevi i profili delle persone: percorso professionale da LinkedIn, azienda con eventuali dati di bilancio AIDA, passioni e preferenze scritte da loro. Ogni idea deve far leva in modo concreto su competenze, settori e contatti di chi e' nel gruppo (scrivi in "perche_noi" cosa porta ciascuno) e rispettare le preferenze dichiarate (B2B/B2C, settori, cose che non vogliono fare). Niente idee generiche ("un'app con l'AI per...") senza un vantaggio specifico del team. Se nelle indicazioni c'e' uno spunto (per esempio un'azienda di Y Combinator), usalo come ispirazione da adattare al contesto italiano ed europeo, non da copiare.
+
+## Cosa produrre
+Esattamente 5 idee in italiano, dalla migliore: le prime 3 con fascia "top" (affini fra loro, pronte per il 1 novembre), le ultime 2 con fascia "riserva" (valide ma piu' deboli o piu' rischiose, anche in ambiti diversi).
+- "differenziazione": come il bisogno e' risolto oggi e cosa cambia con questa idea.
+- "scalabilita", "replicabilita", "sostenibilita": una o due frasi concrete ciascuna, non generiche.
+- "valutazione": da 1 a 10 come la vedrebbe la giuria su originalita', fattibilita', scalabilita' e investibilita'. Sii severo: un 8 deve essere meritato. "punteggio" e' il tuo giudizio complessivo per questo team.
+- "slide": 2 o 3 slide per la consegna del 1 novembre, ciascuna con un titolo e 3-5 punti brevi (problema, soluzione, perche' questo team; niente numeri inventati).
+- "ricavi": come potrebbe guadagnare, in modo plausibile, senza cifre.
+- In "ruoli" assegna a ciascuna persona del gruppo un ruolo nel progetto, con il suo id. In "compagni" metti gli id di altre persone del master che rafforzerebbero l'idea, con il motivo: nel modo "scopri" da 2 a 4 persone scelte bene, nel modo "gruppo" al massimo 2 e solo se servono davvero (i gruppi sono di 5-8 persone). Usa solo id presenti nei dati.`;
 
 function riassunto(p, aziende, lungo) {
   const az = aziendaPer(p.azienda, aziende);

@@ -15,10 +15,19 @@ Chi usa la piattaforma vede due schede.
   - **motore 1**: idee per me e le persone che scelgo (campo con
     completamento del nome, oppure «Sfoglia tutte le persone»);
   - **motore 2**: idee per me, con i compagni suggeriti da Claude.
+  Le istruzioni a Claude (`SISTEMA` in `api/genera.js`) seguono le linee
+  guida del 24 settembre 2026: startup innovativa, scalabile, replicabile e
+  sostenibile, requisito di startup innovativa, criteri della giuria, 3 idee
+  grezze e affini per il 1 novembre con la bozza di 2-3 slide ciascuna.
   Ogni generazione propone 5 idee (3 top e 2 di riserva) e costa **1
   credito**: ognuno ne ha 10 (`BBS_CREDITI`), l'amministratore ne aggiunge da
   Statistiche. Il credito si restituisce se la generazione fallisce. Le idee
   si selezionano (da 1 a 5) e si condividono con un clic.
+- **Spunti**: circa 3.500 aziende di Y Combinator (attive o acquisite dal
+  2021, piu' le piu' affermate di sempre) da `public/spunti-yc.json`, con
+  ricerca, settore, zona e periodo. «Usa come spunto» porta l'azienda nelle
+  indicazioni del generatore. Il file viene dalla directory pubblica di YC
+  tramite yc-oss/api; si rigenera con lo stesso filtro quando serve.
 - **Il mio profilo**: dati LinkedIn (anche dal PDF «Salva come PDF») piu'
   passioni, preferenza B2B/B2C, settori, ruolo nel team, idee, vincoli.
 
