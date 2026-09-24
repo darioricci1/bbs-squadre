@@ -102,7 +102,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "1.2.1";
+const VERSION = "1.2.2";
 const $main = document.getElementById("main");
 const S = { dati: null, scheda: "persone", scelti: new Set(), filtro: "", ultima: null, stat: null, generando: false };
 
@@ -673,6 +673,7 @@ function mappa(riga, regole) {
   return [out, altro];
 }
 const REGOLE_PROFILI = [
+  [/^(linkedintesto|testo|testo completo|testo linkedin)$/, "linkedinTesto"],
   [/^(nome|name|full ?name|nome e cognome)$/, "nome"], [/mail/, "email"], [/linkedin|profile ?url|^url$/, "linkedin"],
   [/headline|titolo|^title$/, "titolo"], [/company|azienda|employer|organi/, "azienda"], [/position|ruolo|job/, "ruolo"],
   [/location|citt|city/, "citta"], [/experience|esperienz|summary|about|riepilogo|informazioni/, "esperienze"],
