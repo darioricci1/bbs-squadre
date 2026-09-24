@@ -137,6 +137,15 @@
   .tour-fumetto.al-centro{top:50%;left:50%;transform:translate(-50%,-50%)}
   .tour-fumetto.al-centro::before{display:none}
   .tour-testo{margin-top:4px;line-height:1.45}
+  .picker-scatola{position:relative}
+  .picker-chip{display:contents}
+  .picker-freccia{border:0;background:none;color:var(--grigio);cursor:pointer;font-size:16px;padding:0 6px}
+  .elenco-persone{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:6;background:var(--carta);border:1px solid var(--bordo);border-radius:10px;box-shadow:var(--ombra);max-height:300px;overflow-y:auto}
+  .elenco-testa{position:sticky;top:0;background:var(--carta);display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--bordo)}
+  .voce-persona{display:flex;align-items:flex-start;gap:10px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--bordo);font-weight:400;margin:0}
+  .voce-persona:last-child{border-bottom:0}
+  .voce-persona.attivo,.voce-persona:hover{background:var(--accento-chiaro)}
+  .voce-persona input{margin-top:3px;flex:none}
   .scelti{position:sticky;bottom:12px;margin-top:16px}
   .num{font-size:28px;font-weight:700;letter-spacing:-.02em}
   table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -161,7 +170,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.0.2";
+const VERSION = "2.1.0";
 const $main = document.getElementById("main");
 const S = { aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -278,40 +287,77 @@ function sezione(id) {
   return document.getElementById(id);
 }
 
-// Scelta di persone con completamento del nome: serve sia per il gruppo del
-// motore 1 sia per decidere con chi condividere un'idea.
+// Scelta di persone: cliccando si apre l'elenco di tutti in ordine
+// alfabetico, con una casella da spuntare per ciascuno (se ne scelgono quante
+// si vuole, l'elenco resta aperto). Scrivendo l'elenco si restringe; quando
+// resta una sola persona, Invio la spunta. Serve per il gruppo del motore 1 e
+// per decidere con chi condividere un'idea.
 function pickerPersone(box, scelti, alCambio, segnaposto) {
   const io = S.dati.io.profilo;
-  let trovati = [], sel = 0;
-  const disegnaP = () => {
-    box.innerHTML = `<div class="picker">
-      ${[...scelti].map((id) => `<span class="chip">${esc((profilo(id) || {}).nome || "?")}<button type="button" data-via="${id}" aria-label="Togli">×</button></span>`).join("")}
-      <div class="completa picker-campo"><input type="text" data-tour="pick" placeholder="${esc(segnaposto || "Scrivi un nome…")}" autocomplete="off"><div class="suggerimenti"></div></div>
-    </div>`;
-    const inp = box.querySelector("input"), sug = box.querySelector(".suggerimenti");
-    const mostra = () => {
-      const parole = senzaAccenti(inp.value).split(/[\s'’-]+/).filter(Boolean);
-      trovati = !parole.length ? [] : S.dati.profili.filter((p) => p.id !== io && !scelti.has(p.id) && parole.every((w) =>
-        senzaAccenti(p.nome).split(/[\s'’,.-]+/).some((x) => x.startsWith(w)))).slice(0, 7);
-      sel = 0;
-      sug.innerHTML = trovati.map((p, i) => `<div class="sugg ${i === sel ? "attivo" : ""}" data-i="${i}"><b>${esc(p.nome)}</b>
-        <span class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || (p.titolo || "").slice(0, 60))}</span></div>`).join("");
-    };
-    const aggiungi = (p) => { scelti.add(p.id); disegnaP(); box.querySelector("input").focus(); alCambio && alCambio(); };
-    inp.oninput = mostra;
-    inp.onkeydown = (e) => {
-      if (e.key === "Backspace" && !inp.value && scelti.size) { scelti.delete([...scelti].pop()); disegnaP(); box.querySelector("input").focus(); alCambio && alCambio(); return; }
-      if (!trovati.length) return;
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault(); sel = (sel + (e.key === "ArrowDown" ? 1 : trovati.length - 1)) % trovati.length;
-        sug.querySelectorAll(".sugg").forEach((el, i) => el.classList.toggle("attivo", i === sel));
-      } else if (e.key === "Enter") { e.preventDefault(); aggiungi(trovati[sel]); }
-    };
-    sug.onmousedown = (e) => { const el = e.target.closest("[data-i]"); if (el) { e.preventDefault(); aggiungi(trovati[Number(el.dataset.i)]); } };
-    inp.onblur = () => setTimeout(() => { sug.innerHTML = ""; }, 150);
-    box.querySelectorAll("[data-via]").forEach((b) => { b.onclick = () => { scelti.delete(b.dataset.via); disegnaP(); alCambio && alCambio(); }; });
+  const tutti = S.dati.profili.filter((p) => p.id !== io)
+    .sort((x, y) => String(x.nome).localeCompare(String(y.nome), "it", { sensitivity: "base" }));
+  let trovati = [], sel = 0, aperto = false;
+  box.innerHTML = `<div class="picker-scatola">
+    <div class="picker"><span class="picker-chip"></span>
+      <div class="picker-campo"><input type="text" data-tour="pick" placeholder="${esc(segnaposto || "Clicca per scegliere, o scrivi un nome…")}" autocomplete="off"></div>
+      <button type="button" class="picker-freccia" aria-label="Apri l'elenco">▾</button></div>
+    <div class="elenco-persone" hidden></div></div>`;
+  const inp = box.querySelector("input"), elenco = box.querySelector(".elenco-persone"), chip = box.querySelector(".picker-chip");
+  const cambiato = () => { disegnaChip(); if (aperto) disegnaElenco(); alCambio && alCambio(); };
+  const disegnaChip = () => {
+    chip.innerHTML = [...scelti].map((id) => `<span class="chip">${esc((profilo(id) || {}).nome || "?")}<button type="button" data-via="${id}" aria-label="Togli">×</button></span>`).join("");
+    chip.querySelectorAll("[data-via]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); scelti.delete(b.dataset.via); cambiato(); }; });
   };
-  disegnaP();
+  const disegnaElenco = () => {
+    const parole = senzaAccenti(inp.value).split(/[\s'’-]+/).filter(Boolean);
+    trovati = tutti.filter((p) => parole.every((w) => senzaAccenti(p.nome).split(/[\s'’,.-]+/).some((x) => x.startsWith(w))));
+    if (sel >= trovati.length) sel = Math.max(0, trovati.length - 1);
+    elenco.innerHTML = `<div class="elenco-testa piccolo">${trovati.length === tutti.length ? tutti.length + " persone" : trovati.length + " su " + tutti.length}${scelti.size ? " · " + scelti.size + " scelte" : ""}
+        <span class="spazio"></span><button type="button" class="btn piccolo" data-fatto>Fatto</button></div>` +
+      (trovati.map((p, i) => `<label class="voce-persona ${i === sel ? "attivo" : ""}" data-i="${i}">
+        <input type="checkbox" ${scelti.has(p.id) ? "checked" : ""}>
+        <span><b>${esc(p.nome)}</b> <span class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || (p.titolo || "").slice(0, 60))}</span></span></label>`).join("")
+       || '<div class="voce-persona piccolo">Nessun nome così.</div>');
+    elenco.querySelectorAll(".voce-persona[data-i]").forEach((el) => {
+      el.querySelector("input").onchange = (e) => {
+        const p = trovati[Number(el.dataset.i)];
+        if (e.target.checked) scelti.add(p.id); else scelti.delete(p.id);
+        sel = Number(el.dataset.i);
+        cambiato(); inp.focus();
+      };
+    });
+    const fatto = elenco.querySelector("[data-fatto]");
+    if (fatto) fatto.onclick = () => chiudi();
+    const att = elenco.querySelector(".voce-persona.attivo");
+    if (att) att.scrollIntoView({ block: "nearest" });
+  };
+  const apri = () => { if (aperto) return; aperto = true; elenco.hidden = false; disegnaElenco(); };
+  const chiudi = () => { aperto = false; elenco.hidden = true; inp.value = ""; };
+  const spunta = (p) => { if (scelti.has(p.id)) scelti.delete(p.id); else scelti.add(p.id); cambiato(); };
+  inp.onfocus = apri;
+  inp.onclick = apri;
+  box.querySelector(".picker-freccia").onclick = () => { if (aperto) chiudi(); else { apri(); inp.focus(); } };
+  inp.oninput = () => { sel = 0; apri(); disegnaElenco(); };
+  inp.onkeydown = (e) => {
+    if (e.key === "Escape") { chiudi(); inp.blur(); return; }
+    if (e.key === "Backspace" && !inp.value && scelti.size) { scelti.delete([...scelti].pop()); cambiato(); return; }
+    if (!aperto) apri();
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!trovati.length) return;
+      sel = (sel + (e.key === "ArrowDown" ? 1 : trovati.length - 1)) % trovati.length;
+      disegnaElenco();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (!trovati.length) return;
+      spunta(trovati[trovati.length === 1 ? 0 : sel]);
+      if (trovati.length === 1) { inp.value = ""; sel = 0; disegnaElenco(); }
+    }
+  };
+  // clic fuori: si chiude
+  const fuori = (e) => { if (!box.isConnected) return document.removeEventListener("mousedown", fuori); if (aperto && !box.contains(e.target)) chiudi(); };
+  document.addEventListener("mousedown", fuori);
+  disegnaChip();
 }
 
 // ---------------------------------------------------------------- persone
@@ -460,7 +506,7 @@ function genera() {
   pickerPersone(document.getElementById("pickGruppo"), S.scelti, () => {
     const b = document.getElementById("gGruppo");
     if (b) b.disabled = blocca || !S.scelti.size;
-  }, "Scrivi un nome: Mario, Rossi…");
+  }, "Clicca per vedere tutti, o scrivi un nome…");
   document.getElementById("note").addEventListener("input", (e) => { S.note = e.target.value; });
   const vai = (modo) => async () => {
     S.generando = true; genera();
@@ -606,7 +652,7 @@ function apriEditor(post) {
       <div class="riga" style="margin-top:14px"><span class="spazio"></span><button class="btn" data-chiudi>Annulla</button>
         <button class="btn primario" id="ePubblica">${post.id ? "Salva" : "Pubblica"}</button></div>
     </div>`;
-    if (visibilita === "scelti") pickerPersone(velo.querySelector("#ePick"), destinatari, null, "Con chi la condividi? Scrivi un nome…");
+    if (visibilita === "scelti") pickerPersone(velo.querySelector("#ePick"), destinatari, null, "Con chi la condividi? Clicca o scrivi un nome…");
   };
   velo.addEventListener("click", async (ev) => {
     if (ev.target === velo || ev.target.closest("[data-chiudi]")) return chiudi();
@@ -1020,7 +1066,7 @@ const TOUR = [
   { sel: '[data-scheda="bacheca"]', azione: true, testo: "Ora andiamo alla home: <b>clicca «Bacheca»</b>." },
   { sel: '[data-tour="nuova"]', testo: "Qui pubblichi un'idea, o un gruppo fino a 5. Decidi tu se la vede <b>tutto il master</b> o <b>solo i compagni che scegli</b>." },
   { sel: '[data-tour="motore1"]', testo: "Sotto la bacheca ci sono i due motori. Il <b>motore 1</b> genera idee per te e le persone con cui vorresti lavorare." },
-  { sel: '#pickGruppo [data-tour="pick"]', testo: "Scrivi qui un nome e sceglilo dall'elenco: puoi aggiungere più persone." },
+  { sel: '#pickGruppo [data-tour="pick"]', testo: "Clicca qui: si apre l'elenco di tutti in ordine alfabetico. <b>Spunta chi vuoi</b>, oppure scrivi un nome per filtrare." },
   { sel: '[data-tour="motore2"]', testo: "Il <b>motore 2</b> parte solo da te: propone idee e ti suggerisce con chi farle." },
   { sel: '[data-tour="crediti"]', testo: "Ogni generazione costa <b>1 credito</b>. Usali con calma: prima completa il profilo, le idee vengono meglio." },
   { testo: "<b>Fatto!</b> Quando Claude ti propone le idee, selezionane da 1 a 5 e premi <b>Condividi</b>.<br>Il tutorial lo ritrovi dal pulsante <b>?</b> in alto." },
