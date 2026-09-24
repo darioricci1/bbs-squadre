@@ -78,6 +78,24 @@
   .avviso.info{background:var(--accento-chiaro);color:var(--accento)}
   .porta{max-width:440px;margin:60px auto;text-align:center}
   #pulsante{display:flex;justify-content:center;min-height:44px;margin:18px 0}
+  .lista-persone{background:var(--carta);border:1px solid var(--bordo);border-radius:14px;overflow:hidden;box-shadow:var(--ombra)}
+  .riga-persona{border-bottom:1px solid var(--bordo);cursor:pointer}
+  .riga-persona:last-child{border-bottom:0}
+  .riga-persona:hover{background:var(--sfondo)}
+  .riga-persona.scelta{box-shadow:inset 3px 0 0 var(--accento)}
+  .rp-testa{display:flex;align-items:center;gap:12px;padding:9px 14px}
+  .piccolo-av{width:34px;height:34px;font-size:13px}
+  .rp-nome{flex:1;min-width:0}
+  .rp-lavoro{font-size:13px;color:var(--grigio);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rp-trovato{font-size:12.5px;color:var(--grigio);margin-top:2px}
+  .rp-trovato mark{background:var(--ambra-chiaro);color:var(--testo);padding:0 2px;border-radius:3px}
+  .rp-etichette{flex:none;max-width:34%;text-align:right}
+  .rp-azioni{flex:none;display:flex;align-items:center;gap:10px}
+  .rp-freccia{color:var(--grigio);width:12px}
+  .rp-dettagli{margin:0;padding:4px 14px 14px 60px;display:grid;grid-template-columns:130px 1fr;gap:4px 12px;font-size:13.5px;cursor:default}
+  .rp-dettagli dt{color:var(--grigio)}
+  .rp-dettagli dd{margin:0;white-space:pre-line}
+  @media (max-width:760px){.rp-etichette{display:none}.rp-dettagli{padding-left:14px;grid-template-columns:1fr}.rp-dettagli dt{margin-top:6px}}
   .scelti{position:sticky;bottom:12px;margin-top:16px}
   .num{font-size:28px;font-weight:700;letter-spacing:-.02em}
   table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -102,9 +120,9 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const $main = document.getElementById("main");
-const S = { dati: null, scheda: "persone", scelti: new Set(), filtro: "", ultima: null, stat: null, generando: false };
+const S = { aperti: new Set(), dati: null, scheda: "persone", scelti: new Set(), filtro: "", ultima: null, stat: null, generando: false };
 
 // ---------------------------------------------------------------- utilita'
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -185,38 +203,82 @@ document.addEventListener("click", (ev) => {
 });
 
 // ---------------------------------------------------------------- persone
-function schedaPersona(p, conScelta) {
-  const x = p.extra || {};
-  const az = p.aziendaInfo;
-  const scelto = S.scelti.has(p.id);
-  const sonoIo = p.id === S.dati.io.profilo;
-  return `<div class="carta persona ${scelto ? "scelta" : ""}">
-    <div class="testa">
-      <div class="avatar">${p.foto ? `<img src="${esc(p.foto)}" alt="" referrerpolicy="no-referrer">` : esc(iniziali(p.nome))}</div>
-      <div style="min-width:0"><div class="nome">${esc(p.nome)} ${sonoIo ? '<span class="etichetta verde">tu</span>' : ""}</div>
-      <div class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || p.titolo || "")}</div></div>
+// Una persona per riga: nome, lavoro e i pulsanti sempre visibili; il resto
+// si apre cliccando sulla riga. Quando si cerca, sotto il nome compare il
+// pezzo di profilo che ha fatto trovare la persona.
+function rigaPersona(p) {
+  const x = p.extra || {}, az = p.aziendaInfo;
+  const scelto = S.scelti.has(p.id), sonoIo = p.id === S.dati.io.profilo, aperta = S.aperti.has(p.id);
+  const lavoro = [p.ruolo, p.azienda].filter(Boolean).join(" · ") || p.titolo || "";
+  const trovato = S.filtro.trim() ? dovePersona(p, S.filtro) : "";
+  const etichette = (x.preferenza ? `<span class="etichetta">${esc(x.preferenza)}</span>` : "") +
+    (x.settori || "").split(/[,;]/).filter((t) => t.trim()).slice(0, 2).map((t) => `<span class="etichetta grigia">${esc(t.trim())}</span>`).join("") +
+    (!p.rivendicato ? '<span class="etichetta grigia">non ancora entrato</span>' : "");
+  const dett = (et, v) => v ? `<dt>${et}</dt><dd>${esc(v)}</dd>` : "";
+  return `<div class="riga-persona ${scelto ? "scelta" : ""}" data-apri="${p.id}">
+    <div class="rp-testa">
+      <div class="avatar piccolo-av">${p.foto ? `<img src="${esc(p.foto)}" alt="" referrerpolicy="no-referrer">` : esc(iniziali(p.nome))}</div>
+      <div class="rp-nome"><div><b>${esc(p.nome)}</b> ${sonoIo ? '<span class="etichetta verde">tu</span>' : ""}</div>
+        <div class="rp-lavoro">${esc(lavoro)}</div>
+        ${trovato ? `<div class="rp-trovato">…${trovato}…</div>` : ""}</div>
+      <div class="rp-etichette">${etichette}</div>
+      <div class="rp-azioni">
+        ${p.linkedin ? `<a class="piccolo" href="${esc(p.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}
+        ${!sonoIo ? `<button class="btn piccolo ${scelto ? "primario" : ""}" data-scegli="${p.id}">${scelto ? "Nel gruppo ✓" : "+ Gruppo"}</button>` : ""}
+        <span class="rp-freccia">${aperta ? "▴" : "▾"}</span>
+      </div>
     </div>
-    ${p.titolo && (p.ruolo || p.azienda) ? `<div class="piccolo">${esc(p.titolo)}</div>` : ""}
-    ${az ? `<div class="az">${esc([az.settore || az.ateco, az.fatturato && "fatturato " + az.fatturato, az.dipendenti && az.dipendenti + " dip.", az.citta].filter(Boolean).join(" · "))}</div>` : ""}
-    <div>${x.preferenza ? `<span class="etichetta">${esc(x.preferenza)}</span>` : ""}${(x.settori || "").split(/[,;]/).filter((s) => s.trim()).slice(0, 4).map((s) => `<span class="etichetta grigia">${esc(s.trim())}</span>`).join("")}</div>
-    ${x.passioni ? `<div class="piccolo">❤ ${esc(x.passioni)}</div>` : ""}
-    ${x.cosaCerco ? `<div class="piccolo">Cerca: ${esc(x.cosaCerco)}</div>` : ""}
-    <div class="riga">
-      ${p.linkedin ? `<a class="piccolo" href="${esc(p.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}
-      ${!p.rivendicato ? '<span class="etichetta grigia">non ancora entrato</span>' : ""}
-      <span class="spazio"></span>
-      ${conScelta && !sonoIo ? `<button class="btn piccolo ${scelto ? "primario" : ""}" data-scegli="${p.id}">${scelto ? "Nel gruppo ✓" : "+ Gruppo"}</button>` : ""}
-    </div>
+    ${aperta ? `<dl class="rp-dettagli">
+      ${dett("Headline", p.titolo)}${dett("Città", p.citta)}
+      ${az ? dett("Azienda (AIDA)", [az.settore || az.ateco, az.fatturato && "fatturato " + az.fatturato, az.dipendenti && az.dipendenti + " dipendenti"].filter(Boolean).join(" · ")) : ""}
+      ${dett("Competenze", p.competenze)}${dett("Passioni", x.passioni)}${dett("Settori", x.settori)}
+      ${dett("Ruolo nel team", x.ruoloNelTeam)}${dett("Cosa cerca", x.cosaCerco)}${dett("Idee", x.ideeMie)}
+      ${dett("Esperienze", (p.esperienze || "").slice(0, 600) + ((p.esperienze || "").length > 600 ? "…" : ""))}
+      ${dett("Formazione", p.formazione)}
+    </dl>` : ""}
   </div>`;
 }
 
+// Il pezzetto di testo dove compare la prima parola cercata, con la parola
+// evidenziata: serve a capire perche' una persona e' nei risultati.
+function dovePersona(p, filtro) {
+  const w = senzaAccenti(filtro).split(/\s+/).filter(Boolean)[0];
+  if (!w) return "";
+  const re = new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const x = p.extra || {};
+  for (const campo of [p.nome, p.ruolo, p.azienda, p.titolo, p.competenze, x.passioni, x.settori, x.cosaCerco, p.esperienze, p.formazione, p.linkedinTesto]) {
+    const t = String(campo || "").replace(/\s+/g, " ");
+    const m = re.exec(senzaAccenti(t));
+    if (!m) continue;
+    const i = m.index + m[1].length;
+    const da = Math.max(0, i - 50), a = Math.min(t.length, i + w.length + 60);
+    return esc(t.slice(da, i)) + "<mark>" + esc(t.slice(i, i + w.length)) + "</mark>" + esc(t.slice(i + w.length, a));
+  }
+  return "";
+}
+
+// La ricerca vuole parole che INIZIANO come quelle scritte: "ducati" trova
+// Ducati ma non "education". Con piu' parole, devono esserci tutte.
+const senzaAccenti = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+function trovaPersona(filtro) {
+  const parole = senzaAccenti(filtro).split(/\s+/).filter(Boolean)
+    .map((w) => new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  if (!parole.length) return () => true;
+  return (p) => {
+    const x = p.extra || {}, a = p.aziendaInfo || {};
+    const testo = senzaAccenti([p.nome, p.titolo, p.ruolo, p.azienda, p.citta, p.competenze, p.esperienze, p.formazione,
+      p.linkedinTesto, x.passioni, x.preferenza, x.settori, x.ruoloNelTeam, x.cosaCerco, x.ideeMie, a.settore, a.ateco].join(" \n "));
+    return parole.every((re) => re.test(testo));
+  };
+}
+
 function persone() {
-  const f = S.filtro.toLowerCase();
-  const lista = S.dati.profili.filter((p) => !f || JSON.stringify(p).toLowerCase().includes(f));
+  const lista = S.dati.profili.filter(trovaPersona(S.filtro));
   $main.innerHTML = `<h2>Persone del master</h2>
     <p class="sotto">${S.dati.profili.length} profili. Cerca per nome, azienda, settore o passione, e aggiungi al gruppo chi vuoi coinvolgere.</p>
     <input type="search" id="cerca" placeholder="Cerca: calcio, fintech, B2B, Ducati…" value="${esc(S.filtro)}">
-    <div class="griglia" style="margin-top:14px">${lista.map((p) => schedaPersona(p, true)).join("") || '<p class="piccolo">Nessun profilo.</p>'}</div>
+    <p class="piccolo" style="margin:10px 0 6px">${S.filtro.trim() ? lista.length + " su " + S.dati.profili.length + " · " : ""}Clicca su una riga per vedere il profilo.</p>
+    <div class="lista-persone">${lista.map(rigaPersona).join("") || '<p class="piccolo" style="padding:14px">Nessun profilo.</p>'}</div>
     ${barraScelti()}`;
   const c = document.getElementById("cerca");
   c.addEventListener("input", () => { S.filtro = c.value; const pos = c.selectionStart; persone(); const n = document.getElementById("cerca"); n.focus(); n.setSelectionRange(pos, pos); });
@@ -226,6 +288,13 @@ function barraScelti() {
   return `<div class="carta scelti riga"><b>Gruppo:</b> ${[...S.scelti].map((id) => `<span class="etichetta">${esc((profilo(id) || {}).nome)}</span>`).join("")}
     <span class="spazio"></span><button class="btn primario" data-scheda="genera">Genera idee con loro →</button></div>`;
 }
+document.addEventListener("click", (ev) => {
+  const r = ev.target.closest("[data-apri]");
+  if (!r || ev.target.closest("a, button")) return;
+  const id = r.dataset.apri;
+  if (S.aperti.has(id)) S.aperti.delete(id); else S.aperti.add(id);
+  persone();
+});
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-scegli]");
   if (!b) return;
