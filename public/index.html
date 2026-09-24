@@ -170,7 +170,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 const $main = document.getElementById("main");
 const S = { aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1007,7 +1007,9 @@ async function regia(daCache) {
       <div class="carta"><div class="num">${s.bacheca.filter((i) => i.visibilita !== "scelti").length}</div><div class="piccolo">post pubblici</div></div>
       <div class="carta"><div class="num">${s.bacheca.filter((i) => i.visibilita === "scelti").length}</div><div class="piccolo">post riservati</div></div>
       <div class="carta"><div class="num">${n.collegati}/${n.profili}</div><div class="piccolo">persone entrate</div></div>
+      <div class="carta"><div class="num">${usd(s.spesa ? s.spesa.totale : 0)}</div><div class="piccolo">spesi in generazioni${s.spesa && s.spesa.generazioni ? ` · media ${usd(s.spesa.media, 3)}` : ""}</div></div>
     </div>
+    ${s.spesa && s.spesa.perPersona.length ? `<p class="piccolo" style="margin-top:8px"><b>Spesa per persona:</b> ${s.spesa.perPersona.map((x) => `${esc(x.nome)} ${usd(x.usd)}`).join(" · ")}${s.spesa.senzaDato ? ` · ${s.spesa.senzaDato} generazioni precedenti senza dato di costo` : ""}</p>` : ""}
     <div class="riga" style="margin:16px 0 10px">
       <button class="btn ${vista === "generate" ? "primario" : ""}" data-vista-regia="generate">Idee generate (${gen.length})</button>
       <button class="btn ${vista === "condivise" ? "primario" : ""}" data-vista-regia="condivise">Condivisioni e inviti (${post.length})</button>
@@ -1017,7 +1019,8 @@ async function regia(daCache) {
     ${vista === "generate" ? (gen.map((g) => `<div class="carta regia-gen">
         <div class="riga"><b>${esc(g.autoreNome || g.chi)}</b>
           <span class="etichetta ${g.modo === "gruppo" ? "" : "grigia"}">${g.modo === "gruppo" ? "motore 1 · gruppo scelto" : "motore 2 · idee e compagni"}</span>
-          <span class="spazio"></span><span class="piccolo">${quando(g.quando)}</span></div>
+          <span class="spazio"></span>${g.costo ? `<span class="etichetta grigia" title="${esc(g.costo.modello)} · ${g.costo.input.toLocaleString("it-IT")} token in entrata, ${g.costo.output.toLocaleString("it-IT")} in uscita">${usd(g.costo.usd, 3)}</span>` : ""}<span class="piccolo">${quando(g.quando)}</span></div>
+        ${g.costo ? `<div class="piccolo">${esc(g.costo.modello)} · ${g.costo.input.toLocaleString("it-IT")} token in entrata · ${g.costo.output.toLocaleString("it-IT")} in uscita (ragionamento compreso)</div>` : ""}
         ${g.modo === "gruppo" ? `<div class="piccolo" style="margin-top:4px"><b>Ha scelto:</b> ${esc((g.personeNomi || []).join(", "))}</div>` : ""}
         ${g.note ? `<div class="piccolo"><b>Indicazioni:</b> «${esc(g.note)}»</div>` : ""}
         <table style="margin-top:8px"><tr><th></th><th>Idea</th><th>Settore</th><th>Compagni suggeriti da Claude</th></tr>
@@ -1053,6 +1056,9 @@ document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-vista-regia]");
   if (b) { S.vistaRegia = b.dataset.vistaRegia; ridisegnaRegia(0); }
 });
+
+// Dollari: due decimali, tre per i costi piccoli di una singola generazione.
+const usd = (v, dec = 2) => "$" + Number(v || 0).toLocaleString("it-IT", { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
 // ---------------------------------------------------------------- tutorial
 // Il giro guidato a fumetti. I passi con "azione" aspettano che la persona

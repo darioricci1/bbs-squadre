@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.2.0
+// VERSION: 1.3.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -18,6 +18,24 @@ import { esigiAccesso, corpoDi, nuovoId, tutti, uno, scrivi, conta, correggi, se
 export const config = { maxDuration: 300 };
 
 const MODELLO = process.env.BBS_MODELLO || "claude-opus-5";
+
+// Prezzi di listino in dollari per milione di token (input, output). Servono
+// a calcolare quanto e' costata ogni generazione, dai token che l'API stessa
+// riporta nella risposta. La cache letta costa un decimo dell'input, quella
+// scritta un quarto in piu'.
+const PREZZI = {
+  "claude-opus-5-5": [4, 20], "claude-opus-5": [5, 25], "claude-opus-4-8": [5, 25], "claude-opus-4-7": [5, 25],
+  "claude-sonnet-5": [2, 10], "claude-sonnet-4-6": [3, 15], "claude-haiku-4-5": [1, 5],
+  "claude-fable-5-1": [10, 50], "claude-fable-5": [10, 50],
+};
+function costoDi(modello, u) {
+  const chiave = Object.keys(PREZZI).sort((a, b) => b.length - a.length).find((k) => String(modello || "").startsWith(k));
+  const [pin, pout] = PREZZI[chiave] || PREZZI["claude-opus-5"];
+  const input = Number(u && u.input_tokens) || 0, output = Number(u && u.output_tokens) || 0;
+  const letta = Number(u && u.cache_read_input_tokens) || 0, scritta = Number(u && u.cache_creation_input_tokens) || 0;
+  const usd = (input * pin + output * pout + letta * pin * 0.1 + scritta * pin * 1.25) / 1e6;
+  return { usd: Math.round(usd * 10000) / 10000, input, output, cache: letta + scritta, modello: modello || "", listino: !!chiave };
+}
 
 const SCHEMA = {
   type: "object",
@@ -180,8 +198,11 @@ export default async function handler(req, res) {
     i.compagni = (i.compagni || []).filter((c) => nomeDi(c.id) && !idGruppo.has(c.id)).map((c) => ({ ...c, nome: nomeDi(c.id) }));
   }
 
-  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idee, modello: risposta.model };
+  const costo = costoDi(risposta.model, risposta.usage);
+  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idee, modello: risposta.model, costo };
   await scrivi("generazioni", g.id, g);
-  await segna(chi.email, "generazione", { modo, persone: scelti, titoli: idee.map((i) => i.titolo) });
-  return res.status(200).json({ ...g, crediti: chi.admin ? null : await creditiDi(chi.email, u) });
+  await segna(chi.email, "generazione", { modo, persone: scelti, titoli: idee.map((i) => i.titolo), usd: costo.usd });
+  const perUtente = { ...g, crediti: chi.admin ? null : await creditiDi(chi.email, u) };
+  if (!chi.adminVero) delete perUtente.costo;   // i costi li vede solo l'amministratore
+  return res.status(200).json(perUtente);
 }

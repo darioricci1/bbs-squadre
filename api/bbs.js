@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.4.0
+// VERSION: 1.5.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -186,7 +186,8 @@ async function dati(chi, res) {
       .sort((x, y) => String(x.nome).localeCompare(String(y.nome))),
     bacheca: Object.values(bacheca).filter((i) => vedeIdea(i, io, chi.admin))
       .sort((x, y) => String(y.creata).localeCompare(String(x.creata))),
-    generazioni: generazioni.filter((g) => g.chi === chi.email).slice(0, 30),
+    generazioni: generazioni.filter((g) => g.chi === chi.email).slice(0, 30)
+      .map((g) => { if (chi.adminVero) return g; const { costo, ...resto } = g; return resto; }),
   });
 }
 
@@ -465,6 +466,15 @@ async function statistiche(res) {
     utenti: await Promise.all(Object.values(utenti).sort((a, b) => String(b.ultimo).localeCompare(String(a.ultimo)))
       .map(async (u) => ({ ...u, profiloNome: u.profilo ? nomeDi(u.profilo) : null, crediti: await creditiDi(u.email, u) }))),
     generazioni: generazioni.map((g) => ({ ...g, personeNomi: (g.persone || []).map(nomeDi) })),
+    spesa: (() => {
+      const conCosto = generazioni.filter((g) => g.costo);
+      const tot = conCosto.reduce((a, g) => a + (g.costo.usd || 0), 0);
+      const perPersona = {};
+      for (const g of conCosto) perPersona[g.autoreNome || g.chi] = (perPersona[g.autoreNome || g.chi] || 0) + g.costo.usd;
+      return { totale: Math.round(tot * 100) / 100, generazioni: conCosto.length, media: conCosto.length ? Math.round((tot / conCosto.length) * 1000) / 1000 : 0,
+        senzaDato: generazioni.length - conCosto.length,
+        perPersona: Object.entries(perPersona).sort((a, b) => b[1] - a[1]).map(([nome, usd]) => ({ nome, usd: Math.round(usd * 100) / 100 })) };
+    })(),
     bacheca: Object.values(bacheca).sort((x, y) => String(y.creata).localeCompare(String(x.creata)))
       .map((i) => ({ ...i, membriNomi: (i.membri || []).map(nomeDi), interessatiNomi: (i.interessati || []).map(nomeDi),
         destinatariNomi: (i.destinatari || []).map(nomeDi) })),
