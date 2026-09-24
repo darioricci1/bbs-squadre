@@ -102,7 +102,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const $main = document.getElementById("main");
 const S = { dati: null, scheda: "persone", scelti: new Set(), filtro: "", ultima: null, stat: null, generando: false };
 
@@ -473,7 +473,7 @@ async function statistiche() {
       <div style="height:6px;border-radius:3px;background:var(--accento-chiaro)"><div style="height:6px;border-radius:3px;background:var(--accento);width:${(v / max) * 100}%"></div></div></div>`; }).join("") || '<p class="piccolo">Ancora niente.</p>';
   };
   $main.innerHTML = `<div class="riga"><h2>Statistiche</h2><span class="spazio"></span>
-      <button class="btn" id="scarica">Scarica tutto (JSON)</button><button class="btn" id="aggiorna">Aggiorna</button></div>
+      <button class="btn" id="scaricaCsv">Scarica profili (CSV)</button><button class="btn" id="scarica">Scarica tutto (JSON)</button><button class="btn" id="aggiorna">Aggiorna</button></div>
     <p class="sotto">Solo tu vedi questa scheda.</p>
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
       ${tile(n.utenti, "persone entrate")}${tile(n.collegati + "/" + n.profili, "profili collegati")}${tile(n.completati, "profili completati")}
@@ -505,11 +505,35 @@ async function statistiche() {
       ${s.eventi.map((e) => { const { quando: q, chi, tipo, ...r } = e; return `<tr><td>${quando(q)}</td><td>${esc(chi)}</td><td>${esc(tipo)}</td><td class="piccolo">${esc(Object.entries(r).map(([k, v]) => k + ": " + (Array.isArray(v) ? v.join(", ") : v)).join(" · ")).slice(0, 300)}</td></tr>`; }).join("")}
     </table></div>`;
   document.getElementById("aggiorna").onclick = statistiche;
+  document.getElementById("scaricaCsv").onclick = scaricaProfiliCsv;
   document.getElementById("scarica").onclick = () => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify({ statistiche: s, profili: S.dati.profili }, null, 2)], { type: "application/json" }));
     a.download = "squadre-bbs-" + new Date().toISOString().slice(0, 10) + ".json"; a.click();
   };
+}
+
+// Profili in CSV per Excel: punto e virgola e BOM, cosi' l'Excel italiano
+// apre le colonne e gli accenti giusti al primo colpo.
+function scaricaProfiliCsv() {
+  const col = [
+    ["Nome", (p) => p.nome], ["Email", (p) => p.email || p.emailAttesa], ["LinkedIn", (p) => p.linkedin],
+    ["Titolo", (p) => p.titolo], ["Ruolo", (p) => p.ruolo], ["Azienda", (p) => p.azienda], ["Città", (p) => p.citta],
+    ["Competenze", (p) => p.competenze], ["Esperienze", (p) => p.esperienze], ["Formazione", (p) => p.formazione],
+    ["Passioni", (p) => (p.extra || {}).passioni], ["Preferenza", (p) => (p.extra || {}).preferenza],
+    ["Settori", (p) => (p.extra || {}).settori], ["Ruolo nel team", (p) => (p.extra || {}).ruoloNelTeam],
+    ["Come vorrebbe il progetto", (p) => (p.extra || {}).cosaCerco], ["Idee sue", (p) => (p.extra || {}).ideeMie],
+    ["Non vuole", (p) => (p.extra || {}).nonVoglio], ["Disponibilità", (p) => (p.extra || {}).disponibilita],
+    ["AIDA settore", (p) => p.aziendaInfo && (p.aziendaInfo.settore || p.aziendaInfo.ateco)],
+    ["AIDA fatturato", (p) => p.aziendaInfo && p.aziendaInfo.fatturato], ["AIDA dipendenti", (p) => p.aziendaInfo && p.aziendaInfo.dipendenti],
+    ["Collegato", (p) => (p.rivendicato ? "sì" : "no")], ["Aggiornato", (p) => p.aggiornato],
+  ];
+  const cella = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const righe = [col.map((c) => cella(c[0])).join(";")]
+    .concat(S.dati.profili.map((p) => col.map((c) => cella(c[1](p))).join(";")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["\uFEFF" + righe.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+  a.download = "profili-bbs-" + new Date().toISOString().slice(0, 10) + ".csv"; a.click();
 }
 
 // ---------------------------------------------------------------- importa (admin)
@@ -571,7 +595,7 @@ function importa() {
         <div class="riga" style="margin-top:8px"><button class="btn" id="provaA">Anteprima</button><button class="btn primario" id="vaiA">Importa aziende</button></div>
         <div id="msgA"></div></div>
     </div>
-    <h3 style="margin-top:24px">Profili presenti</h3>
+    <div class="riga" style="margin-top:24px"><h3 style="margin:0">Profili presenti</h3><span class="spazio"></span><button class="btn" id="scaricaCsv2">Scarica profili (CSV)</button></div>
     <div class="carta scorri"><table><tr><th>Nome</th><th>Azienda</th><th>AIDA</th><th>Collegato a</th><th></th></tr>
       ${S.dati.profili.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.azienda)}</td><td>${p.aziendaInfo ? "✓" : ""}</td><td>${esc(p.email || (p.emailAttesa ? "(atteso " + p.emailAttesa + ")" : ""))}</td>
         <td>${p.email ? `<button class="btn piccolo" data-scollega="${p.id}">Scollega</button>` : ""} <button class="btn piccolo pericolo" data-eliminap="${p.id}">Elimina</button></td></tr>`).join("")}
@@ -583,6 +607,7 @@ function importa() {
   };
   const file = (inp, area) => { document.getElementById(inp).onchange = (e) => { const f = e.target.files[0]; if (f) f.text().then((t) => { document.getElementById(area).value = t; }); }; };
   file("fileP", "testoP"); file("fileA", "testoA");
+  document.getElementById("scaricaCsv2").onclick = scaricaProfiliCsv;
   const prova = (area, regole, msg) => () => {
     try { const r = leggi(document.getElementById(area).value, regole); avvisa(msg, `${r.length} righe lette. Prima: ${JSON.stringify(r[0] || {}).slice(0, 400)}`); }
     catch (e) { avvisa(msg, e.message, "male"); }
