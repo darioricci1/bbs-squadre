@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Squadre BBS</title>
+<meta name="robots" content="noindex">
+<!--
+  public/index.html
+  Piattaforma per formare i gruppi del project work del master BBS e
+  generare idee di startup a partire dai profili delle persone.
+  La versione sta in const VERSION qui sotto.
+-->
+<style>
+  :root{
+    --sfondo:#f5f6f8; --carta:#fff; --bordo:#e3e6ea; --testo:#17202a; --grigio:#667079;
+    --accento:#1f5eff; --accento-chiaro:#e8efff; --verde:#1d8a4e; --verde-chiaro:#e5f5ec;
+    --ambra:#a86400; --ambra-chiaro:#fff4e0; --rosso:#c5221f; --rosso-chiaro:#fdecea;
+    --ombra:0 1px 2px rgba(0,0,0,.04),0 8px 24px -12px rgba(0,0,0,.15);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --sfondo:#0f1318; --carta:#171c22; --bordo:#2a313a; --testo:#e7ebef; --grigio:#9aa4ae;
+      --accento:#6d95ff; --accento-chiaro:#1c2740; --verde:#4cc684; --verde-chiaro:#15291f;
+      --ambra:#f0b050; --ambra-chiaro:#2b2212; --rosso:#ff7b72; --rosso-chiaro:#2e1716;
+      --ombra:0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--sfondo);color:var(--testo);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accento)}
+  header{position:sticky;top:0;z-index:5;background:var(--carta);border-bottom:1px solid var(--bordo)}
+  .barra{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .marchio{font-weight:700;letter-spacing:-.01em;font-size:17px}
+  .marchio small{color:var(--grigio);font-weight:500;font-size:12px;margin-left:6px}
+  nav{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+  nav button{background:none;border:0;padding:7px 11px;border-radius:8px;color:var(--grigio);font:inherit;cursor:pointer}
+  nav button.attivo{background:var(--accento-chiaro);color:var(--accento);font-weight:600}
+  .chi{font-size:13px;color:var(--grigio);display:flex;gap:8px;align-items:center}
+  main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+  h2{margin:0 0 4px;font-size:22px;letter-spacing:-.01em}
+  .sotto{color:var(--grigio);margin:0 0 18px}
+  .carta{background:var(--carta);border:1px solid var(--bordo);border-radius:14px;padding:16px;box-shadow:var(--ombra)}
+  .griglia{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+  .riga{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .spazio{flex:1}
+  input[type=text],input[type=search],input[type=number],textarea,select{width:100%;padding:9px 11px;border:1px solid var(--bordo);border-radius:9px;
+    background:var(--carta);color:var(--testo);font:inherit}
+  textarea{min-height:80px;resize:vertical}
+  label{display:block;font-size:13px;font-weight:600;margin:12px 0 4px}
+  label small{font-weight:400;color:var(--grigio)}
+  .btn{border:1px solid var(--bordo);background:var(--carta);color:var(--testo);padding:8px 13px;border-radius:9px;font:inherit;cursor:pointer;white-space:nowrap}
+  .btn:hover{border-color:var(--accento)}
+  .btn.primario{background:var(--accento);border-color:var(--accento);color:#fff;font-weight:600}
+  .btn.piccolo{padding:4px 9px;font-size:13px}
+  .btn.pericolo{color:var(--rosso)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .etichetta{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--accento-chiaro);color:var(--accento);margin:2px 4px 2px 0}
+  .etichetta.verde{background:var(--verde-chiaro);color:var(--verde)}
+  .etichetta.ambra{background:var(--ambra-chiaro);color:var(--ambra)}
+  .etichetta.grigia{background:var(--sfondo);color:var(--grigio);border:1px solid var(--bordo)}
+  .persona{display:flex;flex-direction:column;gap:6px;position:relative}
+  .persona.scelta{outline:2px solid var(--accento)}
+  .persona .testa{display:flex;gap:10px;align-items:center}
+  .avatar{width:42px;height:42px;border-radius:50%;background:var(--accento-chiaro);color:var(--accento);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none;overflow:hidden}
+  .avatar img{width:100%;height:100%;object-fit:cover}
+  .nome{font-weight:650}
+  .piccolo{font-size:13px;color:var(--grigio)}
+  .az{font-size:12.5px;background:var(--sfondo);border-radius:8px;padding:6px 8px;color:var(--grigio)}
+  .idea h3{margin:0 0 6px;font-size:17px}
+  .idea dl{margin:8px 0 0;display:grid;grid-template-columns:110px 1fr;gap:4px 10px;font-size:14px}
+  .idea dt{color:var(--grigio)}
+  .idea dd{margin:0}
+  .avviso{padding:10px 12px;border-radius:10px;margin:10px 0;font-size:14px}
+  .avviso.male{background:var(--rosso-chiaro);color:var(--rosso)}
+  .avviso.bene{background:var(--verde-chiaro);color:var(--verde)}
+  .avviso.info{background:var(--accento-chiaro);color:var(--accento)}
+  .porta{max-width:440px;margin:60px auto;text-align:center}
+  #pulsante{display:flex;justify-content:center;min-height:44px;margin:18px 0}
+  .scelti{position:sticky;bottom:12px;margin-top:16px}
+  .num{font-size:28px;font-weight:700;letter-spacing:-.02em}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bordo);vertical-align:top}
+  th{color:var(--grigio);font-weight:600}
+  .scorri{overflow-x:auto}
+  details summary{cursor:pointer}
+  .caricamento{color:var(--grigio);padding:30px;text-align:center}
+  .due{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:760px){.due{grid-template-columns:1fr}.idea dl{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="barra">
+  <div class="marchio">Squadre BBS <small>project work</small></div>
+  <nav id="nav"></nav>
+  <div class="chi" id="chi"></div>
+</div></header>
+<main id="main"><div class="caricamento">Caricamento…</div></main>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(function(){
+"use strict";
+const VERSION = "1.0.0";
+const $main = document.getElementById("main");
+const S = { dati: null, scheda: "persone", scelti: new Set(), filtro: "", ultima: null, stat: null, generando: false };
+
+// ---------------------------------------------------------------- utilita'
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const iniziali = (n) => String(n || "?").split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join("");
+const quando = (t) => t ? new Date(t).toLocaleString("it-IT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+
+async function api(azione, corpo, url) {
+  const r = await fetch(url || ("/api/bbs?a=" + azione), corpo === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo),
+  });
+  let j = {};
+  try { j = await r.json(); } catch {}
+  if (!r.ok) { const e = new Error(j.error || ("HTTP " + r.status)); e.stato = r.status; throw e; }
+  return j;
+}
+function avvisa(dove, testo, tipo) {
+  const el = typeof dove === "string" ? document.getElementById(dove) : dove;
+  if (el) el.innerHTML = testo ? `<div class="avviso ${tipo || "info"}">${esc(testo)}</div>` : "";
+}
+const profilo = (id) => S.dati.profili.find((p) => p.id === id);
+const mio = () => S.dati.io.profilo && profilo(S.dati.io.profilo);
+
+// ---------------------------------------------------------------- avvio
+async function carica() {
+  try {
+    S.dati = await api("dati");
+    disegna();
+  } catch (e) {
+    if (e.stato === 401) return porta();
+    $main.innerHTML = `<div class="avviso male">${esc(e.message)}</div>`;
+  }
+}
+
+function porta() {
+  document.getElementById("nav").innerHTML = "";
+  document.getElementById("chi").innerHTML = "";
+  $main.innerHTML = `<div class="porta carta">
+    <h2>Squadre BBS</h2>
+    <p class="sotto">Trova con chi fare il project work e genera idee di startup a partire dai profili del master.</p>
+    <div id="pulsante"></div><div id="msgPorta"></div>
+    <p class="piccolo" style="text-align:left">Entri con Google. Vedrai i profili dei compagni di corso e potrai completare il tuo. Le attività sulla piattaforma (profili, idee generate, bacheca) sono registrate e visibili a Dario, che la gestisce, anche in forma di statistiche aggregate.</p>
+  </div>`;
+  api("config").then((c) => {
+    if (!c.clientId) return avvisa("msgPorta", "Manca GOOGLE_CLIENT_ID fra le variabili d'ambiente su Vercel.", "male");
+    const t = setInterval(() => {
+      if (!(window.google && google.accounts && google.accounts.id)) return;
+      clearInterval(t);
+      google.accounts.id.initialize({ client_id: c.clientId, callback: (r) => {
+        avvisa("msgPorta", "Un momento…");
+        api("entra", { credential: r.credential }).then(carica).catch((e) => avvisa("msgPorta", e.message, "male"));
+      } });
+      google.accounts.id.renderButton(document.getElementById("pulsante"), { theme: "outline", size: "large", text: "signin_with", locale: "it", width: 300 });
+    }, 120);
+  }).catch((e) => avvisa("msgPorta", e.message, "male"));
+}
+
+// ---------------------------------------------------------------- struttura
+const SCHEDE = [
+  ["persone", "Persone"], ["genera", "Genera idee"], ["bacheca", "Bacheca"], ["profilo", "Il mio profilo"],
+];
+const SCHEDE_ADMIN = [["statistiche", "Statistiche"], ["importa", "Importa"]];
+
+function disegna() {
+  const d = S.dati;
+  const schede = SCHEDE.concat(d.io.admin ? SCHEDE_ADMIN : []);
+  document.getElementById("nav").innerHTML = schede.map(([k, t]) =>
+    `<button data-scheda="${k}" class="${S.scheda === k ? "attivo" : ""}">${t}</button>`).join("");
+  document.getElementById("chi").innerHTML = `<span>${esc(d.io.email)}</span><button class="btn piccolo" id="esci">Esci</button>`;
+  if (!d.io.profilo && S.scheda !== "profilo" && !d.io.admin) S.scheda = "profilo";
+  ({ persone, genera, bacheca, profilo: schedaProfilo, statistiche, importa })[S.scheda]();
+}
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-scheda]");
+  if (b) { S.scheda = b.dataset.scheda; disegna(); window.scrollTo(0, 0); }
+  if (ev.target.id === "esci") api("esci", {}).then(porta);
+});
+
+// ---------------------------------------------------------------- persone
+function schedaPersona(p, conScelta) {
+  const x = p.extra || {};
+  const az = p.aziendaInfo;
+  const scelto = S.scelti.has(p.id);
+  const sonoIo = p.id === S.dati.io.profilo;
+  return `<div class="carta persona ${scelto ? "scelta" : ""}">
+    <div class="testa">
+      <div class="avatar">${p.foto ? `<img src="${esc(p.foto)}" alt="" referrerpolicy="no-referrer">` : esc(iniziali(p.nome))}</div>
+      <div style="min-width:0"><div class="nome">${esc(p.nome)} ${sonoIo ? '<span class="etichetta verde">tu</span>' : ""}</div>
+      <div class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || p.titolo || "")}</div></div>
+    </div>
+    ${p.titolo && (p.ruolo || p.azienda) ? `<div class="piccolo">${esc(p.titolo)}</div>` : ""}
+    ${az ? `<div class="az">${esc([az.settore || az.ateco, az.fatturato && "fatturato " + az.fatturato, az.dipendenti && az.dipendenti + " dip.", az.citta].filter(Boolean).join(" · "))}</div>` : ""}
+    <div>${x.preferenza ? `<span class="etichetta">${esc(x.preferenza)}</span>` : ""}${(x.settori || "").split(/[,;]/).filter((s) => s.trim()).slice(0, 4).map((s) => `<span class="etichetta grigia">${esc(s.trim())}</span>`).join("")}</div>
+    ${x.passioni ? `<div class="piccolo">❤ ${esc(x.passioni)}</div>` : ""}
+    ${x.cosaCerco ? `<div class="piccolo">Cerca: ${esc(x.cosaCerco)}</div>` : ""}
+    <div class="riga">
+      ${p.linkedin ? `<a class="piccolo" href="${esc(p.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}
+      ${!p.rivendicato ? '<span class="etichetta grigia">non ancora entrato</span>' : ""}
+      <span class="spazio"></span>
+      ${conScelta && !sonoIo ? `<button class="btn piccolo ${scelto ? "primario" : ""}" data-scegli="${p.id}">${scelto ? "Nel gruppo ✓" : "+ Gruppo"}</button>` : ""}
+    </div>
+  </div>`;
+}
+
+function persone() {
+  const f = S.filtro.toLowerCase();
+  const lista = S.dati.profili.filter((p) => !f || JSON.stringify(p).toLowerCase().includes(f));
+  $main.innerHTML = `<h2>Persone del master</h2>
+    <p class="sotto">${S.dati.profili.length} profili. Cerca per nome, azienda, settore o passione, e aggiungi al gruppo chi vuoi coinvolgere.</p>
+    <input type="search" id="cerca" placeholder="Cerca: calcio, fintech, B2B, Ducati…" value="${esc(S.filtro)}">
+    <div class="griglia" style="margin-top:14px">${lista.map((p) => schedaPersona(p, true)).join("") || '<p class="piccolo">Nessun profilo.</p>'}</div>
+    ${barraScelti()}`;
+  const c = document.getElementById("cerca");
+  c.addEventListener("input", () => { S.filtro = c.value; const pos = c.selectionStart; persone(); const n = document.getElementById("cerca"); n.focus(); n.setSelectionRange(pos, pos); });
+}
+function barraScelti() {
+  if (!S.scelti.size) return "";
+  return `<div class="carta scelti riga"><b>Gruppo:</b> ${[...S.scelti].map((id) => `<span class="etichetta">${esc((profilo(id) || {}).nome)}</span>`).join("")}
+    <span class="spazio"></span><button class="btn primario" data-scheda="genera">Genera idee con loro →</button></div>`;
+}
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-scegli]");
+  if (!b) return;
+  const id = b.dataset.scegli;
+  if (S.scelti.has(id)) S.scelti.delete(id); else if (S.scelti.size < 7) S.scelti.add(id);
+  disegna();
+});
+
+// ---------------------------------------------------------------- genera
+function genera() {
+  const io = mio();
+  $main.innerHTML = `<h2>Genera idee di business</h2>
+    <p class="sotto">Cinque idee: le tre migliori e due di riserva, costruite sui profili LinkedIn, sulle aziende e sulle passioni delle persone.</p>
+    ${io ? "" : '<div class="avviso info">Prima collega il tuo profilo nella scheda Il mio profilo.</div>'}
+    <div class="due">
+      <div class="carta">
+        <h3 style="margin-top:0">Con persone che ho scelto</h3>
+        <p class="piccolo">Tu più le persone scelte nella scheda Persone.</p>
+        <div>${[...S.scelti].map((id) => `<span class="etichetta">${esc((profilo(id) || {}).nome)} <a href="#" data-scegli="${id}" style="text-decoration:none">×</a></span>`).join("") || '<span class="piccolo">Nessuno scelto.</span>'}</div>
+        <div class="riga" style="margin-top:10px"><button class="btn" data-scheda="persone">Scegli persone</button>
+        <button class="btn primario" id="gGruppo" ${!io || !S.scelti.size || S.generando ? "disabled" : ""}>Genera per il gruppo</button></div>
+      </div>
+      <div class="carta">
+        <h3 style="margin-top:0">Idee per me, e con chi farle</h3>
+        <p class="piccolo">Parte dal tuo profilo e ti suggerisce i compagni più adatti per ogni idea.</p>
+        <button class="btn primario" id="gScopri" ${!io || S.generando ? "disabled" : ""}>Genera idee e compagni</button>
+      </div>
+    </div>
+    <label>Indicazioni in più <small>(facoltativo: un settore, un vincolo, un'idea da cui partire)</small></label>
+    <textarea id="note" placeholder="Es. qualcosa legato al food, B2B, che si possa validare in due mesi">${esc(S.note || "")}</textarea>
+    <div id="msgGen"></div>
+    <div id="risultati">${S.ultima ? risultati(S.ultima) : ""}</div>
+    ${S.dati.generazioni.length ? `<h3 style="margin-top:28px">Le tue generazioni precedenti</h3>
+      ${S.dati.generazioni.map((g, i) => `<details class="carta" style="margin-bottom:8px"><summary>${quando(g.quando)} · ${g.modo === "gruppo" ? "con " + esc((g.persone || []).map((id) => (profilo(id) || {}).nome).join(", ")) : "idee per me"} · ${g.idee.length} idee</summary><div data-gen="${i}"></div></details>`).join("")}` : ""}`;
+  document.getElementById("note").addEventListener("input", (e) => { S.note = e.target.value; });
+  const vai = (modo) => async () => {
+    S.generando = true; genera();
+    avvisa("msgGen", "Claude sta leggendo i profili e scrivendo le idee: di solito ci vuole meno di un minuto…");
+    try {
+      S.ultima = await api("", { modo, persone: [...S.scelti], note: S.note || "" }, "/api/genera");
+      S.dati.generazioni.unshift(S.ultima);
+      S.generando = false; genera();
+      document.getElementById("risultati").scrollIntoView({ behavior: "smooth" });
+    } catch (e) { S.generando = false; genera(); avvisa("msgGen", e.message, "male"); }
+  };
+  const gg = document.getElementById("gGruppo"), gs = document.getElementById("gScopri");
+  if (gg) gg.onclick = vai("gruppo");
+  if (gs) gs.onclick = vai("scopri");
+  document.querySelectorAll("details").forEach((d) => d.addEventListener("toggle", () => {
+    const box = d.querySelector("[data-gen]");
+    if (d.open && !box.innerHTML) box.innerHTML = risultati(S.dati.generazioni[Number(box.dataset.gen)]);
+  }));
+}
+
+function risultati(g) {
+  return `<h3 style="margin-top:22px">Idee ${g.modo === "gruppo" ? "per il gruppo" : "per te"}</h3>
+    <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">${g.idee.map((i, n) => `
+    <div class="carta idea">
+      <div class="riga"><span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${i.fascia === "top" ? "Top " + (n + 1) : "Riserva"}</span>
+        <span class="etichetta">${esc(i.modello)}</span><span class="etichetta grigia">${esc(i.settore)}</span>
+        <span class="spazio"></span><b>${esc(i.punteggio)}/10</b></div>
+      <h3 style="margin-top:8px">${esc(i.titolo)}</h3>
+      <div>${esc(i.sintesi)}</div>
+      <dl>
+        <dt>Problema</dt><dd>${esc(i.problema)}</dd>
+        <dt>Soluzione</dt><dd>${esc(i.soluzione)}</dd>
+        <dt>Clienti</dt><dd>${esc(i.clienti)}</dd>
+        <dt>Ricavi</dt><dd>${esc(i.ricavi)}</dd>
+        <dt>Perché voi</dt><dd>${esc(i.perche_noi)}</dd>
+        ${i.ruoli && i.ruoli.length ? `<dt>Ruoli</dt><dd>${i.ruoli.map((r) => `<b>${esc(r.nome)}</b>: ${esc(r.ruolo)}`).join("<br>")}</dd>` : ""}
+        ${i.compagni && i.compagni.length ? `<dt>Con chi</dt><dd>${i.compagni.map((c) => `<b>${esc(c.nome)}</b> <a href="#" data-scegli="${esc(c.id)}" class="piccolo">+ gruppo</a><br><span class="piccolo">${esc(c.motivo)}</span>`).join("<br>")}</dd>` : ""}
+        <dt>Rischi</dt><dd>${esc(i.rischi)}</dd>
+        <dt>Primo passo</dt><dd>${esc(i.primo_passo)}</dd>
+      </dl>
+      <div class="riga" style="margin-top:10px"><span class="spazio"></span>
+        <button class="btn piccolo" data-pubblica='${esc(JSON.stringify({ g: g.id, n }))}'>Pubblica in bacheca</button></div>
+    </div>`).join("")}</div>`;
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-pubblica]");
+  if (!b) return;
+  const { g, n } = JSON.parse(b.dataset.pubblica);
+  const gen = S.dati.generazioni.find((x) => x.id === g);
+  const i = gen && gen.idee[n];
+  if (!i) return;
+  b.disabled = true;
+  try {
+    await api("idea", {
+      titolo: i.titolo, modello: i.modello, settore: i.settore, origine: "generata",
+      descrizione: `${i.sintesi}\n\nProblema: ${i.problema}\nSoluzione: ${i.soluzione}\nClienti: ${i.clienti}\nRicavi: ${i.ricavi}`,
+      cerco: (i.compagni || []).map((c) => c.motivo).join(" · ").slice(0, 900),
+    });
+    b.textContent = "Pubblicata ✓";
+    S.dati = await api("dati");
+  } catch (e) { b.disabled = false; alert(e.message); }
+});
+document.addEventListener("click", (ev) => { if (ev.target.matches('a[data-scegli]')) ev.preventDefault(); });
+
+// ---------------------------------------------------------------- bacheca
+function bacheca(modifica) {
+  const io = S.dati.io.profilo;
+  const b = S.dati.bacheca;
+  $main.innerHTML = `<div class="riga"><div><h2>Bacheca delle idee</h2>
+    <p class="sotto">Pubblica un'idea e raccogli chi vuole svilupparla con te, oppure candidati a quelle degli altri.</p></div>
+    <span class="spazio"></span><button class="btn primario" id="nuova" ${io ? "" : "disabled"}>+ Nuova idea</button></div>
+    <div id="form"></div>
+    <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">${b.map((i) => {
+      const mia = i.autore === io;
+      const dentro = (i.membri || []).includes(io);
+      const interessato = (i.interessati || []).includes(io);
+      const nomi = (ids) => (ids || []).map((id) => (profilo(id) || {}).nome || "?");
+      return `<div class="carta idea">
+        <div class="riga">${i.modello ? `<span class="etichetta">${esc(i.modello)}</span>` : ""}${i.settore ? `<span class="etichetta grigia">${esc(i.settore)}</span>` : ""}
+          ${i.origine === "generata" ? '<span class="etichetta grigia">generata</span>' : ""}<span class="spazio"></span>
+          <span class="piccolo">${(i.membri || []).length}/${i.posti || 5}</span></div>
+        <h3 style="margin-top:8px">${esc(i.titolo)}</h3>
+        <div class="piccolo">di ${esc((profilo(i.autore) || {}).nome || i.autoreNome)} · ${quando(i.creata)}</div>
+        <p style="white-space:pre-wrap">${esc(i.descrizione)}</p>
+        ${i.cerco ? `<p class="piccolo"><b>Cerca:</b> ${esc(i.cerco)}</p>` : ""}
+        <div class="piccolo"><b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}</div>
+        ${(i.interessati || []).length ? `<div class="piccolo" style="margin-top:4px"><b>Interessati:</b> ${(i.interessati || []).map((id) => `${esc((profilo(id) || {}).nome || "?")}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</div>` : ""}
+        <div class="riga" style="margin-top:10px">
+          ${mia ? `<button class="btn piccolo" data-modifica="${i.id}">Modifica</button><button class="btn piccolo pericolo" data-elimina="${i.id}">Elimina</button>
+            ${(i.membri || []).filter((m) => m !== io).map((m) => `<a href="#" class="piccolo" data-membro="${i.id}|${m}|0">togli ${esc((profilo(m) || {}).nome)}</a>`).join(" ")}`
+            : io ? `<button class="btn piccolo ${interessato ? "" : "primario"}" data-interesse="${i.id}|${interessato ? 0 : 1}" ${dentro ? "disabled" : ""}>${dentro ? "Sei nella squadra" : interessato ? "Ritira candidatura" : "Voglio partecipare"}</button>` : ""}
+        </div></div>`;
+    }).join("") || '<p class="piccolo">Ancora nessuna idea: pubblica la prima.</p>'}</div>`;
+  const nuova = document.getElementById("nuova");
+  if (nuova) nuova.onclick = () => formIdea();
+  if (modifica) formIdea(modifica);
+}
+function formIdea(i) {
+  i = i || {};
+  document.getElementById("form").innerHTML = `<div class="carta" style="margin-bottom:14px">
+    <label>Titolo</label><input type="text" id="fTitolo" value="${esc(i.titolo)}">
+    <label>Descrizione</label><textarea id="fDesc">${esc(i.descrizione)}</textarea>
+    <div class="due"><div><label>Modello</label><select id="fMod">${["", "B2B", "B2C", "B2B2C"].map((m) => `<option ${i.modello === m ? "selected" : ""}>${m}</option>`).join("")}</select></div>
+    <div><label>Settore</label><input type="text" id="fSett" value="${esc(i.settore)}"></div></div>
+    <div class="due"><div><label>Chi cerchi <small>(competenze, ruoli)</small></label><input type="text" id="fCerco" value="${esc(i.cerco)}"></div>
+    <div><label>Persone nella squadra, te compreso</label><input type="number" id="fPosti" min="2" max="8" value="${i.posti || 5}"></div></div>
+    <div id="msgIdea"></div>
+    <div class="riga" style="margin-top:12px"><button class="btn primario" id="fSalva">${i.id ? "Salva" : "Pubblica"}</button><button class="btn" id="fAnnulla">Annulla</button></div></div>`;
+  document.getElementById("fAnnulla").onclick = () => bacheca();
+  document.getElementById("fSalva").onclick = async () => {
+    try {
+      await api("idea", { id: i.id, titolo: fTitolo.value, descrizione: fDesc.value, modello: fMod.value, settore: fSett.value, cerco: fCerco.value, posti: fPosti.value });
+      S.dati = await api("dati"); bacheca();
+    } catch (e) { avvisa("msgIdea", e.message, "male"); }
+  };
+}
+document.addEventListener("click", async (ev) => {
+  const t = ev.target;
+  try {
+    if (t.dataset.modifica) { bacheca(S.dati.bacheca.find((i) => i.id === t.dataset.modifica)); }
+    else if (t.dataset.elimina) { if (!confirm("Eliminare questa idea?")) return; await api("idea-elimina", { id: t.dataset.elimina }); }
+    else if (t.dataset.interesse) { const [id, on] = t.dataset.interesse.split("|"); await api("interesse", { id, on: on === "1" }); }
+    else if (t.dataset.membro) { ev.preventDefault(); const [id, p, on] = t.dataset.membro.split("|"); await api("membro", { id, profilo: p, on: on === "1" }); }
+    else return;
+    if (!t.dataset.modifica) { S.dati = await api("dati"); bacheca(); }
+  } catch (e) { alert(e.message); }
+});
+
+// ---------------------------------------------------------------- il mio profilo
+function schedaProfilo() {
+  const p = mio();
+  if (!p) return collega();
+  const x = p.extra || {};
+  const campo = (id, et, val, area, aiuto) => `<label>${et}${aiuto ? ` <small>${aiuto}</small>` : ""}</label>${area
+    ? `<textarea id="${id}">${esc(val)}</textarea>` : `<input type="text" id="${id}" value="${esc(val)}">`}`;
+  $main.innerHTML = `<h2>Il mio profilo</h2>
+    <p class="sotto">La parte LinkedIn arriva dall'import; le altre cose le aggiungi tu e servono a trovarti le persone e le idee giuste.</p>
+    <div class="due">
+      <div class="carta"><h3 style="margin-top:0">Dal LinkedIn</h3>
+        ${campo("nome", "Nome", p.nome)}${campo("titolo", "Titolo", p.titolo, false, "(headline)")}
+        <div class="due"><div>${campo("ruolo", "Ruolo", p.ruolo)}</div><div>${campo("azienda", "Azienda", p.azienda)}</div></div>
+        ${p.aziendaInfo ? `<div class="az" style="margin-top:6px">Dati AIDA: ${esc([p.aziendaInfo.settore || p.aziendaInfo.ateco, p.aziendaInfo.fatturato && "fatturato " + p.aziendaInfo.fatturato, p.aziendaInfo.dipendenti && p.aziendaInfo.dipendenti + " dipendenti"].filter(Boolean).join(" · "))}</div>` : ""}
+        ${campo("citta", "Città", p.citta)}${campo("linkedin", "Link LinkedIn", p.linkedin)}
+        ${campo("competenze", "Competenze", p.competenze, false, "(separate da virgola)")}
+        ${campo("esperienze", "Esperienze", p.esperienze, true)}
+        ${campo("linkedinTesto", "Incolla qui il tuo profilo LinkedIn", p.linkedinTesto, true, "(facoltativo: da LinkedIn, Altro → Salva come PDF, poi copia il testo)")}
+      </div>
+      <div class="carta"><h3 style="margin-top:0">Quello che aggiungo io</h3>
+        ${campo("passioni", "Passioni e interessi", x.passioni, true, "(es. calcio, cucina, vela)")}
+        <label>Preferisco progetti</label><select id="preferenza">${["", "B2B", "B2C", "Entrambi"].map((m) => `<option ${x.preferenza === m ? "selected" : ""}>${m}</option>`).join("")}</select>
+        ${campo("settori", "Settori che mi interessano", x.settori, false, "(separati da virgola)")}
+        ${campo("ruoloNelTeam", "Che ruolo vorrei nel team", x.ruoloNelTeam, false, "(es. finanza, prodotto, vendite)")}
+        ${campo("cosaCerco", "Come mi piacerebbe sviluppare il progetto", x.cosaCerco, true)}
+        ${campo("ideeMie", "Idee che ho già", x.ideeMie, true)}
+        ${campo("nonVoglio", "Cose che non voglio fare", x.nonVoglio)}
+        ${campo("disponibilita", "Disponibilità", x.disponibilita, false, "(es. weekend, sera, in presenza a Bologna)")}
+      </div>
+    </div>
+    <div id="msgProf"></div>
+    <div class="riga" style="margin-top:14px"><button class="btn primario" id="salvaProf">Salva profilo</button></div>`;
+  document.getElementById("salvaProf").onclick = async () => {
+    const v = (id) => document.getElementById(id).value;
+    const campi = ["nome", "titolo", "ruolo", "azienda", "citta", "linkedin", "competenze", "esperienze", "linkedinTesto",
+      "passioni", "preferenza", "settori", "ruoloNelTeam", "cosaCerco", "ideeMie", "nonVoglio", "disponibilita"];
+    const corpo = {}; campi.forEach((c) => { corpo[c] = v(c); });
+    try { await api("profilo", corpo); S.dati = await api("dati"); avvisa("msgProf", "Profilo salvato.", "bene"); }
+    catch (e) { avvisa("msgProf", e.message, "male"); }
+  };
+}
+
+function collega() {
+  const liberi = S.dati.profili.filter((p) => !p.rivendicato);
+  $main.innerHTML = `<h2>Collega il tuo profilo</h2>
+    <p class="sotto">Cerca il tuo nome fra i profili importati dal LinkedIn e dì «sono io». Se non ci sei, crea il tuo profilo.</p>
+    <input type="search" id="cercaMe" placeholder="Il tuo nome">
+    <div class="griglia" id="liberi" style="margin-top:12px"></div>
+    <div class="carta" style="margin-top:18px"><h3 style="margin-top:0">Non mi trovo</h3>
+      <label>Nome e cognome</label><input type="text" id="nNome" value="${esc(S.dati.io.nome)}">
+      <label>Link al tuo profilo LinkedIn</label><input type="text" id="nLi" placeholder="https://www.linkedin.com/in/…">
+      <div class="riga" style="margin-top:12px"><button class="btn primario" id="nCrea">Crea il mio profilo</button></div></div>
+    <div id="msgCol"></div>`;
+  const disegnaLiberi = () => {
+    const f = document.getElementById("cercaMe").value.toLowerCase();
+    document.getElementById("liberi").innerHTML = liberi.filter((p) => !f || p.nome.toLowerCase().includes(f)).slice(0, 24).map((p) =>
+      `<div class="carta persona"><div class="testa"><div class="avatar">${esc(iniziali(p.nome))}</div><div><div class="nome">${esc(p.nome)}</div>
+      <div class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · "))}</div></div></div>
+      <button class="btn primario piccolo" data-rivendica="${p.id}">Sono io</button></div>`).join("") || '<p class="piccolo">Nessun profilo libero con questo nome.</p>';
+  };
+  document.getElementById("cercaMe").oninput = disegnaLiberi;
+  disegnaLiberi();
+  document.getElementById("nCrea").onclick = async () => {
+    try { await api("nuovo-profilo", { nome: nNome.value, linkedin: nLi.value }); S.dati = await api("dati"); schedaProfilo(); }
+    catch (e) { avvisa("msgCol", e.message, "male"); }
+  };
+}
+document.addEventListener("click", async (ev) => {
+  const id = ev.target.dataset && ev.target.dataset.rivendica;
+  if (!id) return;
+  try { await api("rivendica", { id }); S.dati = await api("dati"); S.scheda = "profilo"; disegna(); }
+  catch (e) { avvisa("msgCol", e.message, "male"); }
+});
+
+// ---------------------------------------------------------------- statistiche (admin)
+async function statistiche() {
+  $main.innerHTML = '<div class="caricamento">Carico le statistiche…</div>';
+  let s;
+  try { s = S.stat = await api("statistiche"); } catch (e) { $main.innerHTML = `<div class="avviso male">${esc(e.message)}</div>`; return; }
+  const n = s.numeri;
+  const tile = (v, t) => `<div class="carta"><div class="num">${v}</div><div class="piccolo">${t}</div></div>`;
+  const barre = (arr, fmt) => {
+    const max = Math.max(1, ...arr.map((x) => x[1] || x.n));
+    return arr.map((x) => { const v = x[1] || x.n; return `<div style="margin:4px 0"><div class="riga piccolo"><span>${fmt(x)}</span><span class="spazio"></span><b>${v}</b></div>
+      <div style="height:6px;border-radius:3px;background:var(--accento-chiaro)"><div style="height:6px;border-radius:3px;background:var(--accento);width:${(v / max) * 100}%"></div></div></div>`; }).join("") || '<p class="piccolo">Ancora niente.</p>';
+  };
+  $main.innerHTML = `<div class="riga"><h2>Statistiche</h2><span class="spazio"></span>
+      <button class="btn" id="scarica">Scarica tutto (JSON)</button><button class="btn" id="aggiorna">Aggiorna</button></div>
+    <p class="sotto">Solo tu vedi questa scheda.</p>
+    <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+      ${tile(n.utenti, "persone entrate")}${tile(n.collegati + "/" + n.profili, "profili collegati")}${tile(n.completati, "profili completati")}
+      ${tile(n.generazioni, "generazioni")}${tile(n.ideeGenerate, "idee generate")}${tile(n.bacheca, "idee in bacheca")}${tile(n.aziende, "aziende AIDA")}
+    </div>
+    <div class="due" style="margin-top:14px">
+      <div class="carta"><h3 style="margin-top:0">Chi si sta mettendo con chi</h3><p class="piccolo">Coppie scelte insieme nelle generazioni (peso 1), in una squadra in bacheca (peso 3), candidature (peso 1).</p>
+        ${barre(s.coppie, (c) => esc(c.a + " + " + c.b))}</div>
+      <div class="carta"><h3 style="margin-top:0">Persone più cercate</h3><p class="piccolo">Quante volte qualcuno le ha messe nel proprio gruppo.</p>
+        ${barre(s.cercati, (c) => esc(c.nome))}</div>
+      <div class="carta"><h3 style="margin-top:0">Settori delle idee</h3>${barre(s.settori, (x) => esc(x[0]))}</div>
+      <div class="carta"><h3 style="margin-top:0">B2B / B2C</h3>${barre(s.modelli, (x) => esc(x[0]))}</div>
+    </div>
+    <h3 style="margin-top:24px">Tutte le idee generate</h3>
+    <div class="carta scorri"><table><tr><th>Quando</th><th>Chi</th><th>Con</th><th>Idee</th></tr>
+      ${s.generazioni.map((g) => `<tr><td>${quando(g.quando)}</td><td>${esc(g.autoreNome || g.chi)}</td><td>${g.modo === "gruppo" ? esc(g.personeNomi.join(", ")) : "<i>idee per sé</i>"}${g.note ? `<div class="piccolo">«${esc(g.note)}»</div>` : ""}</td>
+        <td>${g.idee.map((i) => `<div><span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${esc(i.punteggio)}</span> <b>${esc(i.titolo)}</b> <span class="piccolo">${esc(i.modello)} · ${esc(i.settore)}${i.compagni && i.compagni.length ? " · suggeriti: " + esc(i.compagni.map((c) => c.nome).join(", ")) : ""}</span></div>`).join("")}</td></tr>`).join("") || '<tr><td colspan="4" class="piccolo">Ancora nessuna.</td></tr>'}
+    </table></div>
+    <h3 style="margin-top:24px">Bacheca</h3>
+    <div class="carta scorri"><table><tr><th>Idea</th><th>Autore</th><th>Squadra</th><th>Interessati</th></tr>
+      ${s.bacheca.map((i) => `<tr><td><b>${esc(i.titolo)}</b><div class="piccolo">${esc(i.modello)} ${esc(i.settore)}</div></td><td>${esc(i.autoreNome)}</td><td>${esc(i.membriNomi.join(", "))}</td><td>${esc(i.interessatiNomi.join(", "))}</td></tr>`).join("") || '<tr><td colspan="4" class="piccolo">Vuota.</td></tr>'}
+    </table></div>
+    <h3 style="margin-top:24px">Persone entrate</h3>
+    <div class="carta scorri"><table><tr><th>Email</th><th>Profilo</th><th>Accessi</th><th>Ultimo</th></tr>
+      ${s.utenti.map((u) => `<tr><td>${esc(u.email)}</td><td>${esc(u.profiloNome || "—")}</td><td>${u.accessi || 0}</td><td>${quando(u.ultimo)}</td></tr>`).join("")}
+    </table></div>
+    <h3 style="margin-top:24px">Registro</h3>
+    <div class="carta scorri"><table><tr><th>Quando</th><th>Chi</th><th>Cosa</th><th>Dettagli</th></tr>
+      ${s.eventi.map((e) => { const { quando: q, chi, tipo, ...r } = e; return `<tr><td>${quando(q)}</td><td>${esc(chi)}</td><td>${esc(tipo)}</td><td class="piccolo">${esc(Object.entries(r).map(([k, v]) => k + ": " + (Array.isArray(v) ? v.join(", ") : v)).join(" · ")).slice(0, 300)}</td></tr>`; }).join("")}
+    </table></div>`;
+  document.getElementById("aggiorna").onclick = statistiche;
+  document.getElementById("scarica").onclick = () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ statistiche: s, profili: S.dati.profili }, null, 2)], { type: "application/json" }));
+    a.download = "squadre-bbs-" + new Date().toISOString().slice(0, 10) + ".json"; a.click();
+  };
+}
+
+// ---------------------------------------------------------------- importa (admin)
+function leggiCsv(testo) {
+  testo = testo.replace(/^﻿/, "");
+  const prima = testo.split(/\r?\n/)[0] || "";
+  const sep = [";", "\t", ","].sort((a, b) => prima.split(b).length - prima.split(a).length)[0];
+  const righe = []; let riga = [], campo = "", virgolette = false;
+  for (let i = 0; i < testo.length; i++) {
+    const c = testo[i];
+    if (virgolette) {
+      if (c === '"' && testo[i + 1] === '"') { campo += '"'; i++; }
+      else if (c === '"') virgolette = false;
+      else campo += c;
+    } else if (c === '"') virgolette = true;
+    else if (c === sep) { riga.push(campo); campo = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && testo[i + 1] === "\n") i++; riga.push(campo); righe.push(riga); riga = []; campo = ""; }
+    else campo += c;
+  }
+  if (campo || riga.length) { riga.push(campo); righe.push(riga); }
+  const testa = (righe.shift() || []).map((h) => h.trim());
+  return righe.filter((r) => r.some((x) => x.trim())).map((r) => Object.fromEntries(testa.map((h, i) => [h, (r[i] || "").trim()])));
+}
+// Nome colonna -> campo nostro, per regole (le esportazioni hanno intestazioni diverse).
+function mappa(riga, regole) {
+  const out = {}, altro = {};
+  for (const [h, v] of Object.entries(riga)) {
+    const k = h.toLowerCase();
+    const r = regole.find(([re]) => re.test(k));
+    if (r && !out[r[1]]) out[r[1]] = v; else if (v) altro[h] = v;
+  }
+  return [out, altro];
+}
+const REGOLE_PROFILI = [
+  [/^(nome|name|full ?name|nome e cognome)$/, "nome"], [/mail/, "email"], [/linkedin|profile ?url|^url$/, "linkedin"],
+  [/headline|titolo|^title$/, "titolo"], [/company|azienda|employer|organi/, "azienda"], [/position|ruolo|job/, "ruolo"],
+  [/location|citt|city/, "citta"], [/experience|esperienz|summary|about|riepilogo|informazioni/, "esperienze"],
+  [/education|formazion|school/, "formazione"], [/skill|competenz/, "competenze"], [/foto|photo|picture|image/, "foto"],
+];
+const REGOLE_AZIENDE = [
+  [/ragione sociale|denominazione|^nome|company name|^azienda/, "nome"], [/ricavi|fatturato|revenue|turnover/, "fatturato"],
+  [/ebitda/, "ebitda"], [/utile|risultato|net income|profit/, "utile"], [/dipendent|employees/, "dipendenti"],
+  [/ateco.*descr|descr.*ateco|settore|attivit|descrizione/, "settore"], [/ateco|nace/, "ateco"],
+  [/comune|citt|sede|city|provincia/, "citta"], [/anno|year|data chiusura/, "anno"], [/partita iva|p\.? ?iva|vat|codice fiscale/, "piva"],
+];
+
+function importa() {
+  $main.innerHTML = `<h2>Importa</h2>
+    <p class="sotto">Solo per te. Incolla un CSV (virgola, punto e virgola o tab) o un JSON. Le intestazioni vengono riconosciute da sole.</p>
+    <div class="due">
+      <div class="carta"><h3 style="margin-top:0">Profili dal LinkedIn</h3>
+        <p class="piccolo">Colonne riconosciute: nome, email, linkedin, titolo (headline), azienda, ruolo, città, esperienze, formazione, competenze. Se metti l'email, al primo accesso con quell'account il profilo si collega da solo. Rimportare aggiorna i profili già presenti (stesso link LinkedIn o stesso nome).</p>
+        <input type="file" id="fileP" accept=".csv,.tsv,.txt,.json"><textarea id="testoP" style="min-height:160px;margin-top:8px" placeholder="nome;email;linkedin;titolo;azienda;ruolo;citta&#10;Mario Rossi;mario@…;https://www.linkedin.com/in/…;CFO;Ducati;CFO;Bologna"></textarea>
+        <div class="riga" style="margin-top:8px"><button class="btn" id="provaP">Anteprima</button><button class="btn primario" id="vaiP">Importa profili</button></div>
+        <div id="msgP"></div></div>
+      <div class="carta"><h3 style="margin-top:0">Aziende da AIDA</h3>
+        <p class="piccolo">Esporta da AIDA le aziende dei partecipanti in CSV o Excel → CSV. Colonne riconosciute: ragione sociale, ricavi/fatturato, EBITDA, utile, dipendenti, ATECO, descrizione attività, comune, anno. Le altre colonne vengono conservate. L'aggancio ai profili è per nome azienda.</p>
+        <input type="file" id="fileA" accept=".csv,.tsv,.txt,.json"><textarea id="testoA" style="min-height:160px;margin-top:8px"></textarea>
+        <div class="riga" style="margin-top:8px"><button class="btn" id="provaA">Anteprima</button><button class="btn primario" id="vaiA">Importa aziende</button></div>
+        <div id="msgA"></div></div>
+    </div>
+    <h3 style="margin-top:24px">Profili presenti</h3>
+    <div class="carta scorri"><table><tr><th>Nome</th><th>Azienda</th><th>AIDA</th><th>Collegato a</th><th></th></tr>
+      ${S.dati.profili.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.azienda)}</td><td>${p.aziendaInfo ? "✓" : ""}</td><td>${esc(p.email || (p.emailAttesa ? "(atteso " + p.emailAttesa + ")" : ""))}</td>
+        <td>${p.email ? `<button class="btn piccolo" data-scollega="${p.id}">Scollega</button>` : ""} <button class="btn piccolo pericolo" data-eliminap="${p.id}">Elimina</button></td></tr>`).join("")}
+    </table></div>`;
+  const leggi = (testo, regole) => {
+    const t = testo.trim();
+    let righe = t.startsWith("[") ? JSON.parse(t) : leggiCsv(t);
+    return righe.map((r) => { const [o, altro] = mappa(r, regole); if (Object.keys(altro).length) o.altro = JSON.stringify(altro).slice(0, 480); return o; }).filter((r) => r.nome);
+  };
+  const file = (inp, area) => { document.getElementById(inp).onchange = (e) => { const f = e.target.files[0]; if (f) f.text().then((t) => { document.getElementById(area).value = t; }); }; };
+  file("fileP", "testoP"); file("fileA", "testoA");
+  const prova = (area, regole, msg) => () => {
+    try { const r = leggi(document.getElementById(area).value, regole); avvisa(msg, `${r.length} righe lette. Prima: ${JSON.stringify(r[0] || {}).slice(0, 400)}`); }
+    catch (e) { avvisa(msg, e.message, "male"); }
+  };
+  document.getElementById("provaP").onclick = prova("testoP", REGOLE_PROFILI, "msgP");
+  document.getElementById("provaA").onclick = prova("testoA", REGOLE_AZIENDE, "msgA");
+  document.getElementById("vaiP").onclick = async () => {
+    try { const r = await api("importa-profili", { righe: leggi(testoP.value, REGOLE_PROFILI) }); S.dati = await api("dati"); importa(); avvisa("msgP", `Fatto: ${r.nuovi} nuovi, ${r.aggiornati} aggiornati.`, "bene"); }
+    catch (e) { avvisa("msgP", e.message, "male"); }
+  };
+  document.getElementById("vaiA").onclick = async () => {
+    try { const r = await api("importa-aziende", { righe: leggi(testoA.value, REGOLE_AZIENDE) }); S.dati = await api("dati"); importa(); avvisa("msgA", `Fatto: ${r.importate} aziende.`, "bene"); }
+    catch (e) { avvisa("msgA", e.message, "male"); }
+  };
+}
+document.addEventListener("click", async (ev) => {
+  const d = ev.target.dataset || {};
+  try {
+    if (d.scollega) { if (!confirm("Scollegare questo profilo dal suo account?")) return; await api("scollega", { id: d.scollega }); }
+    else if (d.eliminap) { if (!confirm("Eliminare il profilo?")) return; await api("elimina-profilo", { id: d.eliminap }); }
+    else return;
+    S.dati = await api("dati"); importa();
+  } catch (e) { alert(e.message); }
+});
+
+console.log("Squadre BBS v" + VERSION);
+carica();
+})();
+</script>
+</body>
+</html>
