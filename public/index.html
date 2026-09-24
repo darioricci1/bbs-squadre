@@ -102,7 +102,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "1.2.0";
+const VERSION = "1.2.1";
 const $main = document.getElementById("main");
 const S = { dati: null, scheda: "persone", scelti: new Set(), filtro: "", ultima: null, stat: null, generando: false };
 
@@ -397,9 +397,11 @@ function caricaPdfjs() {
   });
   return pdfjsPronto;
 }
-// Legge il PDF che LinkedIn genera da «Altro → Salva come PDF»: colonna
-// laterale (contatti, competenze, lingue) e colonna principale (nome,
-// headline, riepilogo, esperienza, formazione). Torna i campi del profilo.
+// Legge il PDF che LinkedIn genera da «Altro → Salva come PDF». La pagina ha
+// una colonna laterale (contatti, competenze, lingue) e una principale (nome,
+// headline, localita', poi le sezioni). Titoli e sezioni si riconoscono dalla
+// dimensione del carattere, non dalle parole: cosi' funziona anche con i
+// profili in inglese, tedesco o francese.
 async function estraiProfiloPdf(pdfjs, dati) {
   const doc = await pdfjs.getDocument({ data: dati }).promise;
   const lato = [], centro = [];
@@ -409,40 +411,60 @@ async function estraiProfiloPdf(pdfjs, dati) {
     const cont = await pag.getTextContent();
     const righe = new Map();
     for (const it of cont.items) {
-      if (!it.str || !it.str.trim()) continue;
+      if (!it.str || !it.str.trim() || it.height < 10) continue;   // sotto i 10 punti: numeri di pagina
       const x = it.transform[4], y = Math.round(it.transform[5]);
       const col = x < larghezza * 0.3 ? "l" : "c";
       const k = col + ":" + y;
-      if (!righe.has(k)) righe.set(k, { col, y, pezzi: [] });
-      righe.get(k).pezzi.push({ x, s: it.str });
+      if (!righe.has(k)) righe.set(k, { col, y, h: 0, pezzi: [] });
+      const r = righe.get(k);
+      r.pezzi.push({ x, s: it.str });
+      r.h = Math.max(r.h, it.height);
     }
     [...righe.values()].sort((a, b) => b.y - a.y).forEach((r) => {
       const t = r.pezzi.sort((a, b) => a.x - b.x).map((p) => p.s).join(" ").replace(/\s+/g, " ").trim();
-      if (/^(page|pagina) \d+ (of|di) \d+$/i.test(t)) return;
-      (r.col === "l" ? lato : centro).push(t);
+      (r.col === "l" ? lato : centro).push({ t, h: r.h, pag: n });
     });
   }
-  const tutto = lato.concat(centro).join("\n");
-  const li = /linkedin\.com\/in\/[A-Za-z0-9\-_%]+/i.exec(lato.join("").replace(/\s+/g, ""));
-  const sezione = (righe, titoli, fine) => {
-    const i = righe.findIndex((r) => titoli.test(r));
-    if (i < 0) return [];
-    const out = [];
-    for (let j = i + 1; j < righe.length; j++) { if (fine.test(righe[j])) break; out.push(righe[j]); }
-    return out;
-  };
-  const TITOLI_LATO = /^(contatti|contact|competenze principali|top skills|lingue|languages|certifications|certificazioni|honors-awards|riconoscimenti e premi|publications|pubblicazioni|patents|brevetti)$/i;
-  const TITOLI_CENTRO = /^(riepilogo|summary|esperienza|experience|formazione|education|volontariato|volunteer experience)$/i;
+  if (!centro.length) throw new Error("il PDF non contiene testo: va salvato da LinkedIn con Altro → Salva come PDF, non stampato");
+
+  // Colonna principale: nome (carattere grande), poi headline e localita',
+  // poi sezioni con titolo di corpo medio.
+  const hMax = Math.max(...centro.filter((r) => r.pag === 1).map((r) => r.h));
+  const eNome = (r) => r.pag === 1 && r.h >= hMax - 1;
+  const eTitolo = (r) => !eNome(r) && r.h >= 14.5;
+  let i = 0;
+  const nome = [];
+  while (i < centro.length && eNome(centro[i])) nome.push(centro[i++].t);
+  const testa = [];
+  while (i < centro.length && !eTitolo(centro[i])) testa.push(centro[i++].t);
+  const sezioni = [];
+  for (; i < centro.length; i++) {
+    if (eTitolo(centro[i])) sezioni.push({ titolo: centro[i].t, righe: [] });
+    else if (sezioni.length) sezioni[sezioni.length - 1].righe.push(centro[i].t);
+  }
+  const sez = (re) => sezioni.filter((s) => re.test(s.titolo)).map((s) => s.righe.join("\n")).join("\n");
+
+  // Colonna laterale: titoli a corpo 13, voci a corpo 11.
+  const hLato = lato.length ? Math.max(...lato.map((r) => r.h)) : 0;
+  const blocchi = [];
+  for (const r of lato) {
+    if (r.h >= hLato - 0.5) blocchi.push({ titolo: r.t, righe: [] });
+    else if (blocchi.length) blocchi[blocchi.length - 1].righe.push(r.t);
+  }
+  const competenze = blocchi.filter((b) => /competenze|skills|kenntnisse|comp[ée]tences|aptitudes/i.test(b.titolo))
+    .flatMap((b) => b.righe).join(", ");
+  const li = /linkedin\.com\/in\/[A-Za-z0-9\-_%]+/i.exec(lato.map((r) => r.t).join("").replace(/\s+/g, ""));
+
   return {
-    nome: centro[0] || "",
-    titolo: centro[1] || "",
-    citta: centro[2] && !TITOLI_CENTRO.test(centro[2]) ? centro[2] : "",
+    nome: nome.join(" ").trim(),
+    titolo: testa.slice(0, -1).join(" ").trim() || testa.join(" ").trim(),
+    citta: testa.length > 1 ? testa[testa.length - 1] : "",
     linkedin: li ? "https://www." + li[0].replace(/^linkedin/i, "linkedin") + "/" : "",
-    competenze: sezione(lato, /^(competenze principali|top skills)$/i, TITOLI_LATO).join(", "),
-    riepilogo: sezione(centro, /^(riepilogo|summary)$/i, TITOLI_CENTRO).join(" "),
-    esperienze: sezione(centro, /^(esperienza|experience)$/i, TITOLI_CENTRO).join("\n"),
-    formazione: sezione(centro, /^(formazione|education)$/i, TITOLI_CENTRO).join("\n"),
-    testo: tutto,
+    competenze,
+    riepilogo: sez(/riepilogo|summary|zusammenfassung|r[ée]sum[ée]|resumen|info/i).replace(/\n/g, " "),
+    esperienze: sez(/esperienz|experience|berufserfahrung|exp[ée]rience|experiencia/i),
+    formazione: sez(/formazione|istruzione|education|ausbildung|formation|educaci[oó]n/i),
+    testo: lato.concat(centro).map((r) => r.t).join("\n"),
   };
 }
 
