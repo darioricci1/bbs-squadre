@@ -102,7 +102,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const $main = document.getElementById("main");
 const S = { dati: null, scheda: "persone", scelti: new Set(), filtro: "", ultima: null, stat: null, generando: false };
 
@@ -386,6 +386,71 @@ document.addEventListener("click", async (ev) => {
   } catch (e) { alert(e.message); }
 });
 
+// ---------------------------------------------------------------- PDF di LinkedIn
+// pdf.js e' ospitato sul sito (public/vendor/pdfjs) e si carica solo quando
+// serve: pesa 1,7 MB e la maggior parte delle visite non lo usa.
+let pdfjsPronto = null;
+function caricaPdfjs() {
+  if (!pdfjsPronto) pdfjsPronto = import("/vendor/pdfjs/pdf.min.mjs").then((m) => {
+    m.GlobalWorkerOptions.workerSrc = "/vendor/pdfjs/pdf.worker.min.mjs";
+    return m;
+  });
+  return pdfjsPronto;
+}
+// Legge il PDF che LinkedIn genera da «Altro → Salva come PDF»: colonna
+// laterale (contatti, competenze, lingue) e colonna principale (nome,
+// headline, riepilogo, esperienza, formazione). Torna i campi del profilo.
+async function estraiProfiloPdf(pdfjs, dati) {
+  const doc = await pdfjs.getDocument({ data: dati }).promise;
+  const lato = [], centro = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const pag = await doc.getPage(n);
+    const larghezza = pag.getViewport({ scale: 1 }).width;
+    const cont = await pag.getTextContent();
+    const righe = new Map();
+    for (const it of cont.items) {
+      if (!it.str || !it.str.trim()) continue;
+      const x = it.transform[4], y = Math.round(it.transform[5]);
+      const col = x < larghezza * 0.3 ? "l" : "c";
+      const k = col + ":" + y;
+      if (!righe.has(k)) righe.set(k, { col, y, pezzi: [] });
+      righe.get(k).pezzi.push({ x, s: it.str });
+    }
+    [...righe.values()].sort((a, b) => b.y - a.y).forEach((r) => {
+      const t = r.pezzi.sort((a, b) => a.x - b.x).map((p) => p.s).join(" ").replace(/\s+/g, " ").trim();
+      if (/^(page|pagina) \d+ (of|di) \d+$/i.test(t)) return;
+      (r.col === "l" ? lato : centro).push(t);
+    });
+  }
+  const tutto = lato.concat(centro).join("\n");
+  const li = /linkedin\.com\/in\/[A-Za-z0-9\-_%]+/i.exec(lato.join("").replace(/\s+/g, ""));
+  const sezione = (righe, titoli, fine) => {
+    const i = righe.findIndex((r) => titoli.test(r));
+    if (i < 0) return [];
+    const out = [];
+    for (let j = i + 1; j < righe.length; j++) { if (fine.test(righe[j])) break; out.push(righe[j]); }
+    return out;
+  };
+  const TITOLI_LATO = /^(contatti|contact|competenze principali|top skills|lingue|languages|certifications|certificazioni|honors-awards|riconoscimenti e premi|publications|pubblicazioni|patents|brevetti)$/i;
+  const TITOLI_CENTRO = /^(riepilogo|summary|esperienza|experience|formazione|education|volontariato|volunteer experience)$/i;
+  return {
+    nome: centro[0] || "",
+    titolo: centro[1] || "",
+    citta: centro[2] && !TITOLI_CENTRO.test(centro[2]) ? centro[2] : "",
+    linkedin: li ? "https://www." + li[0].replace(/^linkedin/i, "linkedin") + "/" : "",
+    competenze: sezione(lato, /^(competenze principali|top skills)$/i, TITOLI_LATO).join(", "),
+    riepilogo: sezione(centro, /^(riepilogo|summary)$/i, TITOLI_CENTRO).join(" "),
+    esperienze: sezione(centro, /^(esperienza|experience)$/i, TITOLI_CENTRO).join("\n"),
+    formazione: sezione(centro, /^(formazione|education)$/i, TITOLI_CENTRO).join("\n"),
+    testo: tutto,
+  };
+}
+
+async function leggiPdfLinkedin(file) {
+  const pdfjs = await caricaPdfjs();
+  return estraiProfiloPdf(pdfjs, new Uint8Array(await file.arrayBuffer()));
+}
+
 // ---------------------------------------------------------------- il mio profilo
 function schedaProfilo() {
   const p = mio();
@@ -397,13 +462,16 @@ function schedaProfilo() {
     <p class="sotto">La parte LinkedIn arriva dall'import; le altre cose le aggiungi tu e servono a trovarti le persone e le idee giuste.</p>
     <div class="due">
       <div class="carta"><h3 style="margin-top:0">Dal LinkedIn</h3>
+        <div class="avviso info" style="margin-top:0"><b>Il modo più veloce:</b> su LinkedIn apri il tuo profilo → <b>Altro</b> → <b>Salva come PDF</b>, poi caricalo qui. I campi si compilano da soli; controlla e clicca Salva profilo.
+          <div style="margin-top:8px"><input type="file" id="pdfProf" accept="application/pdf,.pdf"></div></div>
         ${campo("nome", "Nome", p.nome)}${campo("titolo", "Titolo", p.titolo, false, "(headline)")}
         <div class="due"><div>${campo("ruolo", "Ruolo", p.ruolo)}</div><div>${campo("azienda", "Azienda", p.azienda)}</div></div>
         ${p.aziendaInfo ? `<div class="az" style="margin-top:6px">Dati AIDA: ${esc([p.aziendaInfo.settore || p.aziendaInfo.ateco, p.aziendaInfo.fatturato && "fatturato " + p.aziendaInfo.fatturato, p.aziendaInfo.dipendenti && p.aziendaInfo.dipendenti + " dipendenti"].filter(Boolean).join(" · "))}</div>` : ""}
         ${campo("citta", "Città", p.citta)}${campo("linkedin", "Link LinkedIn", p.linkedin)}
         ${campo("competenze", "Competenze", p.competenze, false, "(separate da virgola)")}
         ${campo("esperienze", "Esperienze", p.esperienze, true)}
-        ${campo("linkedinTesto", "Incolla qui il tuo profilo LinkedIn", p.linkedinTesto, true, "(facoltativo: da LinkedIn, Altro → Salva come PDF, poi copia il testo)")}
+        ${campo("formazione", "Formazione", p.formazione, true)}
+        ${campo("linkedinTesto", "Testo completo del profilo LinkedIn", p.linkedinTesto, true, "(si riempie col PDF, oppure incollalo a mano)")}
       </div>
       <div class="carta"><h3 style="margin-top:0">Quello che aggiungo io</h3>
         ${campo("passioni", "Passioni e interessi", x.passioni, true, "(es. calcio, cucina, vela)")}
@@ -420,11 +488,26 @@ function schedaProfilo() {
     <div class="riga" style="margin-top:14px"><button class="btn primario" id="salvaProf">Salva profilo</button></div>`;
   document.getElementById("salvaProf").onclick = async () => {
     const v = (id) => document.getElementById(id).value;
-    const campi = ["nome", "titolo", "ruolo", "azienda", "citta", "linkedin", "competenze", "esperienze", "linkedinTesto",
+    const campi = ["nome", "titolo", "ruolo", "azienda", "citta", "linkedin", "competenze", "esperienze", "formazione", "linkedinTesto",
       "passioni", "preferenza", "settori", "ruoloNelTeam", "cosaCerco", "ideeMie", "nonVoglio", "disponibilita"];
     const corpo = {}; campi.forEach((c) => { corpo[c] = v(c); });
     try { await api("profilo", corpo); S.dati = await api("dati"); avvisa("msgProf", "Profilo salvato.", "bene"); }
     catch (e) { avvisa("msgProf", e.message, "male"); }
+  };
+  document.getElementById("pdfProf").onchange = async (ev) => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    avvisa("msgProf", "Leggo il PDF…");
+    try {
+      const r = await leggiPdfLinkedin(f);
+      const metti = (id, v) => { if (v) document.getElementById(id).value = v; };
+      metti("titolo", r.titolo); metti("citta", r.citta); metti("competenze", r.competenze);
+      metti("esperienze", [r.riepilogo, r.esperienze].filter(Boolean).join("\n\n"));
+      metti("formazione", r.formazione); metti("linkedinTesto", r.testo);
+      if (!document.getElementById("linkedin").value) metti("linkedin", r.linkedin);
+      avvisa("msgProf", "PDF letto: controlla i campi e clicca Salva profilo.", "bene");
+      document.getElementById("msgProf").scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (e) { avvisa("msgProf", "Non riesco a leggere questo PDF: " + e.message, "male"); }
   };
 }
 
@@ -588,7 +671,11 @@ function importa() {
         <p class="piccolo">Colonne riconosciute: nome, email, linkedin, titolo (headline), azienda, ruolo, città, esperienze, formazione, competenze. Se metti l'email, al primo accesso con quell'account il profilo si collega da solo. Rimportare aggiorna i profili già presenti (stesso link LinkedIn o stesso nome).</p>
         <input type="file" id="fileP" accept=".csv,.tsv,.txt,.json"><textarea id="testoP" style="min-height:160px;margin-top:8px" placeholder="nome;email;linkedin;titolo;azienda;ruolo;citta&#10;Mario Rossi;mario@…;https://www.linkedin.com/in/…;CFO;Ducati;CFO;Bologna"></textarea>
         <div class="riga" style="margin-top:8px"><button class="btn" id="provaP">Anteprima</button><button class="btn primario" id="vaiP">Importa profili</button></div>
-        <div id="msgP"></div></div>
+        <div id="msgP"></div>
+        <h3>PDF dei profili</h3>
+        <p class="piccolo">Seleziona insieme i PDF salvati da LinkedIn (Altro → Salva come PDF). Ogni PDF aggiorna il profilo con lo stesso link LinkedIn o lo stesso nome, aggiungendo esperienze, formazione, competenze e testo completo.</p>
+        <input type="file" id="pdfMolti" accept="application/pdf,.pdf" multiple>
+        <div id="msgPdf"></div></div>
       <div class="carta"><h3 style="margin-top:0">Aziende da AIDA</h3>
         <p class="piccolo">Esporta da AIDA le aziende dei partecipanti in CSV o Excel → CSV. Colonne riconosciute: ragione sociale, ricavi/fatturato, EBITDA, utile, dipendenti, ATECO, descrizione attività, comune, anno. Le altre colonne vengono conservate. L'aggancio ai profili è per nome azienda.</p>
         <input type="file" id="fileA" accept=".csv,.tsv,.txt,.json"><textarea id="testoA" style="min-height:160px;margin-top:8px"></textarea>
@@ -617,6 +704,25 @@ function importa() {
   document.getElementById("vaiP").onclick = async () => {
     try { const r = await api("importa-profili", { righe: leggi(testoP.value, REGOLE_PROFILI) }); S.dati = await api("dati"); importa(); avvisa("msgP", `Fatto: ${r.nuovi} nuovi, ${r.aggiornati} aggiornati.`, "bene"); }
     catch (e) { avvisa("msgP", e.message, "male"); }
+  };
+  document.getElementById("pdfMolti").onchange = async (ev) => {
+    const files = [...ev.target.files];
+    if (!files.length) return;
+    const righe = [], errori = [];
+    for (let i = 0; i < files.length; i++) {
+      avvisa("msgPdf", `Leggo ${i + 1} di ${files.length}: ${files[i].name}`);
+      try {
+        const r = await leggiPdfLinkedin(files[i]);
+        if (!r.nome) throw new Error("nome non trovato");
+        righe.push({ nome: r.nome, linkedin: r.linkedin, titolo: r.titolo, citta: r.citta, competenze: r.competenze,
+          esperienze: [r.riepilogo, r.esperienze].filter(Boolean).join("\n\n"), formazione: r.formazione, linkedinTesto: r.testo });
+      } catch (e) { errori.push(files[i].name + " (" + e.message + ")"); }
+    }
+    try {
+      const r = await api("importa-profili", { righe });
+      S.dati = await api("dati"); importa();
+      avvisa("msgPdf", `Fatto: ${r.aggiornati} profili aggiornati, ${r.nuovi} nuovi.` + (errori.length ? ` Non letti: ${errori.join(", ")}` : ""), errori.length ? "info" : "bene");
+    } catch (e) { avvisa("msgPdf", e.message + (errori.length ? ` · Non letti: ${errori.join(", ")}` : ""), "male"); }
   };
   document.getElementById("vaiA").onclick = async () => {
     try { const r = await api("importa-aziende", { righe: leggi(testoA.value, REGOLE_AZIENDE) }); S.dati = await api("dati"); importa(); avvisa("msgA", `Fatto: ${r.importate} aziende.`, "bene"); }

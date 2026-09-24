@@ -24,12 +24,14 @@ partecipanti.
 - **Statistiche e Importa** (solo amministratori): chi si mette con chi,
   persone più cercate, settori e B2B/B2C delle idee, tutte le idee generate, la
   bacheca, gli accessi, il registro completo, esportazione JSON. Import dei
-  profili (CSV o JSON) e delle aziende esportate da AIDA (CSV).
+  profili (CSV o JSON, oppure molti PDF di LinkedIn insieme) e delle aziende
+  esportate da AIDA (CSV).
 
 ## Struttura
 
 ```
 public/index.html   l'applicazione (una pagina)
+public/vendor/      pdf.js (Mozilla, licenza Apache 2.0) per leggere i PDF di LinkedIn
 api/bbs.js          accesso, profili, bacheca, import, statistiche (?a=...)
 api/genera.js       generazione delle idee con Claude
 lib/                accesso Google, cookie firmato, database Neon, funzioni comuni
