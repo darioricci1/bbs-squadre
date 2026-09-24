@@ -21,7 +21,7 @@ partecipanti.
   rischi e primo passo, e si pubblica in bacheca con un clic.
 - **Bacheca.** Chiunque pubblica un'idea e dice chi cerca; gli altri si
   candidano, l'autore accoglie chi vuole nella squadra.
-- **Statistiche e Importa** (solo amministratori): chi si mette con chi,
+- **Statistiche e Importa** (solo amministratori; Importa non è nel menu, si apre da `/#importa`): chi si mette con chi,
   persone più cercate, settori e B2B/B2C delle idee, tutte le idee generate, la
   bacheca, gli accessi, il registro completo, esportazione JSON. Import dei
   profili (CSV o JSON, oppure molti PDF di LinkedIn insieme) e delle aziende
