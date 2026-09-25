@@ -185,8 +185,8 @@
   .burger,.solo-stretto{display:none}
   .riga-crediti{margin:6px 0 0;align-items:center}
   @media (max-width:760px){
-    .burger{display:block;border:0;background:var(--accento-chiaro);color:var(--accento);font-size:20px;width:40px;height:40px;border-radius:12px;cursor:pointer;order:0}
-    .marchio{order:1}
+    .burger{display:block;border:0;background:var(--accento-chiaro);color:var(--accento);font-size:20px;width:40px;height:40px;border-radius:12px;cursor:pointer;order:2;margin-left:auto}
+    .marchio{order:0}
     nav{display:none !important}
     header.menu-aperto nav{display:flex !important;flex-direction:column;align-items:stretch;order:4;flex:0 0 100%;margin:4px 0 0;padding:6px 0;border-top:1px solid var(--bordo)}
     header.menu-aperto nav button{text-align:left;padding:12px 10px;font-size:16px}
@@ -397,7 +397,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.31.3";
+const VERSION = "2.31.4";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
