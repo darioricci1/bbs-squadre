@@ -226,7 +226,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.9.0";
+const VERSION = "2.9.1";
 const $main = document.getElementById("main");
 const S = { opz: { modello: "", perno: "", settori: [], tipo: "", fonte: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1544,7 +1544,8 @@ async function aziende(daCache) {
       <div class="riga"><b>${esc(a.scritto)}</b>${a.nome && a.nome !== a.scritto ? `<span class="piccolo">(${esc(a.nome)})</span>` : ""}
         <span class="stato-az ${a.stato}">${STATI_AZ[a.stato]}</span>${a.fiducia && !a.manuale ? `<span class="piccolo">fiducia ${esc(a.fiducia)}</span>` : ""}
         ${a.manuale ? '<span class="piccolo">modificata a mano</span>' : ""}<span class="spazio"></span>
-        ${a.sito ? `<a class="piccolo" href="${esc(a.sito)}" target="_blank" rel="noopener">apri il sito</a>` : `<a class="piccolo" href="https://www.google.com/search?q=${encodeURIComponent(a.scritto)}" target="_blank" rel="noopener">cerca su Google</a>`}</div>
+        ${a.sito ? `<a class="piccolo" href="${esc(a.sito)}" target="_blank" rel="noopener">apri il sito</a>` : `<a class="piccolo" href="https://www.google.com/search?q=${encodeURIComponent(a.scritto)}" target="_blank" rel="noopener">cerca su Google</a>`}
+        <a class="piccolo" href="https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(a.scritto)}" target="_blank" rel="noopener">cerca su LinkedIn</a></div>
       ${a.nota ? `<div class="piccolo" style="color:var(--ambra)">${esc(a.nota)}</div>` : ""}
       <div class="due" style="margin-top:6px">
         <div><label>Nome</label><input type="text" data-c="nome" value="${esc(a.nome || a.scritto)}"></div>
@@ -1554,6 +1555,7 @@ async function aziende(daCache) {
       <label>Cosa fa l'azienda</label><textarea data-c="descrizione" placeholder="Cosa produce o vende, a chi, quanto è grande">${esc(a.descrizione || "")}</textarea>
       <details style="margin-top:8px" ${daSistemare(a) ? "open" : ""}><summary class="piccolo">Chi ci ha lavorato (${a.persone.length}) e cosa faceva</summary>
         ${a.persone.map((x) => `<div class="persona-lavoro" data-ruolo="${esc(x.id)}" data-profilo="${esc(x.profilo)}"><b>${esc(x.nome)}</b> · ${esc(x.ruolo)} <span class="piccolo">${esc(x.periodo.replace(/\s*\(.*\)$/, ""))}</span>
+          ${x.linkedin ? `<a class="piccolo" href="${esc(x.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : `<a class="piccolo" href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(x.nome)}" target="_blank" rel="noopener">cerca su LinkedIn</a>`}
           <textarea data-c="descrizioneRuolo" placeholder="Cosa faceva in questo ruolo">${esc(x.descrizioneRuolo || "")}</textarea></div>`).join("")}</details>
       <div class="riga" style="margin-top:8px"><button class="btn primario" data-salva-az>Salva</button>
         ${a.stato !== "ignorata" ? '<button class="btn" data-ignora-az>Non è un\'azienda</button>' : ""}

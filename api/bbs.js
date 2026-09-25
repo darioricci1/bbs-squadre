@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.9.0
+// VERSION: 1.9.1
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -478,7 +478,7 @@ async function aziendeLavoro(res) {
       if (!chiave) continue;
       const e = elenco[chiave] || (elenco[chiave] = { chiave, scritto: l.azienda, ...infoAzienda(chiave, l.azienda, siti), manuale: !!siti[chiave], persone: [] });
       const id = idLavoro(chiave, l.ruolo), mio = (p.lavoriMiei || {})[id];
-      e.persone.push({ profilo: p.id, nome: p.nome, id, ruolo: l.ruolo, periodo: l.periodo,
+      e.persone.push({ profilo: p.id, nome: p.nome, linkedin: p.linkedin || "", id, ruolo: l.ruolo, periodo: l.periodo,
         descrizioneRuolo: mio && typeof mio.descrizioneRuolo === "string" ? mio.descrizioneRuolo : l.descrizioneRuolo || "" });
     }
   }
