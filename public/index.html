@@ -176,6 +176,8 @@
   .campo-lav{display:grid;grid-template-columns:150px 1fr;gap:10px;margin-top:8px;align-items:start}
   .etichetta-lav{font-size:13px;font-weight:600;color:var(--grigio);padding-top:1px}
   .valore-lav{white-space:pre-wrap;overflow-wrap:anywhere}
+  .testo-lungo{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+  .testo-lungo.aperto{display:inline;-webkit-line-clamp:unset}
   @media (max-width:760px){.campo-lav{grid-template-columns:1fr;gap:2px}}
   .precedenti{margin-top:24px}
   .precedenti > summary{cursor:pointer;font-weight:600;font-size:17px;margin-bottom:10px}
@@ -403,7 +405,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.32.2";
+const VERSION = "2.33.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1625,14 +1627,35 @@ async function leggiPdfLinkedin(file) {
 }
 
 // ---------------------------------------------------------------- il mio profilo
+// Il profilo si legge come testo fisso; il pennino apre un campo alla volta,
+// che si salva subito con OK (il server accetta anche un campo solo).
+const CAMPI_PROF_LI = [["nome", "Nome"], ["titolo", "Titolo"], ["ruolo", "Ruolo"], ["azienda", "Azienda"], ["citta", "Città"], ["linkedin", "LinkedIn"],
+  ["competenze", "Competenze"], ["esperienze", "Esperienze", 6], ["formazione", "Formazione", 4], ["linkedinTesto", "Testo completo LinkedIn", 8]];
+const CAMPI_PROF_MIEI = [["passioni", "Passioni e interessi", 3], ["preferenza", "Preferisco progetti", "sel"], ["settori", "Settori che mi interessano"],
+  ["ruoloNelTeam", "Che ruolo vorrei nel team"], ["cosaCerco", "Come mi piacerebbe sviluppare il progetto", 3], ["ideeMie", "Idee che ho già", 3],
+  ["nonVoglio", "Cose che non voglio fare"], ["disponibilita", "Disponibilità"]];
+const MIEI_PROF = CAMPI_PROF_MIEI.map(([c]) => c);
+function campiProfilo(p, lista, aperto) {
+  const x = p.extra || {};
+  return lista.map(([c, t, righe]) => {
+    const v = (MIEI_PROF.includes(c) ? x[c] : p[c]) || "";
+    if (aperto === c) {
+      const ctrl = righe === "sel" ? `<select data-val-prof>${["", "B2B", "B2C", "Entrambi"].map((m) => `<option ${v === m ? "selected" : ""} value="${m}">${m || "—"}</option>`).join("")}</select>`
+        : righe ? `<textarea data-val-prof rows="${righe}">${esc(v)}</textarea>` : `<input type="text" data-val-prof value="${esc(v)}">`;
+      return `<div class="campo-lav"><span class="etichetta-lav">${t}</span><span class="campo-aperto">${ctrl}<button type="button" class="btn piccolo primario" data-ok-prof="${c}">OK</button></span></div>`;
+    }
+    const mostra = !v ? '<span class="vuoto">aggiungi…</span>'
+      : c === "linkedin" ? `<a href="${esc(/^https?:\/\//i.test(v) ? v : "https://" + v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, ""))}</a>`
+      : `<span class="${righe && righe !== "sel" && righe > 3 ? "testo-lungo" : ""}">${esc(v)}</span>`;
+    return `<div class="campo-lav"><span class="etichetta-lav">${t}</span><span class="valore-lav">${mostra}<button type="button" class="penna" data-penna-prof="${c}" title="Modifica">✎</button></span></div>`;
+  }).join("");
+}
 function schedaProfilo() {
   const p = mio();
   if (!p) return collega();
-  const x = p.extra || {};
-  const campo = (id, et, val, area, aiuto) => `<label>${et}${aiuto ? ` <small>${aiuto}</small>` : ""}</label>${area
-    ? `<textarea id="${id}">${esc(val)}</textarea>` : `<input type="text" id="${id}" value="${esc(val)}">`}`;
+  const aperto = S.profAperto;
   $main.innerHTML = `<h2>Il mio profilo</h2>
-    <p class="sotto">La parte LinkedIn arriva dall'import; le altre cose le aggiungi tu e servono a trovarti le persone e le idee giuste.</p>
+    <p class="sotto">La parte LinkedIn arriva dall'import; le altre cose le aggiungi tu e servono a trovarti le persone e le idee giuste. Clicca ✎ per cambiare un campo.</p>
     <div class="due">
       <div class="carta" data-tour="linkedin"><h3 style="margin-top:0">Dal LinkedIn</h3>
         ${p.esperienze || p.linkedinTesto
@@ -1640,63 +1663,63 @@ function schedaProfilo() {
               <a href="#" id="mostraPdf">Aggiorna dal PDF di LinkedIn</a></p>
              <div id="boxPdf" style="display:none" class="avviso info">Su LinkedIn apri il tuo profilo → <b>Altro</b> → <b>Salva come PDF</b>, poi caricalo qui.
                <div style="margin-top:8px"><input type="file" id="pdfProf" accept="application/pdf,.pdf"></div></div>`
-          : `<div class="avviso info" style="margin-top:0"><b>Il modo più veloce:</b> su LinkedIn apri il tuo profilo → <b>Altro</b> → <b>Salva come PDF</b>, poi caricalo qui. I campi si compilano da soli; controlla e clicca Salva profilo.
+          : `<div class="avviso info" style="margin-top:0"><b>Il modo più veloce:</b> su LinkedIn apri il tuo profilo → <b>Altro</b> → <b>Salva come PDF</b>, poi caricalo qui. I campi si compilano da soli.
               <div style="margin-top:8px"><input type="file" id="pdfProf" accept="application/pdf,.pdf"></div></div>`}
-        ${campo("nome", "Nome", p.nome)}${campo("titolo", "Titolo", p.titolo, false, "(headline)")}
-        <div class="due"><div>${campo("ruolo", "Ruolo", p.ruolo)}</div><div>${campo("azienda", "Azienda", p.azienda)}</div></div>
+        ${campiProfilo(p, CAMPI_PROF_LI, aperto)}
         ${p.aziendaInfo ? `<div class="az" style="margin-top:6px">Dati AIDA: ${esc([p.aziendaInfo.settore || p.aziendaInfo.ateco, p.aziendaInfo.fatturato && "fatturato " + p.aziendaInfo.fatturato, p.aziendaInfo.dipendenti && p.aziendaInfo.dipendenti + " dipendenti"].filter(Boolean).join(" · "))}</div>` : ""}
-        ${campo("citta", "Città", p.citta)}${campo("linkedin", "Link LinkedIn", p.linkedin)}
-        ${campo("competenze", "Competenze", p.competenze, false, "(separate da virgola)")}
-        ${campo("esperienze", "Esperienze", p.esperienze, true)}
-        ${campo("formazione", "Formazione", p.formazione, true)}
-        ${campo("linkedinTesto", "Testo completo del profilo LinkedIn", p.linkedinTesto, true, "(si riempie col PDF, oppure incollalo a mano)")}
       </div>
-      <div class="carta"><h3 style="margin-top:0">Quello che aggiungo io</h3>
-        ${campo("passioni", "Passioni e interessi", x.passioni, true, "(es. calcio, cucina, vela)")}
-        <label>Preferisco progetti</label><select id="preferenza">${["", "B2B", "B2C", "Entrambi"].map((m) => `<option ${x.preferenza === m ? "selected" : ""}>${m}</option>`).join("")}</select>
-        ${campo("settori", "Settori che mi interessano", x.settori, false, "(separati da virgola)")}
-        ${campo("ruoloNelTeam", "Che ruolo vorrei nel team", x.ruoloNelTeam, false, "(es. finanza, prodotto, vendite)")}
-        ${campo("cosaCerco", "Come mi piacerebbe sviluppare il progetto", x.cosaCerco, true)}
-        ${campo("ideeMie", "Idee che ho già", x.ideeMie, true)}
-        ${campo("nonVoglio", "Cose che non voglio fare", x.nonVoglio)}
-        ${campo("disponibilita", "Disponibilità", x.disponibilita, false, "(es. weekend, sera, in presenza a Bologna)")}
+      <div class="carta" id="passioni"><h3 style="margin-top:0">Quello che aggiungo io</h3>
+        ${campiProfilo(p, CAMPI_PROF_MIEI, aperto)}
       </div>
     </div>
     <div class="carta" style="margin-top:14px" id="mieiLavori">${editorLavori(p)}</div>
     <div id="msgProf"></div>
-    <div class="riga" style="margin-top:14px"><button class="btn primario" id="salvaProf">Salva profilo</button>
-      <span class="spazio"></span><button class="btn pericolo" id="lasciaProf">Questo non è il mio profilo</button></div>`;
+    <div class="riga" style="margin-top:14px"><span class="spazio"></span><button class="btn pericolo" id="lasciaProf">Questo non è il mio profilo</button></div>`;
+  const el = $main.querySelector("[data-val-prof]");
+  if (el) { el.focus(); if (el.setSelectionRange && el.value) el.setSelectionRange(el.value.length, el.value.length); }
   document.getElementById("lasciaProf").onclick = async () => {
     if (!confirm("Scollegarti da " + p.nome + "? Potrai scegliere il tuo profilo con «Sono io».")) return;
     try { await api("lascia", {}); S.dati = await api("dati"); disegna(); }
     catch (e) { avvisa("msgProf", e.message, "male"); }
   };
-  document.getElementById("salvaProf").onclick = async () => {
-    const v = (id) => document.getElementById(id).value;
-    const campi = ["nome", "titolo", "ruolo", "azienda", "citta", "linkedin", "competenze", "esperienze", "formazione", "linkedinTesto",
-      "passioni", "preferenza", "settori", "ruoloNelTeam", "cosaCerco", "ideeMie", "nonVoglio", "disponibilita"];
-    const corpo = {}; campi.forEach((c) => { corpo[c] = v(c); });
-    try { await api("profilo", corpo); S.dati = await api("dati"); avvisa("msgProf", "Profilo salvato.", "bene"); }
-    catch (e) { avvisa("msgProf", e.message, "male"); }
-  };
   const mostraPdf = document.getElementById("mostraPdf");
   if (mostraPdf) mostraPdf.onclick = (e) => { e.preventDefault(); document.getElementById("boxPdf").style.display = ""; mostraPdf.remove(); };
+  // Il PDF di LinkedIn riempie i campi e li salva subito.
   document.getElementById("pdfProf").onchange = async (ev) => {
     const f = ev.target.files[0];
     if (!f) return;
     avvisa("msgProf", "Leggo il PDF…");
     try {
       const r = await leggiPdfLinkedin(f);
-      const metti = (id, v) => { if (v) document.getElementById(id).value = v; };
+      const corpo = {};
+      const metti = (c, v) => { if (v) corpo[c] = v; };
       metti("titolo", r.titolo); metti("citta", r.citta); metti("competenze", r.competenze);
       metti("esperienze", [r.riepilogo, r.esperienze].filter(Boolean).join("\n\n"));
       metti("formazione", r.formazione); metti("linkedinTesto", r.testo);
-      if (!document.getElementById("linkedin").value) metti("linkedin", r.linkedin);
-      avvisa("msgProf", "PDF letto: controlla i campi e clicca Salva profilo.", "bene");
-      document.getElementById("msgProf").scrollIntoView({ behavior: "smooth", block: "center" });
+      if (!p.linkedin) metti("linkedin", r.linkedin);
+      await api("profilo", corpo); S.dati = await api("dati"); S.profAperto = null; schedaProfilo();
+      avvisa("msgProf", "PDF letto e salvato: controlla i campi.", "bene");
     } catch (e) { avvisa("msgProf", "Non riesco a leggere questo PDF: " + e.message, "male"); }
   };
 }
+document.addEventListener("click", async (ev) => {
+  const pn = ev.target.closest("[data-penna-prof]"), ok = ev.target.closest("[data-ok-prof]");
+  if (!pn && !ok) return;
+  if (pn) { const y = window.scrollY; S.profAperto = pn.dataset.pennaProf; schedaProfilo(); window.scrollTo(0, y); return; }
+  const c = ok.dataset.okProf, v = document.querySelector("[data-val-prof]").value.trim();
+  ok.disabled = true;
+  try {
+    await api("profilo", { [c]: v });
+    const p = mio();
+    if (MIEI_PROF.includes(c)) { p.extra = p.extra || {}; p.extra[c] = v; } else p[c] = v;
+    const y = window.scrollY; S.profAperto = null; schedaProfilo(); window.scrollTo(0, y);
+  } catch (e) { ok.disabled = false; avvisa("msgProf", e.message, "male"); }
+});
+// I testi lunghi si vedono per le prime righe: un clic li apre tutti.
+document.addEventListener("click", (ev) => { const t = ev.target.closest(".testo-lungo"); if (t) t.classList.toggle("aperto"); });
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && ev.target.matches("input[data-val-prof]")) { ev.preventDefault(); const b = ev.target.parentNode.querySelector("[data-ok-prof]"); if (b) b.click(); }
+});
 
 // Le esperienze una per una: per ognuna cosa fa l'azienda (condivisa con i
 // colleghi che ci hanno lavorato) e cosa facevi tu. Claude le legge per
