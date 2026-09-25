@@ -222,6 +222,7 @@
   .picker-chip{display:contents}
   .picker-freccia{border:0;background:none;color:var(--grigio);cursor:pointer;font-size:16px;padding:0 6px}
   .elenco-persone{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:6;background:var(--carta);border:1px solid var(--bordo);border-radius:10px;box-shadow:var(--ombra);max-height:300px;overflow-y:auto}
+  @media (max-width:760px){.elenco-persone{max-height:45vh}body.picker-aperto{padding-bottom:100vh}}
   .elenco-testa{position:sticky;top:0;background:var(--carta);display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--bordo)}
   .voce-persona{display:flex;align-items:flex-start;gap:10px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--bordo);font-weight:400;margin:0}
   .voce-persona:last-child{border-bottom:0}
@@ -407,7 +408,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.33.1";
+const VERSION = "2.33.2";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -596,9 +597,7 @@ function pickerPersone(box, scelti, alCambio, segnaposto, massimo) {
     const parole = senzaAccenti(inp.value).split(/[\s'’-]+/).filter(Boolean);
     trovati = tutti.filter((p) => parole.every((w) => senzaAccenti(p.nome).split(/[\s'’,.-]+/).some((x) => x.startsWith(w))));
     if (sel >= trovati.length) sel = Math.max(0, trovati.length - 1);
-    elenco.innerHTML = `<div class="elenco-testa piccolo">${trovati.length === tutti.length ? tutti.length + " persone" : trovati.length + " su " + tutti.length}${scelti.size ? " · " + scelti.size + " scelte" : ""}
-        <span class="spazio"></span><button type="button" class="btn piccolo" data-fatto>Fatto</button></div>` +
-      (massimo && scelti.size >= massimo ? `<div class="voce-persona piccolo">Hai già scelto ${massimo} persone, il massimo: per aggiungerne una, togline un'altra.</div>` : "") +
+    elenco.innerHTML = (massimo && scelti.size >= massimo ? `<div class="voce-persona piccolo">Hai già scelto ${massimo} persone, il massimo: per aggiungerne una, togline un'altra.</div>` : "") +
       (trovati.map((p, i) => `<label class="voce-persona ${i === sel ? "attivo" : ""}" data-i="${i}">
         <input type="checkbox" ${scelti.has(p.id) ? "checked" : ""} ${massimo && scelti.size >= massimo && !scelti.has(p.id) ? "disabled" : ""}>
         <span><b>${esc(p.nome)}</b> <span class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || (p.titolo || "").slice(0, 60))}</span></span></label>`).join("")
@@ -616,8 +615,15 @@ function pickerPersone(box, scelti, alCambio, segnaposto, massimo) {
     const att = elenco.querySelector(".voce-persona.attivo");
     if (att) att.scrollIntoView({ block: "nearest" });
   };
-  const apri = () => { if (aperto) return; aperto = true; elenco.hidden = false; disegnaElenco(); };
-  const chiudi = () => { aperto = false; elenco.hidden = true; inp.value = ""; };
+  // Sul telefono il campo sale in cima allo schermo: sotto resta spazio per l'elenco.
+  const apri = () => {
+    if (aperto) return; aperto = true; elenco.hidden = false; disegnaElenco();
+    if (matchMedia("(max-width:760px)").matches && !box.closest(".velo:not(#veloGenera)")) {
+      document.body.classList.add("picker-aperto");   // spazio in fondo, perche' la pagina possa salire
+      setTimeout(() => window.scrollTo({ top: box.getBoundingClientRect().top + window.scrollY - 8, behavior: "smooth" }), 250);
+    }
+  };
+  const chiudi = () => { aperto = false; elenco.hidden = true; inp.value = ""; document.body.classList.remove("picker-aperto"); };
   const spunta = (p) => { if (scelti.has(p.id)) scelti.delete(p.id); else if (!massimo || scelti.size < massimo) scelti.add(p.id); cambiato(); };
   inp.onfocus = apri;
   inp.onclick = apri;
