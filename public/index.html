@@ -438,7 +438,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.40.2";
+const VERSION = "2.40.3";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -612,10 +612,10 @@ function benvenuto() {
   S.benvenutoVisto = true;
   if (document.getElementById("veloBenvenuto")) return;
   document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloBenvenuto"><div class="finestra finestra-benvenuto" role="dialog" aria-modal="true">
-    <h2>Da dove vuoi partire?</h2>
-    <button class="btn grande primario" data-apri-genera>Genera un'idea con l'AI</button>
+    <h2>Cosa vuoi fare?</h2>
+    <button class="btn grande primario" data-apri-genera>Inserisci un'idea</button>
     <p class="nota-benvenuto">Resta tua: in bacheca finisce solo se decidi di pubblicarla.</p>
-    <button class="btn grande" data-chiudi-benvenuto>Do solo un'occhiata alle idee già presenti</button>
+    <button class="btn grande" data-chiudi-benvenuto>Guarda le idee in bacheca</button>
   </div></div>`);
 }
 function chiudiBenvenuto() {
