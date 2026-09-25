@@ -224,12 +224,20 @@
   .voce-proposta input{margin-top:4px}
   .scelte-gen{margin-top:12px}
   .percorso-gen{padding:6px 18px 18px}
-  .domande-riga{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;align-items:start}
+  .domande-riga{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;align-items:stretch}
   @media (max-width:760px){.domande-riga{grid-template-columns:1fr}}
   .domanda-gen{border:2px solid var(--bordo);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
   .domanda-gen.aperta{border-color:var(--accento);background:var(--accento-chiaro)}
   .domanda-testa{flex-wrap:nowrap;align-items:center;width:100%;gap:10px}
   .domanda-corpo{width:100%}
+  .domanda-gen{min-height:390px}
+  .domanda-vuota{flex:1;width:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--grigio);font-size:14px;border:1px dashed var(--bordo);border-radius:10px;padding:14px}
+  .domanda-corpo label:first-child{margin-top:0}
+  .domanda-corpo .cursore{margin:4px 0 2px}
+  .domanda-corpo textarea.note-corta{min-height:44px;height:44px}
+  .domanda-corpo label{margin-top:8px}
+  .domanda-corpo .cursore-voci{font-size:11px}
+  @media (max-width:760px){.domanda-gen{min-height:0}.domanda-vuota{display:none}}
   .domanda-corpo .scelte-griglia{grid-template-columns:1fr;gap:6px}
   .domanda-corpo textarea{min-height:90px}
   .domanda-gen .gettone{font-size:12px;padding:4px 9px}
@@ -302,7 +310,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.18.0";
+const VERSION = "2.18.1";
 const $main = document.getElementById("main");
 const S = { linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -639,8 +647,7 @@ function genera() {
   // Con "si'" il riquadro si allarga e mostra dentro quello che serve.
   const domanda = (k, ic, testo, sotto, corpo) => `<div class="domanda-gen ${R[k] ? "aperta" : ""}">
       <div class="riga domanda-testa"><span class="domanda-icona">${icona(ic)}</span><b style="flex:1">${testo}</b>${siNo(k)}</div>
-      ${sotto && !R[k] ? `<div class="piccolo">${sotto}</div>` : ""}
-      ${R[k] ? `<div class="domanda-corpo">${corpo}</div>` : ""}</div>`;
+      ${R[k] ? `<div class="domanda-corpo">${corpo}</div>` : `<div class="domanda-vuota">${sotto}</div>`}</div>`;
   const nomeGenera = R.idea && R.compagni ? "Sviluppa l'idea con il gruppo" : R.idea ? "Sviluppa l'idea e trova i compagni"
     : R.compagni ? "Genera idee per il gruppo" : "Proponi idee e compagni";
   box.innerHTML = `<div class="riga"><div><h2>Genera idee</h2>
@@ -648,17 +655,17 @@ function genera() {
       <span class="spazio"></span><span data-tour="crediti">${testoCrediti()}</span></div>
     ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano qui sotto; se te ne servono altri, chiedi a Dario.</div>' : ""}
     <div class="carta percorso-gen" data-tour="percorsi"><div class="domande-riga">
-      ${domanda("idea", "idea", "Hai un'idea?", "", `
+      ${domanda("idea", "idea", "Hai un'idea?", "Rispondi Sì per scriverla: poi la pubblichi così com'è o la fai sviluppare all'AI.", `
         <label style="margin-top:0">Titolo <small>(facoltativo)</small></label>
         <input type="text" id="ideaTitolo" value="${esc(S.ideaTitolo || "")}" placeholder="Es. L'invenduto dei campi nei ristoranti">
         <label>La tua idea <small>(cosa, per chi, perché: bastano due o tre righe)</small></label>
         <textarea id="miaIdea" placeholder="Es. una piattaforma che mette in contatto le aziende agricole dell'Emilia con i ristoranti, per vendere l'invenduto">${esc(S.miaIdea || "")}</textarea>
 `)}
-      ${domanda("compagni", "persone", R.idea ? "Hai compagni con cui la vuoi sviluppare?" : "Hai compagni con cui vuoi lavorare?", "", `
+      ${domanda("compagni", "persone", R.idea ? "Hai compagni con cui la vuoi sviluppare?" : "Hai compagni con cui vuoi lavorare?", "Rispondi Sì per scegliere le persone con cui lavorare.", `
         <div id="pickGruppo"></div>
         <p class="piccolo" id="contaGruppo" style="margin:6px 0 0"></p>
 `)}
-      ${domanda("paletti", "paletti", "Vuoi dare più indicazioni all'AI?", "Se no, decide l'AI: tipo di startup e punto di partenza li scrive comunque su ogni idea.", `
+      ${domanda("paletti", "paletti", "Vuoi dare più indicazioni all'AI?", "Rispondi Sì per scegliere modello di business, competenza e settore. Se no, decide l'AI.", `
         <div class="scelte-griglia">
           <div><label style="margin-top:0">Modello di business</label>
             <input type="range" class="cursore" id="opzModello" min="0" max="2" step="1" value="${{ B2B: 0, "": 1, B2C: 2 }[S.opz.modello]}">
@@ -667,12 +674,12 @@ function genera() {
             <input type="range" class="cursore" id="opzPerno" min="0" max="2" step="1" value="${{ io: 0, "": 1, gruppo: 2 }[S.opz.perno]}">
             <div class="cursore-voci"><span>La mia</span><span>Decidi tu</span><span>Tutto il gruppo</span></div></div>
         </div>
-        <label>Settore <small>(uno solo, facoltativo)</small></label>
-        <div class="gettoni">${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<button class="gettone ${S.opz.settore === x ? "attivo" : ""}" data-opz-settore="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-        <label>Indicazioni in più <small>(testo libero: un vincolo, un mercato, uno spunto, quello che vuoi)</small></label>
-        <textarea id="note" placeholder="Es. qualcosa che si possa validare in due mesi">${esc(S.note || "")}</textarea>`)}
+        <label>Settore</label>
+        <select id="opzSettore"><option value="">Qualsiasi settore</option>${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<option ${S.opz.settore === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
+        <label>Indicazioni in più <small>(testo libero)</small></label>
+        <textarea id="note" class="note-corta" placeholder="Es. qualcosa che si possa validare in due mesi">${esc(S.note || "")}</textarea>`)}
       </div>
-      <p class="piccolo" style="margin:16px 0 6px"><b>Pubblica</b>: la tua idea va in bacheca così com'è e la vedono tutti. <b>Genera con l'AI</b>: ${nomeGenera.toLowerCase()}, 1 credito.</p>
+      <p class="piccolo" style="margin:16px 0 6px"><b>Pubblica</b>: la tua idea va in bacheca così com'è, con i compagni che hai scelto in squadra, e la vedono tutti. <b>Genera con l'AI</b>: ${nomeGenera.toLowerCase()}, 1 credito.</p>
       <div class="riga pulsanti-gen" style="margin-top:0">
         <button class="btn primario grande" data-pubblica-idea>Pubblica l'idea in bacheca</button>
         <button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} Genera con l'AI</button></div>
@@ -691,10 +698,8 @@ function genera() {
   const cur = (id, voci, k) => { const el = document.getElementById(id); if (el) el.oninput = () => { S.opz[k] = voci[Number(el.value)]; }; };
   cur("opzModello", ["B2B", "", "B2C"], "modello");
   cur("opzPerno", ["io", "", "gruppo"], "perno");
-  box.querySelectorAll("[data-opz-settore]").forEach((b) => b.onclick = () => {
-    S.opz.settore = S.opz.settore === b.dataset.opzSettore ? "" : b.dataset.opzSettore;
-    box.querySelectorAll("[data-opz-settore]").forEach((x) => x.classList.toggle("attivo", x.dataset.opzSettore === S.opz.settore));
-  });
+  const selSet = document.getElementById("opzSettore");
+  if (selSet) selSet.onchange = () => { S.opz.settore = selSet.value; };
   const pick = document.getElementById("pickGruppo");
   if (pick) { pickerPersone(pick, S.scelti, contaGruppo, "Clicca per vedere tutti, o scrivi un nome…", 7); contaGruppo(); }
   const su = (id, k) => { const el = document.getElementById(id); if (el) el.addEventListener("input", (e) => { S[k] = e.target.value; }); };
@@ -713,7 +718,8 @@ function genera() {
     }
     pubb.disabled = true;
     try {
-      await api("idea", { titolo: titoloIdea(), idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }], visibilita: "tutti" });
+      await api("idea", { titolo: titoloIdea(), idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }], visibilita: "tutti",
+        membri: R.compagni ? [...S.scelti] : [] });
       S.miaIdea = ""; S.ideaTitolo = "";
       S.dati = await api("dati"); disegna();
       document.getElementById("secBacheca").scrollIntoView({ behavior: "smooth" });

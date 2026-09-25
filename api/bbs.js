@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.12.0
+// VERSION: 1.12.1
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -370,7 +370,12 @@ async function idea(chi, corpo, res) {
   }
   let i = corpo.id ? await uno("bacheca", testo(corpo.id, 80)) : null;
   if (i && i.autore !== io.id && !chi.admin) return res.status(403).json({ error: "Puoi modificare solo le tue idee." });
-  if (!i) i = { id: nuovoId("i"), autore: io.id, autoreNome: io.nome, creata: new Date().toISOString(), membri: [io.id], interessati: [] };
+  if (!i) {
+    // chi pubblica la propria idea puo' mettere subito in squadra i compagni scelti
+    const profiliTutti = Array.isArray(corpo.membri) && corpo.membri.length ? await tutti("profili") : {};
+    const compagni = [...new Set((Array.isArray(corpo.membri) ? corpo.membri : []).map(String))].filter((id) => profiliTutti[id] && id !== io.id).slice(0, 7);
+    i = { id: nuovoId("i"), autore: io.id, autoreNome: io.nome, creata: new Date().toISOString(), membri: [io.id, ...compagni], interessati: [] };
+  }
   Object.assign(i, {
     titolo: testo(corpo.titolo, 160) || (idee.length === 1 ? idee[0].titolo : idee.length + " idee di " + io.nome),
     idee, visibilita, destinatari,
