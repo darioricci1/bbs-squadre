@@ -446,7 +446,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.43.0";
+const VERSION = "2.43.1";
 const $main = document.getElementById("main");
 // Lo stato della pagina. Si ricrea da zero a ogni uscita, cosi' chi entra
 // dopo non ritrova niente di chi c'era prima.
@@ -576,12 +576,21 @@ function disegna() {
 // invece di uscire dal sito.
 const statoPagina = () => ({ scheda: S.scheda, altrui: S.profiloAltrui || null, genera: !!S.generaAperta, tab: S.tabRegia || null });
 function registraStoria() {
-  if (S.daStoria || !S.dati) return;
+  if (S.daStoria || !S.dati || tour) return;   // durante il tutorial la storia la gestisce lui
   const st = statoPagina();
   if (!history.state || !history.state.scheda) return history.replaceState(st, "");
   if (JSON.stringify(history.state) !== JSON.stringify(st)) history.pushState(st, "");
 }
 window.addEventListener("popstate", (ev) => {
+  // Tutorial aperto: Indietro (anche lo scorrimento dal bordo sul telefono)
+  // torna al passo prima invece di chiuderlo.
+  if (tour) {
+    do { tour.i = Math.max(0, tour.i - 1); } while (tour.i > 0 && TOUR[tour.i].facoltativo && !document.querySelector(TOUR[tour.i].sel));
+    tour.attese = 0;
+    history.pushState({ ...statoPagina(), tour: 1 }, "");
+    tourMostra();
+    return;
+  }
   const st = ev.state;
   if (!st || !st.scheda || !S.dati) return;
   S.daStoria = true;
@@ -2463,6 +2472,8 @@ function tourAvvia() {
   tour = { i: 0 };
   if (S.generaAperta) chiudiGenera();
   S.scheda = "bacheca"; disegna(); window.scrollTo(0, 0);
+  // un passo nella storia: il gesto Indietro resta dentro il tutorial
+  history.pushState({ ...statoPagina(), tour: 1 }, "");
 }
 function tourFine() {
   tour = null;
