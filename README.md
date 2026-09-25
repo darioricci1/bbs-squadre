@@ -14,8 +14,8 @@ Chi usa la piattaforma vede due schede.
   l'autore accoglie chi vuole nella squadra. Le mie sono in blu, le altre in
   grigio. Sotto si generano le idee con tre domande: **hai un'idea?** (se si'
   si scrive, e si puo' anche pubblicare cosi' com'e'), **hai compagni?** (si
-  scelgono), **vuoi dare piu' paletti a Claude?** (cursori, settore, testo
-  libero). Poi un solo pulsante Genera.
+  scelgono), **vuoi dare piu' paletti a Claude?** (cursori, settore a pillole,
+  testo libero). Poi un solo pulsante Genera.
   Le squadre sono di 7 o 8: Claude completa quelle piu' piccole, con una
   riga di motivo per ogni persona proposta. Perche' nessuno resti fuori,
   l'ultimo posto di ogni squadra va a una delle persone coinvolte meno
@@ -27,9 +27,12 @@ Chi usa la piattaforma vede due schede.
   gruppo), il settore da una tendina di 10 voci e un campo di testo libero.
   Il tipo di startup e la strada da cui nasce l'idea li sceglie Claude e li
   scrive su ogni idea.
-  Ogni idea generata si condivide **con tutti** (senza nomi) o **col
-  gruppo** (le persone della proposta, spuntate: chi si toglie non la vede e
-  sparisce anche dal testo; gli altri vedono perche' sono stati proposti).
+  I risultati di ogni generazione: in cima **le persone** (io, chi avevo
+  scelto e chi propone Claude, con ruolo, motivo e per quali idee), poi **le
+  proposte** una per riga, da aprire e selezionare (fino a 5). Si condivide
+  **con tutti, senza nomi**, oppure **con le persone selezionate**: chi si
+  toglie non vede l'idea e sparisce anche dal testo. Un'idea scritta a mano
+  si pubblica in bacheca con un clic, visibile a tutti.
   Le istruzioni a Claude (`SISTEMA` in `api/genera.js`) seguono le linee
   guida del 24 settembre 2026: startup innovativa, scalabile, replicabile e
   sostenibile, requisito di startup innovativa, criteri della giuria, 3 idee

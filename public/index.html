@@ -180,6 +180,23 @@
   #secBacheca .idea.mia{background:var(--accento-chiaro);border:2px solid var(--accento)}
   #secBacheca .idea.altrui{background:#f4f5f7;border:1px solid var(--bordo)}
   .idea.generata{display:flex;flex-direction:column;gap:6px}
+  .gen-blocco{margin-bottom:10px}
+  .gen-persone{background:#fff;border:1px solid var(--bordo);border-radius:12px;padding:10px 14px}
+  .persona-gen{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--bordo);font-weight:normal;margin:0}
+  .persona-gen:nth-child(2){border-top:0}
+  .persona-gen input{margin-top:4px}
+  .persona-gen.tolta{opacity:.45}
+  .proposta-riga{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--bordo);border-radius:12px;padding:10px 14px;margin:6px 0}
+  .proposta-riga.selezionata{border:2px solid var(--accento);background:var(--accento-chiaro)}
+  .proposta-riga > input{margin-top:6px;width:18px;height:18px;flex:none}
+  .proposta-riga details{flex:1;min-width:0}
+  .proposta-riga summary{display:flex;gap:8px;align-items:center;flex-wrap:wrap;cursor:pointer;list-style:none}
+  .proposta-riga summary::-webkit-details-marker{display:none}
+  .proposta-riga summary::after{content:"▾";color:var(--grigio)}
+  .proposta-riga details[open] summary::after{content:"▴"}
+  .titolo-proposta{font-size:16px}
+  .corpo-proposta{margin-top:8px}
+  .azioni-gen{margin-top:10px;gap:8px}
   .idea.generata .azioni-idea-gen{margin-top:auto;padding-top:10px;border-top:1px solid var(--bordo)}
   .dettagli-idea summary{cursor:pointer;color:var(--accento);font-size:14px;margin:4px 0}
   .idea .btn{white-space:normal;text-align:center;max-width:100%}
@@ -204,7 +221,7 @@
   .azione-idea p{margin:4px 0 8px}
   .azione-idea #pickIdea{width:100%}
   .spesa{border:2px solid var(--accento)}
-  .scelte-griglia{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:4px}
+  .scelte-griglia{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:4px}
   @media (max-width:760px){.scelte-griglia{grid-template-columns:1fr}}
   .cursore{width:100%;margin:10px 0 4px;-webkit-appearance:none;appearance:none;background:transparent;height:20px;cursor:pointer}
   .cursore::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--bordo)}
@@ -258,9 +275,9 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.13.0";
+const VERSION = "2.14.0";
 const $main = document.getElementById("main");
-const S = { risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
+const S = { tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
 
 // ---------------------------------------------------------------- utilita'
@@ -606,7 +623,8 @@ function genera() {
         <input type="text" id="ideaTitolo" value="${esc(S.ideaTitolo || "")}" placeholder="Es. L'invenduto dei campi nei ristoranti">
         <label>La tua idea <small>(cosa, per chi, perché: bastano due o tre righe)</small></label>
         <textarea id="miaIdea" placeholder="Es. una piattaforma che mette in contatto le aziende agricole dell'Emilia con i ristoranti, per vendere l'invenduto">${esc(S.miaIdea || "")}</textarea>
-        <p class="piccolo" style="margin:6px 0 0">Vuoi solo pubblicarla così com'è? <a href="#" data-pubblica-idea>Pubblicala senza generare</a></p>`)}
+        <div class="riga" style="margin-top:8px"><button class="btn" data-pubblica-idea>Pubblicala in bacheca</button>
+          <span class="piccolo">così com'è, la vedono tutti; oppure falla sviluppare a Claude qui sotto</span></div>`)}
       ${domanda("compagni", "persone", R.idea ? "Hai compagni con cui la vuoi sviluppare?" : "Hai compagni con cui vuoi lavorare?", "Se sì, sceglili: le squadre sono di 7 o 8, e se ne scegli meno Claude propone chi aggiungere.", `
         <div id="pickGruppo"></div>
         <p class="piccolo" id="contaGruppo" style="margin:6px 0 0"></p>
@@ -619,9 +637,9 @@ function genera() {
           <div><label style="margin-top:0">Su quale competenza basarla</label>
             <input type="range" class="cursore" id="opzPerno" min="0" max="2" step="1" value="${{ io: 0, "": 1, gruppo: 2 }[S.opz.perno]}">
             <div class="cursore-voci"><span>La mia</span><span>Decidi tu</span><span>Tutto il gruppo</span></div></div>
-          <div><label style="margin-top:0">Settore</label>
-            <select id="opzSettore"><option value="">Qualsiasi settore</option>${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<option ${S.opz.settore === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>
         </div>
+        <label>Settore <small>(uno solo, facoltativo)</small></label>
+        <div class="gettoni">${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<button class="gettone ${S.opz.settore === x ? "attivo" : ""}" data-opz-settore="${esc(x)}">${esc(x)}</button>`).join("")}</div>
         <label>Indicazioni in più <small>(testo libero: un vincolo, un mercato, uno spunto, quello che vuoi)</small></label>
         <textarea id="note" placeholder="Es. qualcosa che si possa validare in due mesi">${esc(S.note || "")}</textarea>`)}
       <div class="riga" style="margin-top:14px"><button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} ${nomeGenera}</button>
@@ -631,7 +649,7 @@ function genera() {
     <div id="risultati">${S.ultima ? risultati(S.ultima) : ""}</div>
     ${S.dati.generazioni.filter((g) => !S.ultima || g.id !== S.ultima.id).length ? `<h3 style="margin-top:28px">Le tue generazioni precedenti</h3>
       ${S.dati.generazioni.filter((g) => !S.ultima || g.id !== S.ultima.id).map((g) => `<details class="carta" style="margin-bottom:8px" data-gen="${g.id}"><summary>${quando(g.quando)} · ${g.modo === "gruppo" ? "con " + esc((g.persone || []).map((id) => (profilo(id) || {}).nome).join(", ")) : "idee per me"}${g.idea ? " · dalla mia idea" : ""} · ${g.idee.length} ${g.idee.length === 1 ? "idea" : "idee"}</summary><div></div></details>`).join("")}` : ""}
-    ${barraSelezione()}`;
+`;
   const contaGruppo = () => {
     const n = S.scelti.size + 1, el = document.getElementById("contaGruppo");
     if (el) el.innerHTML = !S.scelti.size ? "" : n >= 7
@@ -641,22 +659,32 @@ function genera() {
   const cur = (id, voci, k) => { const el = document.getElementById(id); if (el) el.oninput = () => { S.opz[k] = voci[Number(el.value)]; }; };
   cur("opzModello", ["B2B", "", "B2C"], "modello");
   cur("opzPerno", ["io", "", "gruppo"], "perno");
-  const selSet = document.getElementById("opzSettore");
-  if (selSet) selSet.onchange = () => { S.opz.settore = selSet.value; };
+  box.querySelectorAll("[data-opz-settore]").forEach((b) => b.onclick = () => {
+    S.opz.settore = S.opz.settore === b.dataset.opzSettore ? "" : b.dataset.opzSettore;
+    box.querySelectorAll("[data-opz-settore]").forEach((x) => x.classList.toggle("attivo", x.dataset.opzSettore === S.opz.settore));
+  });
   const pick = document.getElementById("pickGruppo");
   if (pick) { pickerPersone(pick, S.scelti, contaGruppo, "Clicca per vedere tutti, o scrivi un nome…", 7); contaGruppo(); }
   const su = (id, k) => { const el = document.getElementById(id); if (el) el.addEventListener("input", (e) => { S[k] = e.target.value; }); };
   su("note", "note"); su("miaIdea", "miaIdea"); su("ideaTitolo", "ideaTitolo");
+  // I campi si rileggono al clic: cosi' vale sempre quello che si vede.
+  const leggi = () => [["miaIdea", "miaIdea"], ["ideaTitolo", "ideaTitolo"], ["note", "note"]].forEach(([id, k]) => { const el = document.getElementById(id); if (el) S[k] = el.value; });
   const titoloIdea = () => (S.ideaTitolo || "").trim() || (S.miaIdea || "").trim().split(/[.\n]/)[0].slice(0, 80);
   const pubb = box.querySelector("[data-pubblica-idea]");
-  if (pubb) pubb.onclick = (e) => {
-    e.preventDefault();
+  // Pubblica subito in bacheca, per tutti.
+  if (pubb) pubb.onclick = async (e) => {
+    e.preventDefault(); leggi();
     if (!(S.miaIdea || "").trim()) { avvisa("msgGen", "Prima scrivi la tua idea.", "male"); return; }
-    const gruppo = R.compagni ? [...S.scelti] : [];
-    apriEditor({ idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }], visibilita: gruppo.length ? "scelti" : "tutti",
-      proposta: gruppo.map((id) => ({ id, motivo: "", scelto: true })) });
+    pubb.disabled = true;
+    try {
+      await api("idea", { titolo: titoloIdea(), idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }], visibilita: "tutti" });
+      S.miaIdea = ""; S.ideaTitolo = "";
+      S.dati = await api("dati"); disegna();
+      document.getElementById("secBacheca").scrollIntoView({ behavior: "smooth" });
+    } catch (err) { pubb.disabled = false; avvisa("msgGen", err.message, "male"); }
   };
   document.getElementById("gVai").onclick = async () => {
+    leggi();
     const conIdea = R.idea && (S.miaIdea || "").trim();
     if (R.idea && !conIdea) { avvisa("msgGen", "Hai detto che hai un'idea: scrivila, oppure rispondi No.", "male"); return; }
     const persone = R.compagni ? [...S.scelti] : [];
@@ -684,57 +712,93 @@ function genera() {
   }));
 }
 
+// Le persone di una generazione, tutte insieme: chi l'ha generata, chi aveva
+// scelto e chi ha proposto Claude, con il ruolo, il motivo e le idee per cui
+// e' stato proposto.
+function personeGen(g) {
+  const tutte = new Map();
+  const metti = (id, dati) => {
+    if (!profilo(id)) return;
+    const x = tutte.get(id) || { id, nome: profilo(id).nome, ruoli: [], motivi: [], idee: [], scelto: false, io: false };
+    if (dati.ruolo && !x.ruoli.includes(dati.ruolo)) x.ruoli.push(dati.ruolo);
+    if (dati.motivo && !x.motivi.includes(dati.motivo)) x.motivi.push(dati.motivo);
+    if (dati.idea != null && !x.idee.includes(dati.idea)) x.idee.push(dati.idea);
+    if (dati.scelto) x.scelto = true;
+    if (dati.io) x.io = true;
+    tutte.set(id, x);
+  };
+  metti(g.autore, { io: true });
+  (g.persone || []).forEach((id) => metti(id, { scelto: true }));
+  g.idee.forEach((i, n) => {
+    (i.ruoli || []).forEach((r) => metti(r.id, { ruolo: r.ruolo, idea: tutte.has(r.id) && (tutte.get(r.id).scelto || tutte.get(r.id).io) ? null : n }));
+    (i.compagni || []).forEach((c) => metti(c.id, { motivo: c.motivo, idea: n }));
+  });
+  return [...tutte.values()].sort((a, b) => (b.io - a.io) || (b.scelto - a.scelto) || (b.idee.length - a.idee.length) || a.nome.localeCompare(b.nome));
+}
+const toltiDa = (gid) => (S.tolti[gid] = S.tolti[gid] || new Set());
+
 function risultati(g, vecchia) {
   if (!g) return "";
-  return `${vecchia ? "" : `<h3 style="margin-top:22px">Idee ${g.modo === "gruppo" ? "per il gruppo" : "per te"}</h3>
-    ${(() => { const c = g.scelte || {}; const v = [c.modello && c.modello !== "indifferente" && c.modello, c.pernoNome && "basata sulla competenza di " + (c.perno === (S.dati.io.profilo) ? "chi l'ha generata" : esc(c.pernoNome)),
-      c.gruppo && "competenze di tutto il gruppo", (c.settori || []).length && esc(c.settori.join(", ")), c.tipo && esc(c.tipo), c.fonte && "partendo da: " + esc(c.fonte.toLowerCase())].filter(Boolean);
-      return v.length ? `<p class="piccolo" style="margin:0">Scelte: ${v.join(" · ")}</p>` : ""; })()}
-    <p class="piccolo">Seleziona da 1 a 5 idee e premi <b>Condividi</b>: decidi tu se le vede tutto il master o solo alcuni compagni.</p>`}
-    <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">${g.idee.map((i, n) => {
+  const P = personeGen(g), tolti = toltiDa(g.id);
+  const scelte = (() => { const c = g.scelte || {}; const v = [c.modello && c.modello !== "indifferente" && c.modello, c.pernoNome && "basata sulla competenza di " + (c.perno === (S.dati.io.profilo) ? "chi l'ha generata" : esc(c.pernoNome)),
+    c.gruppo && "competenze di tutto il gruppo", (c.settori || []).length && esc(c.settori.join(", "))].filter(Boolean);
+    return v.length ? `<p class="piccolo" style="margin:0 0 6px">Scelte: ${v.join(" · ")}</p>` : ""; })();
+  const selezionate = g.idee.filter((_, n) => S.selezione.has(g.id + "|" + n)).length;
+  return `<div class="gen-blocco" data-gen-blocco="${g.id}">
+    ${vecchia ? "" : `<h3 style="margin-top:22px">Idee ${g.modo === "gruppo" ? "per il gruppo" : "per te"}</h3>`}
+    ${scelte}
+    <div class="gen-persone">
+      <div class="riga"><b>Le persone</b><span class="piccolo">togli la spunta a chi non vuoi coinvolgere: non vedrà l'idea e sparirà dal testo</span></div>
+      ${P.map((x) => `<label class="persona-gen ${tolti.has(x.id) ? "tolta" : ""}">
+        ${x.io ? '<input type="checkbox" checked disabled>' : `<input type="checkbox" data-persona-gen="${g.id}|${x.id}" ${tolti.has(x.id) ? "" : "checked"}>`}
+        <span><b>${esc(x.nome)}</b>${x.io ? ' <span class="etichetta verde">tu</span>' : x.scelto ? ' <span class="etichetta grigia">scelto da te</span>' : ""}
+          ${x.ruoli.length ? `<span class="piccolo"> · ${esc(x.ruoli[0])}</span>` : ""}
+          ${!x.io && !x.scelto && x.idee.length ? `<span class="piccolo"> · per ${x.idee.length === g.idee.length ? "tutte le idee" : (x.idee.length === 1 ? "l'idea " : "le idee ") + x.idee.map((n) => n + 1).join(", ")}</span>` : ""}
+          ${x.motivi.length ? `<br><span class="piccolo">${esc(x.motivi[0])}</span>` : ""}</span></label>`).join("")}
+    </div>
+    <div class="gen-proposte"><div class="riga" style="margin:10px 0 4px"><b>Le proposte</b><span class="piccolo">seleziona quelle da condividere (fino a 5), aprile per i dettagli</span></div>
+    ${g.idee.map((i, n) => {
       const k = g.id + "|" + n, presa = S.selezione.has(k);
-      return `<div class="carta idea generata ${presa ? "selezionata" : ""}">
-      <div class="riga"><span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${i.fascia === "top" ? "Top " + (n + 1) : "Riserva"}</span>
-        <span class="etichetta">${esc(i.modello)}</span><span class="etichetta grigia">${esc(i.settore)}</span>
-        <span class="spazio"></span><b>${esc(i.punteggio)}/10</b></div>
-      <h3 style="margin-top:8px">${esc(i.titolo)}</h3>
-      ${i.tipo_startup || i.fonte_idea ? `<div class="piccolo">${i.tipo_startup ? `<b>${esc(i.tipo_startup)}</b>` : ""}${i.tipo_startup && i.fonte_idea ? " · " : ""}${i.fonte_idea ? "nata da: " + esc(i.fonte_idea) : ""}</div>` : ""}
-      <div>${esc(i.sintesi)}</div>
-      ${i.criteri_startup ? barreCriteri("È una startup?", [["Innovazione", i.criteri_startup.innovazione], ["Scalabilità", i.criteri_startup.scalabilita], ["Replicabilità", i.criteri_startup.replicabilita], ["Sostenibilità", i.criteri_startup.sostenibilita]]) : ""}
-      ${i.valutazione ? barreCriteri(i.criteri_startup ? "Come la vedrebbe la giuria" : "", [["Originalità", i.valutazione.originalita], ["Fattibilità", i.valutazione.fattibilita], ["Scalabilità e investibilità", i.valutazione.scalabilita_investibilita]]) : ""}
-      ${i.punto_debole ? `<div class="piccolo"><b>Punto debole:</b> ${esc(i.punto_debole)}</div>` : ""}
-      ${i.domande_di_partenza ? `<details class="domande"><summary>Le domande di partenza</summary><dl>
-        <dt>Fra 5-10 anni</dt><dd>${esc(i.domande_di_partenza.fra_5_10_anni)}</dd>
-        <dt>Cosa manca</dt><dd>${esc(i.domande_di_partenza.cosa_manca)}</dd>
-        <dt>Bisogno latente</dt><dd>${esc(i.domande_di_partenza.bisogno_latente)}</dd>
-        <dt>Chi lo fa già</dt><dd>${esc(i.domande_di_partenza.chi_lo_fa_gia)}</dd></dl></details>` : ""}
-      <details class="dettagli-idea"><summary>Dettagli e squadra${(i.compagni || []).length ? ` (${(i.compagni || []).length} persone proposte)` : ""}</summary>
-      <dl>
-        <dt>Problema</dt><dd>${esc(i.problema)}</dd>
-        <dt>Soluzione</dt><dd>${esc(i.soluzione)}</dd>
-        ${i.differenziazione ? `<dt>Cosa cambia</dt><dd>${esc(i.differenziazione)}</dd>` : ""}
-        <dt>Clienti</dt><dd>${esc(i.clienti)}</dd>
-        ${i.ricavi ? `<dt>Ricavi</dt><dd>${esc(i.ricavi)}</dd>` : ""}
-        ${i.scalabilita ? `<dt>Scalabile</dt><dd>${esc(i.scalabilita)}</dd>` : ""}
-        ${i.replicabilita ? `<dt>Replicabile</dt><dd>${esc(i.replicabilita)}</dd>` : ""}
-        ${i.sostenibilita ? `<dt>Sostenibile</dt><dd>${esc(i.sostenibilita)}</dd>` : ""}
-        ${i.startup_innovativa ? `<dt>Startup innovativa</dt><dd><b>${esc(i.startup_innovativa.requisito)}</b>: ${esc(i.startup_innovativa.come)}</dd>` : ""}
-        <dt>Perché voi</dt><dd>${esc(i.perche_noi)}</dd>
-        ${i.ruoli && i.ruoli.length ? `<dt>Ruoli</dt><dd>${i.ruoli.map((r) => `<b>${esc(r.nome)}</b>: ${esc(r.ruolo)}`).join("<br>")}</dd>` : ""}
-        ${i.compagni && i.compagni.length ? `<dt>Per completare la squadra</dt><dd>${i.compagni.map((c) => `<b>${esc(c.nome)}</b> <a href="#" data-scegli="${esc(c.id)}" class="piccolo">${S.scelti.has(c.id) ? "nel gruppo ✓" : "+ gruppo"}</a><br><span class="piccolo">${esc(c.motivo)}</span>`).join("<br>")}</dd>` : ""}
-        ${i.rischi ? `<dt>Rischi</dt><dd>${esc(i.rischi)}</dd>` : ""}
-        ${i.primo_passo ? `<dt>Primo passo</dt><dd>${esc(i.primo_passo)}</dd>` : ""}
-      </dl></details>
-      ${APPROFONDISCI && !i.approfondita && !i.slide ? `<button class="btn approfondisci" data-approfondisci="${k}">Approfondisci</button>` : ""}
-      ${i.slide && i.slide.length ? `<details class="slide-bozza"><summary>Bozza delle slide per il 1 novembre (${i.slide.length})</summary>
-        ${i.slide.map((sl, k) => `<div class="slide"><div class="piccolo">Slide ${k + 1}</div><b>${esc(sl.titolo)}</b><ul>${(sl.punti || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</details>` : ""}
-      <div class="riga azioni-idea-gen">
-        <label class="spunta"><input type="checkbox" data-seleziona="${k}" ${presa ? "checked" : ""}> Seleziona</label>
-        <span class="spazio"></span>
-        <button class="btn piccolo" data-condividi-una="${k}|tutti" title="Si vede solo l'idea, senza nomi">Condividi con tutti</button>
-        <button class="btn piccolo primario" data-condividi-una="${k}|gruppo" title="Solo le persone della proposta: togli chi vuoi">Condividi col gruppo</button></div>
-    </div>`;
-    }).join("")}</div>`;
+      return `<div class="proposta-riga ${presa ? "selezionata" : ""}">
+      <input type="checkbox" data-seleziona="${k}" ${presa ? "checked" : ""} aria-label="Seleziona">
+      <details class="idea"><summary>
+        <span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${i.fascia === "top" ? "Top " + (n + 1) : "Riserva"}</span>
+        <b class="titolo-proposta">${esc(i.titolo)}</b>
+        <span class="spazio"></span>${i.modello ? `<span class="etichetta">${esc(i.modello)}</span>` : ""}<b>${esc(i.punteggio)}/10</b></summary>
+        <div class="corpo-proposta">
+        ${i.tipo_startup || i.fonte_idea ? `<div class="piccolo">${i.tipo_startup ? `<b>${esc(i.tipo_startup)}</b>` : ""}${i.tipo_startup && i.fonte_idea ? " · " : ""}${i.fonte_idea ? "nata da: " + esc(i.fonte_idea) : ""}${i.settore ? " · " + esc(i.settore) : ""}</div>` : ""}
+        <p style="margin:6px 0">${esc(i.sintesi)}</p>
+        ${i.criteri_startup ? barreCriteri("È una startup?", [["Innovazione", i.criteri_startup.innovazione], ["Scalabilità", i.criteri_startup.scalabilita], ["Replicabilità", i.criteri_startup.replicabilita], ["Sostenibilità", i.criteri_startup.sostenibilita]]) : ""}
+        ${i.valutazione ? barreCriteri("Come la vedrebbe la giuria", [["Originalità", i.valutazione.originalita], ["Fattibilità", i.valutazione.fattibilita], ["Scalabilità e investibilità", i.valutazione.scalabilita_investibilita]]) : ""}
+        ${i.punto_debole ? `<div class="piccolo"><b>Punto debole:</b> ${esc(i.punto_debole)}</div>` : ""}
+        <dl>
+          <dt>Problema</dt><dd>${esc(i.problema)}</dd>
+          <dt>Soluzione</dt><dd>${esc(i.soluzione)}</dd>
+          ${i.differenziazione ? `<dt>Cosa cambia</dt><dd>${esc(i.differenziazione)}</dd>` : ""}
+          <dt>Clienti</dt><dd>${esc(i.clienti)}</dd>
+          ${i.ricavi ? `<dt>Ricavi</dt><dd>${esc(i.ricavi)}</dd>` : ""}
+          <dt>Perché voi</dt><dd>${esc(i.perche_noi)}</dd>
+          ${(i.compagni || []).length ? `<dt>Proposti per questa</dt><dd>${esc(i.compagni.map((c) => c.nome).join(", "))}</dd>` : ""}
+          ${i.rischi ? `<dt>Rischi</dt><dd>${esc(i.rischi)}</dd>` : ""}
+          ${i.primo_passo ? `<dt>Primo passo</dt><dd>${esc(i.primo_passo)}</dd>` : ""}
+        </dl>
+        ${i.domande_di_partenza ? `<details class="domande"><summary>Le domande di partenza</summary><dl>
+          <dt>Fra 5-10 anni</dt><dd>${esc(i.domande_di_partenza.fra_5_10_anni)}</dd>
+          <dt>Cosa manca</dt><dd>${esc(i.domande_di_partenza.cosa_manca)}</dd>
+          <dt>Bisogno latente</dt><dd>${esc(i.domande_di_partenza.bisogno_latente)}</dd>
+          <dt>Chi lo fa già</dt><dd>${esc(i.domande_di_partenza.chi_lo_fa_gia)}</dd></dl></details>` : ""}
+        ${i.slide && i.slide.length ? `<details class="slide-bozza"><summary>Bozza delle slide (${i.slide.length})</summary>
+          ${i.slide.map((sl, k) => `<div class="slide"><div class="piccolo">Slide ${k + 1}</div><b>${esc(sl.titolo)}</b><ul>${(sl.punti || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</details>` : ""}
+        ${APPROFONDISCI && !i.approfondita && !i.slide ? `<button class="btn approfondisci" data-approfondisci="${k}">Approfondisci</button>` : ""}
+        </div></details></div>`;
+    }).join("")}</div>
+    <div class="riga azioni-gen">
+      <span class="piccolo" data-conta-sel>${selezionate ? `${selezionate} ${selezionate === 1 ? "proposta selezionata" : "proposte selezionate"}` : "Seleziona almeno una proposta"}</span>
+      <span class="spazio"></span>
+      <button class="btn" data-condividi-gen="${g.id}|tutti" ${selezionate ? "" : "disabled"}>Condividi con tutti, senza nomi</button>
+      <button class="btn primario" data-condividi-gen="${g.id}|persone" ${selezionate ? "" : "disabled"}>Condividi con le persone selezionate</button>
+    </div>
+  </div>`;
 }
 
 // Barre da 1 a 10; sotto 6 la barra diventa ambra, perche' e' sotto la soglia.
@@ -794,24 +858,49 @@ function ideaGenerata(k) {
     ],
   };
 }
-function barraSelezione() {
-  if (!S.selezione.size) return "";
-  return `<div class="carta scelti riga"><b>${S.selezione.size} ${S.selezione.size === 1 ? "idea selezionata" : "idee selezionate"}</b>
-    <span class="piccolo">(massimo 5)</span><span class="spazio"></span>
-    <button class="btn" data-svuota-sel>Annulla</button><button class="btn primario" data-condividi-sel>Condividi le idee selezionate</button></div>`;
+function barraSelezione() { return ""; }
+// Selezione delle proposte e delle persone, dentro il blocco di ogni generazione.
+function aggiornaBlocco(gid) {
+  const blocco = document.querySelector(`[data-gen-blocco="${gid}"]`);
+  if (!blocco) return;
+  const n = [...blocco.querySelectorAll("[data-seleziona]")].filter((c) => c.checked).length;
+  blocco.querySelector("[data-conta-sel]").textContent = n ? `${n} ${n === 1 ? "proposta selezionata" : "proposte selezionate"}` : "Seleziona almeno una proposta";
+  blocco.querySelectorAll("[data-condividi-gen]").forEach((b) => { b.disabled = !n; });
 }
 document.addEventListener("change", (ev) => {
   const c = ev.target.closest("[data-seleziona]");
-  if (!c) return;
-  const k = c.dataset.seleziona;
-  if (c.checked) {
-    if (S.selezione.size >= 5) { c.checked = false; alert("Puoi condividere al massimo 5 idee insieme."); return; }
-    S.selezione.add(k);
-  } else S.selezione.delete(k);
-  c.closest(".idea").classList.toggle("selezionata", c.checked);
-  const vecchia = document.querySelector("#secGenera > .scelti");
-  if (vecchia) vecchia.remove();
-  document.getElementById("secGenera").insertAdjacentHTML("beforeend", barraSelezione());
+  if (c) {
+    const k = c.dataset.seleziona;
+    if (c.checked) {
+      if (S.selezione.size >= 5) { c.checked = false; alert("Puoi condividere al massimo 5 idee insieme."); return; }
+      S.selezione.add(k);
+    } else S.selezione.delete(k);
+    c.closest(".proposta-riga").classList.toggle("selezionata", c.checked);
+    return aggiornaBlocco(k.split("|")[0]);
+  }
+  const p = ev.target.closest("[data-persona-gen]");
+  if (p) {
+    const [gid, id] = p.dataset.personaGen.split("|");
+    if (p.checked) toltiDa(gid).delete(id); else toltiDa(gid).add(id);
+    p.closest(".persona-gen").classList.toggle("tolta", !p.checked);
+  }
+});
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-condividi-gen]");
+  if (!b) return;
+  const [gid, modo] = b.dataset.condividiGen.split("|");
+  const g = S.dati.generazioni.find((x) => x.id === gid) || (S.ultima && S.ultima.id === gid ? S.ultima : null);
+  if (!g) return;
+  const indici = g.idee.map((_, n) => n).filter((n) => S.selezione.has(gid + "|" + n));
+  const idee = indici.map((n) => ideaGenerata(gid + "|" + n)).filter(Boolean);
+  if (!idee.length) return;
+  if (modo === "tutti") return apriEditor({ idee: idee.map((i) => ({ ...i, perche: "" })), visibilita: "tutti", daSelezione: true });
+  // Con le persone: quelle spuntate che c'entrano con le idee scelte (il
+  // gruppo, o proposte per almeno una di queste idee).
+  const tolti = toltiDa(gid);
+  const P = personeGen(g).filter((x) => !x.io && (x.scelto || x.idee.some((n) => indici.includes(n)) || !x.idee.length));
+  const proposta = P.map((x) => ({ id: x.id, motivo: x.motivi[0] || x.ruoli[0] || "", scelto: x.scelto }));
+  apriEditor({ idee, visibilita: "scelti", proposta, destinatari: P.filter((x) => !tolti.has(x.id)).map((x) => x.id), daSelezione: true });
 });
 document.addEventListener("click", (ev) => {
   const una = ev.target.closest("[data-condividi-una]");
