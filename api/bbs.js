@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.14.0
+// VERSION: 1.15.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -40,11 +40,12 @@ import {
   creditiDi, vedeIdea,
 } from "../lib/bbs.js";
 import { lavoriDi, lavoriPubblici, infoAzienda, chiaveAziendaNome, idLavoro } from "../lib/lavori.js";
+import { descriviAzienda } from "../lib/leggi-sito.js";
 import { lavoriDa } from "../lib/esperienze.js";
 import { SETTORI, TIPI, FONTI } from "../lib/scelte.js";
 import { MODELLI, EFFORT, impostazioniGenera } from "./genera.js";
 
-export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
+export const config = { api: { bodyParser: { sizeLimit: "4mb" } }, maxDuration: 60 };
 
 const CAMPI_PROFILO = ["nome", "linkedin", "titolo", "azienda", "ruolo", "citta", "esperienze",
   "formazione", "competenze", "linkedinTesto", "foto"];
@@ -552,6 +553,14 @@ async function salvaLavori(chi, corpo, res) {
       descrizione: typeof x.descrizioneAzienda === "string" ? testo(x.descrizioneAzienda, 600) : prima.descrizione || "",
     };
     if (az.sito && !/^https?:\/\//i.test(az.sito)) az.sito = "https://" + az.sito;
+    // sito nuovo e nessun altro campo scritto a mano: si rilegge il sito
+    if (az.sito && az.sito !== (prima.sito || "") && typeof x.settore !== "string" && typeof x.descrizioneAzienda !== "string") {
+      try {
+        const d = await descriviAzienda(prima.nome || l.azienda, az.sito);
+        if (d.settore) az.settore = d.settore;
+        if (d.descrizione) az.descrizione = d.descrizione;
+      } catch {}
+    }
     if (az.sito !== (prima.sito || "") || az.settore !== (prima.settore || "") || az.descrizione !== (prima.descrizione || "")) {
       nuoviSiti.push([l.chiave, { ...(siti[l.chiave] || {}), nome: prima.nome || l.azienda, ...az, stato: "verificata", da: chi.email, quando: new Date().toISOString() }]);
     }

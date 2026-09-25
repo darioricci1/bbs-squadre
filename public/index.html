@@ -173,6 +173,10 @@
   .barre-penna{display:flex;align-items:flex-start;gap:4px}
   .barre-penna .criteri{flex:1}
   .criterio input[type=range]{width:100%}
+  .campo-lav{display:grid;grid-template-columns:150px 1fr;gap:10px;margin-top:8px;align-items:start}
+  .etichetta-lav{font-size:13px;font-weight:600;color:var(--grigio);padding-top:1px}
+  .valore-lav{white-space:pre-wrap;overflow-wrap:anywhere}
+  @media (max-width:760px){.campo-lav{grid-template-columns:1fr;gap:2px}}
   .precedenti{margin-top:24px}
   .precedenti > summary{cursor:pointer;font-weight:600;font-size:17px;margin-bottom:10px}
   .chiudi-genera{position:absolute;top:12px;right:12px;z-index:2}
@@ -398,7 +402,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.31.7";
+const VERSION = "2.32.1";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1696,39 +1700,60 @@ function schedaProfilo() {
 // Le esperienze una per una: per ognuna cosa fa l'azienda (condivisa con i
 // colleghi che ci hanno lavorato) e cosa facevi tu. Claude le legge per
 // capire come ognuno puo' contribuire al progetto.
-function editorLavori(p) {
+// Le esperienze si leggono come testo fisso (il sito e' un link); il pennino
+// apre un solo campo alla volta, che si salva subito con OK.
+const CAMPI_LAVORO = { settore: ["Settore", 0], sito: ["Sito", 0], descrizioneAzienda: ["Cosa fa l'azienda", 3], descrizioneRuolo: ["Cosa facevi tu", 3] };
+function editorLavori(p, aperto) {
+  S.lavoriP = p;
   const L = p.lavori || [];
   if (!L.length) return `<h3 style="margin-top:0">Le mie esperienze</h3><p class="piccolo">Non riesco a leggere le esperienze dal tuo profilo LinkedIn: caricalo dal PDF qui sopra e salva.</p>`;
+  const valore = (l, c) => {
+    const v = l[c] || "";
+    if (!v) return '<span class="vuoto">aggiungi…</span>';
+    if (c === "sito") return `<a href="${esc(/^https?:\/\//i.test(v) ? v : "https://" + v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, ""))}</a>`;
+    return esc(v);
+  };
+  const campo = (l, c) => {
+    const [t, righe] = CAMPI_LAVORO[c];
+    const qui = aperto && aperto.id === String(l.id) && aperto.c === c;
+    return `<div class="campo-lav"><span class="etichetta-lav">${t}</span>
+      ${qui ? `<span class="campo-aperto">${righe ? `<textarea data-val-lav rows="${righe}">${esc(l[c] || "")}</textarea>` : `<input type="text" data-val-lav value="${esc(l[c] || "")}">`}<button type="button" class="btn piccolo primario" data-ok-lav="${esc(l.id)}|${c}">OK</button></span>`
+        : `<span class="valore-lav">${valore(l, c)}<button type="button" class="penna" data-penna-lav="${esc(l.id)}|${c}" title="Modifica">✎</button></span>`}</div>`;
+  };
   return `<div class="riga"><h3 style="margin:0">Le mie esperienze</h3><span class="spazio"></span><span class="piccolo">${L.length} lavori</span></div>
-    <p class="piccolo">Per ogni lavoro: cosa fa l'azienda e cosa facevi tu. I dati dell'azienda li abbiamo cercati sul suo sito; se sono sbagliati correggili (li vedono anche i colleghi che ci hanno lavorato).</p>
-    ${L.map((l, n) => `<div class="lavoro" data-lavoro="${esc(l.id)}">
+    <p class="piccolo">Per ogni lavoro: cosa fa l'azienda e cosa facevi tu. Clicca ✎ per cambiare un campo. I dati dell'azienda li vedono anche i colleghi che ci hanno lavorato.</p>
+    ${L.map((l) => `<div class="lavoro" data-lavoro="${esc(l.id)}">
       <div class="riga"><b>${esc(l.ruolo)}</b> @ <b>${esc(l.azienda)}</b><span class="piccolo">${esc(l.periodo.replace(/\s*\(.*\)$/, ""))}${l.luogo ? " · " + esc(l.luogo) : ""}</span>
         <span class="spazio"></span>${l.stato === "mancante" || l.stato === "dubbio" ? '<span class="stato-az dubbio">da controllare</span>' : ""}</div>
-      <div class="due">
-        <div><label>Settore dell'azienda</label><input type="text" data-campo="settore" value="${esc(l.settore)}" placeholder="es. packaging alimentare"></div>
-        <div><label>Sito</label><input type="text" data-campo="sito" value="${esc(l.sito)}" placeholder="https://…"></div>
-      </div>
-      <label>Cosa fa l'azienda</label><textarea data-campo="descrizioneAzienda" placeholder="Cosa produce o vende, a chi (aziende o consumatori), quanto è grande">${esc(l.descrizioneAzienda)}</textarea>
-      <label>Cosa facevi tu</label><textarea data-campo="descrizioneRuolo" placeholder="Responsabilità, team, risultati: due o tre righe bastano">${esc(l.descrizioneRuolo)}</textarea>
+      ${Object.keys(CAMPI_LAVORO).map((c) => campo(l, c)).join("")}
     </div>`).join("")}
-    <div id="msgLav"></div>
-    <button class="btn primario" id="salvaLav" style="margin-top:8px">Salva le esperienze</button>`;
+    <div id="msgLav"></div>`;
 }
 document.addEventListener("click", async (ev) => {
-  if (ev.target.id !== "salvaLav") return;
-  const box = ev.target.closest("#mieiLavori");
-  const lavori = [...box.querySelectorAll("[data-lavoro]")].map((d) => {
-    const x = { id: d.dataset.lavoro };
-    d.querySelectorAll("[data-campo]").forEach((c) => { x[c.dataset.campo] = c.value; });
-    return x;
-  });
-  ev.target.disabled = true;
+  const pn = ev.target.closest("[data-penna-lav]"), ok = ev.target.closest("[data-ok-lav]");
+  if (!pn && !ok) return;
+  const box = document.getElementById("mieiLavori"), p = S.lavoriP;
+  if (!box || !p) return;
+  const chiave = (pn || ok).dataset[pn ? "pennaLav" : "okLav"], taglio = chiave.lastIndexOf("|");   // l'id del lavoro contiene gia' "|"
+  const id = chiave.slice(0, taglio), c = chiave.slice(taglio + 1);
+  if (pn) {
+    box.innerHTML = editorLavori(p, { id, c });
+    const el = box.querySelector("[data-val-lav]"); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    return;
+  }
+  const l = (p.lavori || []).find((x) => String(x.id) === id), v = box.querySelector("[data-val-lav]").value.trim();
+  ok.disabled = true;
+  if (c === "sito" && v && l && v !== l.sito) ok.textContent = "L'AI sta leggendo il sito…";
   try {
-    await api("lavori", { lavori });
-    S.dati = await api("dati");
-    avvisa("msgLav", "Esperienze salvate.", "bene");
-  } catch (e) { avvisa("msgLav", e.message, "male"); }
-  ev.target.disabled = false;
+    const r = await api("lavori", { lavori: [{ id, [c]: v }] });
+    // i dati dell'azienda valgono per tutti i lavori nella stessa azienda
+    for (const x of p.lavori || []) { const n = (r.lavori || []).find((y) => String(y.id) === String(x.id)); if (n) Object.assign(x, n); }
+    if (l && !(r.lavori || []).length) l[c] = v;
+    box.innerHTML = editorLavori(p);
+  } catch (e) { ok.disabled = false; avvisa("msgLav", e.message, "male"); }
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && ev.target.matches("input[data-val-lav]")) { ev.preventDefault(); const b = ev.target.parentNode.querySelector("[data-ok-lav]"); if (b) b.click(); }
 });
 
 // "Chi sei?": la prima cosa che vede chi entra e non e' stato riconosciuto

@@ -162,3 +162,12 @@ generazione aggiungono poche righe di testo gia' pronte.
 Modello ed effort si scelgono in Regia → Costi e modello, dove c'e' anche il
 costo medio reale. `BBS_MODELLO` resta il modello di partenza se in Regia non
 si e' scelto nulla.
+
+## Esperienze nel profilo
+
+Le esperienze si leggono come testo fisso, col sito come link; il pennino ✎
+apre un campo alla volta e OK lo salva subito. Se cambia il sito di
+un'azienda (e non si e' scritto a mano settore o descrizione), il server
+legge la pagina e l'AI ne ricava settore e descrizione (`lib/leggi-sito.js`,
+modello `BBS_MODELLO_SITI`, di base claude-sonnet-5 con effort basso).
+
