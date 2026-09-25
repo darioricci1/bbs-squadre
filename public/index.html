@@ -144,7 +144,12 @@
   .descr{white-space:pre-wrap}
   .sotto-idea{border-top:1px solid var(--bordo);padding:6px 0}
   .sotto-idea summary{cursor:pointer}
-  .finestra.finestra-genera{width:min(1180px,100%);position:relative;padding-top:10px}
+  .finestra.finestra-genera{width:min(1180px,100%,calc((100vh - 300px) * 3 + 110px));position:relative;padding-top:14px}
+  .finestra-genera .sotto{margin:2px 0 0;font-size:14px}
+  .finestra-genera .percorso-gen{margin-top:8px;padding:14px}
+  .finestra-genera .domande-riga{margin-top:0}
+  .precedenti{margin-top:24px}
+  .precedenti > summary{cursor:pointer;font-weight:600;font-size:17px;margin-bottom:10px}
   .chiudi-genera{position:absolute;top:12px;right:12px;z-index:2}
   .avviso-versione{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:var(--testo,#111);color:#fff;padding:10px 14px;border-radius:12px;display:flex;gap:10px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.3);font-size:14px}
   .velo{position:fixed;inset:0;z-index:20;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 12px}
@@ -339,7 +344,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.24.2";
+const VERSION = "2.26.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -456,7 +461,7 @@ function home(vaiAGenera) {
   if (vaiAGenera || S.generaAperta || (!S.generaVista && !tour)) apriGenera();
 }
 function apriGenera() {
-  S.generaAperta = true; S.generaVista = true;
+  S.generaAperta = true; S.generaVista = true; S.vistaRisultati = false;
   if (!document.getElementById("veloGenera")) {
     document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloGenera"><div class="finestra finestra-genera" role="dialog" aria-modal="true">
       <button class="btn piccolo chiudi-genera" data-chiudi-genera title="Chiudi (Esc)">×</button>
@@ -700,26 +705,28 @@ function genera() {
   const io = mio();
   const R = S.risposte;
   const blocca = !io || S.generando || senzaCrediti();
-  const siNo = (k) => `<div class="si-no"><button class="btn piccolo ${R[k] ? "primario" : ""}" data-risposta="${k}|si">Sì</button><button class="btn piccolo ${R[k] ? "" : "primario"}" data-risposta="${k}|no">No</button></div>`;
-  // Tre box affiancati con la domanda.
-  // Con "si'" il riquadro si allarga e mostra dentro quello che serve.
-  const domanda = (k, ic, testo, sotto, corpo) => `<div class="domanda-gen ${R[k] ? "aperta" : ""}">
-      <div class="riga domanda-testa"><span class="domanda-icona">${icona(ic)}</span><b style="flex:1">${testo}</b>${siNo(k)}</div>
-      ${R[k] ? `<div class="domanda-corpo">${corpo}</div>` : `<div class="domanda-vuota">${sotto}</div>`}</div>`;
-  const nomeGenera = R.idea && R.compagni ? "Sviluppa l'idea con il gruppo" : R.idea ? "Sviluppa l'idea e trova i compagni"
-    : R.compagni ? "Genera idee per il gruppo" : "Proponi idee e compagni";
+  // Tre box affiancati, sempre aperti: ogni campo e' facoltativo.
+  const domanda = (k, ic, testo, sotto, corpo) => `<div class="domanda-gen aperta">
+      <div class="riga domanda-testa"><span class="domanda-icona">${icona(ic)}</span><b style="flex:1">${testo}</b><span class="piccolo">facoltativo</span></div>
+      <div class="domanda-corpo">${corpo}</div></div>`;
+  if (S.vistaRisultati && S.ultima && !S.generando) {
+    box.innerHTML = `<div class="riga"><h2 style="margin:0">Le proposte dell'AI</h2><span class="spazio"></span>
+        <button class="btn" data-torna-domande>← Nuova generazione</button></div>
+      <div id="msgGen"></div><div id="risultati">${risultati(S.ultima, true)}</div>`;
+    return;
+  }
   box.innerHTML = `<div class="riga"><div><h2>Genera idee</h2>
-      <p class="sotto">Rispondi a tre domande e premi Genera: l'AI legge i profili (LinkedIn, aziende dove avete lavorato, passioni) e propone cinque idee brevi, ognuna con la squadra di 7-8 persone. Ogni generazione costa 1 credito.</p></div>
+      <p class="sotto">Compila quello che vuoi, anche niente, e premi Sviluppa: l'AI legge i profili (LinkedIn, aziende dove avete lavorato, passioni) e propone cinque idee brevi, ognuna con la squadra di 7-8 persone. Ogni generazione costa 1 credito.</p></div>
       <span class="spazio"></span><span data-tour="crediti">${testoCrediti()}</span></div>
-    ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano qui sotto; se te ne servono altri, chiedi a Dario.</div>' : ""}
+    ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano in fondo alla bacheca; se te ne servono altri, chiedi a Dario.</div>' : ""}
     <div class="carta percorso-gen" data-tour="percorsi"><div class="domande-riga">
       ${domanda("idea", "idea", "Hai un'idea?", "Rispondi Sì per scriverla: poi la pubblichi così com'è o la fai sviluppare all'AI.", `
-        <label style="margin-top:0">Titolo <small>(facoltativo)</small></label>
+        <label style="margin-top:0">Titolo</label>
         <input type="text" id="ideaTitolo" value="${esc(S.ideaTitolo || "")}" placeholder="Es. L'invenduto dei campi nei ristoranti">
         <label>La tua idea <small>(cosa, per chi, perché: bastano due o tre righe)</small></label>
         <textarea id="miaIdea" placeholder="Es. una piattaforma che mette in contatto le aziende agricole dell'Emilia con i ristoranti, per vendere l'invenduto">${esc(S.miaIdea || "")}</textarea>
 `)}
-      ${domanda("compagni", "persone", R.idea ? "Hai compagni con cui la vuoi sviluppare?" : "Hai compagni con cui vuoi lavorare?", "Rispondi Sì per scegliere le persone con cui lavorare.", `
+      ${domanda("compagni", "persone", "Hai compagni con cui la vorresti sviluppare?", "Rispondi Sì per scegliere le persone con cui lavorare.", `
         <div id="pickGruppo"></div>
         <p class="piccolo" id="contaGruppo" style="margin:6px 0 0"></p>
 `)}
@@ -736,15 +743,13 @@ function genera() {
         <select id="opzSettore"><option value="">Qualsiasi settore</option>${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<option ${S.opz.settore === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
 `)}
       </div>
-      <p class="piccolo" style="margin:16px 0 6px"><b>Pubblica</b>: la tua idea va in bacheca così com'è, con i compagni che hai scelto in squadra, e la vedono tutti. <b>Genera con l'AI</b>: ${nomeGenera.toLowerCase()}, 1 credito.</p>
+      <p class="piccolo" style="margin:16px 0 6px"><b>Pubblica</b>: la tua idea va in bacheca così com'è, con i compagni che hai scelto in squadra, e la vedono tutti. <b>Sviluppa con l'AI</b>: l'AI parte da quello che hai scritto (o da zero, se hai lasciato tutto vuoto) e propone cinque idee con la squadra, 1 credito.</p>
       <div class="riga pulsanti-gen" style="margin-top:0">
         <button class="btn primario grande" data-pubblica-idea>Pubblica l'idea in bacheca</button>
-        <button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} Genera con l'AI</button></div>
+        <button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} Sviluppa con l'AI</button></div>
     </div>
     <div id="msgGen"></div>
-    <div id="risultati">${S.ultima ? risultati(S.ultima) : ""}</div>
-    ${S.dati.generazioni.filter((g) => !S.ultima || g.id !== S.ultima.id).length ? `<h3 style="margin-top:28px">Le tue generazioni precedenti</h3>
-      ${S.dati.generazioni.filter((g) => !S.ultima || g.id !== S.ultima.id).map((g) => `<details class="carta" style="margin-bottom:8px" data-gen="${g.id}"><summary>${quando(g.quando)} · ${g.modo === "gruppo" ? "con " + esc((g.persone || []).map((id) => (profilo(id) || {}).nome).join(", ")) : "idee per me"}${g.idea ? " · dalla mia idea" : ""} · ${g.idee.length} ${g.idee.length === 1 ? "idea" : "idee"}</summary><div></div></details>`).join("")}` : ""}
+    <div id="risultati"></div>
 `;
   const contaGruppo = () => {
     const n = S.scelti.size + 1, el = document.getElementById("contaGruppo");
@@ -768,48 +773,51 @@ function genera() {
   // Pubblica subito in bacheca, per tutti.
   if (pubb) pubb.onclick = async (e) => {
     e.preventDefault(); leggi();
-    if (!R.idea || !(S.miaIdea || "").trim()) {
-      R.idea = true; genera();
+    if (!(S.miaIdea || "").trim()) {
       const t = document.getElementById("miaIdea"); if (t) t.focus();
       avvisa("msgGen", "Scrivi la tua idea qui sopra, poi premi di nuovo Pubblica.", "info"); return;
     }
     pubb.disabled = true;
     try {
       await api("idea", { titolo: titoloIdea(), idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }], visibilita: "tutti",
-        membri: R.compagni ? [...S.scelti] : [] });
-      S.miaIdea = ""; S.ideaTitolo = ""; R.idea = false;
+        membri: [...S.scelti] });
+      S.miaIdea = ""; S.ideaTitolo = "";
       S.dati = await api("dati"); chiudiGenera(); disegna();
       document.getElementById("secBacheca").scrollIntoView({ behavior: "smooth" });
     } catch (err) { pubb.disabled = false; avvisa("msgGen", err.message, "male"); }
   };
   document.getElementById("gVai").onclick = async () => {
     leggi();
-    const conIdea = R.idea && (S.miaIdea || "").trim();
-    if (R.idea && !conIdea) { avvisa("msgGen", "Hai detto che hai un'idea: scrivila, oppure rispondi No.", "male"); return; }
-    const persone = R.compagni ? [...S.scelti] : [];
-    if (R.compagni && !persone.length) { avvisa("msgGen", "Scegli almeno un compagno, oppure rispondi No.", "male"); return; }
+    const conIdea = (S.miaIdea || "").trim();
+    const persone = [...S.scelti];
     S.generando = true; genera();
     avvisa("msgGen", "L'AI sta leggendo i profili e scrivendo le idee: di solito ci vuole meno di un minuto…");
     document.getElementById("msgGen").scrollIntoView({ behavior: "smooth", block: "center" });
-    const paletti = R.paletti ? S.opz : { modello: "", perno: "", settore: "" };
+    const paletti = S.opz;
     try {
       const g = await api("", { modo: persone.length ? "gruppo" : "scopri", persone, note: "", idea: conIdea || "",
         modello: paletti.modello, perno: paletti.perno, settore: paletti.settore }, "/api/genera");
       if (g.crediti) S.dati.io.crediti = g.crediti;
       S.ultima = g;
       S.dati.generazioni.unshift(g);
-      S.generando = false; genera();
-      document.getElementById("risultati").scrollIntoView({ behavior: "smooth" });
+      S.generando = false; S.vistaRisultati = true; genera();
     } catch (e) {
       S.generando = false; genera(); avvisa("msgGen", e.message, "male");
       try { S.dati = await api("dati"); } catch {}
     }
   };
-  box.querySelectorAll("details[data-gen]").forEach((d) => d.addEventListener("toggle", () => {
-    const dentro = d.querySelector("div");
-    if (d.open && !dentro.innerHTML) dentro.innerHTML = risultati(S.dati.generazioni.find((g) => g.id === d.dataset.gen), true);
-  }));
 }
+document.addEventListener("click", (ev) => {
+  if (!ev.target.closest("[data-torna-domande]")) return;
+  S.vistaRisultati = false; genera();
+});
+// Le generazioni precedenti stanno in fondo alla bacheca: si aprono una alla volta.
+document.addEventListener("toggle", (ev) => {
+  const d = ev.target;
+  if (!d.dataset || !d.dataset.gen || !d.open) return;
+  const dentro = d.querySelector(":scope > div");
+  if (!dentro.innerHTML) dentro.innerHTML = risultati(S.dati.generazioni.find((g) => g.id === d.dataset.gen), true);
+}, true);
 
 // Le persone di una generazione, tutte insieme: chi l'ha generata, chi aveva
 // scelto e chi ha proposto Claude, con il ruolo, il motivo e le idee per cui
@@ -1232,7 +1240,9 @@ function bacheca() {
           </div>
         </div>
       </div>`;
-    }).join("") || `<p class="piccolo">Ancora nessuna idea: premi <b>Genera idee</b>, anche per pubblicarne una che hai già.</p>`}</div>`;
+    }).join("") || `<p class="piccolo">Ancora nessuna idea: premi <b>Genera idee</b>, anche per pubblicarne una che hai già.</p>`}</div>
+    ${S.dati.generazioni.length ? `<details class="precedenti"><summary>Le tue generazioni precedenti (${S.dati.generazioni.length})</summary>
+      ${S.dati.generazioni.map((g) => `<details class="carta" style="margin-bottom:8px" data-gen="${g.id}"><summary>${quando(g.quando)} · ${g.modo === "gruppo" ? "con " + esc((g.persone || []).map((id) => (profilo(id) || {}).nome).join(", ")) : "idee per me"}${g.idea ? " · dalla mia idea" : ""} · ${g.idee.length} ${g.idee.length === 1 ? "idea" : "idee"}</summary><div></div></details>`).join("")}</details>` : ""}`;
   // Dopo un ridisegno ogni card torna sull'idea che stavi guardando.
   box.querySelectorAll("[data-scorri]").forEach((t) => { const k = S.linguette[t.dataset.scorri]; if (k) t.scrollLeft = k * t.clientWidth; });
 }

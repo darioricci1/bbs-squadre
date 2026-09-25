@@ -17,10 +17,13 @@ Chi usa la piattaforma vede due schede.
   solo chi ha pubblicato l'idea (e l'amministratore), che accoglie chi vuole
   nella squadra. L'amministratore vede due esempi (una proposta a un gruppo e
   un'idea per tutti) che nessun altro vede. Le mie sono in blu, le altre in
-  grigio. Sotto si generano le idee con tre domande: **hai un'idea?** (se si'
-  si scrive, e si puo' anche pubblicare cosi' com'e'), **hai compagni?** (si
-  scelgono), **vuoi dare piu' indicazioni all'AI?** (cursori, settore a pillole,
-  testo libero). Poi un solo pulsante Genera.
+  grigio. Le idee si generano in una finestra che sta tutta nello schermo, con tre
+  box quadrati sempre aperti e tutti facoltativi: **hai un'idea?** (si puo'
+  anche pubblicare cosi' com'e'), **hai compagni con cui la vorresti
+  sviluppare?**, **vuoi dare piu' indicazioni all'AI?** (cursori e settore).
+  Poi «Sviluppa con l'AI»: la finestra mostra solo le proposte, con un
+  pulsante per tornare alle domande. Le generazioni precedenti sono in fondo
+  alla bacheca, chiuse a tendina.
   Le squadre sono di 7 o 8: l'AI completa quelle piu' piccole, con una
   riga di motivo per ogni persona proposta. La squadra e' una sola per
   tutte le cinque proposte della stessa generazione. I risultati stanno in
