@@ -191,8 +191,9 @@
   .linguette-regia button.attiva{color:var(--accento);border-bottom-color:var(--accento)}
   .linguette-regia button .piccolo{background:var(--accento-chiaro);color:var(--accento);border-radius:99px;padding:1px 7px;margin-left:4px}
   @media (max-width:760px){.linguette-regia{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
-  .annuncio-riga{flex-wrap:nowrap;gap:8px;margin:0 0 16px;background:var(--carta);border:1px solid var(--bordo);border-radius:14px;padding:8px 10px 8px 14px}
-  .annuncio-riga input{flex:1;margin:0;min-width:0;border:0;background:var(--sfondo)}
+  .annuncio-riga{flex-wrap:nowrap;gap:8px;margin:0 0 16px;background:var(--accento-chiaro);border:1px solid #b9ccff;border-radius:14px;padding:8px 10px 8px 14px}
+  .annuncio-riga input{flex:1;margin:0;min-width:0;border:0;background:#fff}
+  .annuncio-riga > .piccolo b{color:var(--accento)}
   .annuncio-riga .facoltativo{color:var(--grigio);font-weight:400}
   .annuncio-riga > .piccolo{white-space:nowrap}
   .annuncio-riga.pubblicato{background:var(--accento-chiaro);border-color:var(--accento)}
@@ -429,7 +430,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.37.9";
+const VERSION = "2.37.10";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1529,7 +1530,7 @@ function mioAnnuncioRiga() {
   const io = mio(), mioA = io && io.annuncio;
   if (!io) return "";
   if (!mioA || S.annuncioAperto) return `<div class="riga annuncio-riga">
-      <span class="piccolo"><b>Il tuo annuncio</b> <span class="facoltativo">(facoltativo)</span></span>
+      <span class="piccolo"><b>Il tuo annuncio</b></span>
       <input type="text" id="testoAnnuncio" maxlength="400" value="${esc(mioA ? mioA.testo : "")}" placeholder="Su che idea ti piacerebbe lavorare? Es. un'idea B2B nel food">
       ${mioA ? '<button class="btn piccolo" data-annulla-annuncio>Annulla</button>' : ""}<button class="btn piccolo primario" data-salva-annuncio>Pubblica</button></div>`;
   return `<div class="riga annuncio-riga pubblicato"><span class="piccolo"><b>Il tuo annuncio:</b></span>
