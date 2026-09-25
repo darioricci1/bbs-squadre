@@ -171,3 +171,10 @@ un'azienda (e non si e' scritto a mano settore o descrizione), il server
 legge la pagina e l'AI ne ricava settore e descrizione (`lib/leggi-sito.js`,
 modello `BBS_MODELLO_SITI`, di base claude-sonnet-5 con effort basso).
 
+## Annunci in bacheca
+
+Dopo le idee, prima di «Le tue idee», c'e' la sezione Annunci: ognuno puo'
+scrivere un annuncio breve (400 caratteri) su cosa cerca e cosa vorrebbe
+fare. Uno a testa, salvato nel profilo (`annuncio`), si cambia col pennino e
+si toglie. Azione `POST annuncio {testo}`.
+

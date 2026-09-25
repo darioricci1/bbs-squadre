@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.16.0
+// VERSION: 1.17.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -12,6 +12,7 @@
 //   POST lascia            -> "questo non e' il mio profilo"
 //   POST nuovo-profilo     -> se il proprio profilo non e' stato importato
 //   POST profilo {...}     -> aggiorna il MIO profilo (passioni, preferenze...)
+//   POST annuncio {testo}  -> il MIO annuncio in bacheca (cosa cerco); vuoto lo toglie
 //   POST idea {...}        -> pubblica o modifica un mio post in bacheca: da 1 a 5
 //                             idee, per tutti o solo per persone scelte
 //   POST idea-elimina {id}
@@ -85,6 +86,7 @@ export default async function handler(req, res) {
       case "lascia": return await lascia(chi, res);
       case "nuovo-profilo": return await nuovoProfilo(chi, corpo, res);
       case "profilo": return await aggiornaProfilo(chi, corpo, res);
+      case "annuncio": return await salvaAnnuncio(chi, corpo, res);
       case "idea": return await idea(chi, corpo, res);
       case "idea-elimina": return await ideaElimina(chi, corpo, res);
       case "interesse": return await interesse(chi, corpo, res);
@@ -341,6 +343,18 @@ async function aggiornaProfilo(chi, corpo, res) {
   await scrivi("profili", p.id, p);
   await segna(chi.email, "profilo", { profilo: p.id });
   return res.status(200).json({ ok: true });
+}
+
+// L'annuncio di una persona in bacheca: cosa cerca, cosa vorrebbe fare.
+// Uno solo a testa; vuoto lo toglie.
+async function salvaAnnuncio(chi, corpo, res) {
+  const p = chi.admin && corpo.profilo ? await uno("profili", String(corpo.profilo)) : await mioProfilo(chi.email);
+  if (!p) return res.status(404).json({ error: "Prima collega il tuo profilo." });
+  const t = testo(corpo.testo, 400);
+  if (t) p.annuncio = { testo: t, quando: new Date().toISOString() }; else delete p.annuncio;
+  await scrivi("profili", p.id, p);
+  await segna(chi.email, t ? "annuncio" : "annuncio-tolto", { profilo: p.id, testo: t });
+  return res.status(200).json({ ok: true, annuncio: p.annuncio || null });
 }
 
 // Un post della bacheca contiene da 1 a 5 idee (scritte a mano o generate)

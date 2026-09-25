@@ -181,6 +181,11 @@
   .testo-lungo{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
   .testo-lungo.aperto{display:inline;-webkit-line-clamp:unset}
   @media (max-width:760px){.campo-lav{grid-template-columns:1fr;gap:2px}}
+  .griglia-annunci{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+  .annuncio{display:flex;flex-direction:column;gap:6px}
+  .annuncio.mio{border:2px solid var(--accento);background:var(--accento-chiaro)}
+  .annuncio textarea{margin:0;background:#fff}
+  .testo-annuncio{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
   .precedenti{margin-top:24px}
   .precedenti > summary{cursor:pointer;font-weight:600;font-size:17px;margin-bottom:10px}
   .chiudi-genera{position:absolute;top:12px;right:12px;z-index:2}
@@ -408,7 +413,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.35.1";
+const VERSION = "2.36.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1437,6 +1442,45 @@ function apriEditor(post) {
   if (primo) primo.focus();
 }
 
+// ---------------------------------------------------------------- annunci
+// Un piccolo annuncio a testa: cosa cerco, cosa vorrei fare. Sta in bacheca
+// dopo le idee; il mio e' in cima, gli altri dal piu' recente.
+function sezioneAnnunci() {
+  const io = mio(), mioA = io && io.annuncio;
+  const altri = S.dati.profili.filter((p) => p.annuncio && (!io || p.id !== io.id))
+    .sort((a, b) => String(b.annuncio.quando).localeCompare(String(a.annuncio.quando)));
+  const scrivo = io && (!mioA || S.annuncioAperto);
+  const mia = !io ? "" : scrivo
+    ? `<div class="carta annuncio mio"><div class="piccolo"><b>Il tuo annuncio</b> · cosa cerchi, cosa ti piacerebbe fare</div>
+        <textarea id="testoAnnuncio" rows="3" maxlength="400" placeholder="Es. Cerco qualcuno di finanza e uno di marketing per un'idea nel food; mi piacerebbe un progetto B2C con un prodotto vero.">${esc(mioA ? mioA.testo : "")}</textarea>
+        <div class="riga" style="margin-top:8px"><span class="spazio"></span>${mioA ? '<button class="btn piccolo" data-annulla-annuncio>Annulla</button>' : ""}<button class="btn piccolo primario" data-salva-annuncio>Pubblica l'annuncio</button></div></div>`
+    : `<div class="carta annuncio mio"><div class="riga piccolo"><b>Il tuo annuncio</b><span>· ${quando(mioA.quando)}</span><span class="spazio"></span><button class="btn piccolo pericolo" data-togli-annuncio>Togli</button></div>
+        <p class="testo-annuncio">${esc(mioA.testo)}<button type="button" class="penna" data-penna-annuncio title="Modifica">✎</button></p></div>`;
+  return `<h2 style="margin-top:32px">Annunci</h2>
+    <p class="sotto">Cosa cerca e cosa vorrebbe fare ognuno. Il tuo lo scrivi qui, in due righe.</p>
+    <div class="griglia griglia-annunci">${mia}${altri.map((p) => `<div class="carta annuncio">
+        <div class="riga" style="flex-wrap:nowrap"><div class="avatar piccolo-av">${esc(iniziali(p.nome))}</div>
+          <div style="min-width:0"><b>${esc(p.nome)}</b><div class="piccolo testa-post">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || p.titolo || "")}</div></div></div>
+        <p class="testo-annuncio">${esc(p.annuncio.testo)}</p><div class="piccolo">${quando(p.annuncio.quando)}</div></div>`).join("")}</div>
+    ${!altri.length && !io ? '<p class="piccolo">Ancora nessun annuncio.</p>' : ""}`;
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-salva-annuncio],[data-togli-annuncio],[data-penna-annuncio],[data-annulla-annuncio]");
+  if (!b) return;
+  const y = window.scrollY, ridisegna = () => { bacheca(); window.scrollTo(0, y); };
+  if (b.dataset.pennaAnnuncio !== undefined) { S.annuncioAperto = true; ridisegna(); const t = document.getElementById("testoAnnuncio"); if (t) t.focus(); return; }
+  if (b.dataset.annullaAnnuncio !== undefined) { S.annuncioAperto = false; return ridisegna(); }
+  if (b.dataset.togliAnnuncio !== undefined && !confirm("Togliere il tuo annuncio dalla bacheca?")) return;
+  const testo = b.dataset.salvaAnnuncio !== undefined ? document.getElementById("testoAnnuncio").value.trim() : "";
+  if (b.dataset.salvaAnnuncio !== undefined && !testo) { document.getElementById("testoAnnuncio").focus(); return; }
+  b.disabled = true;
+  try {
+    const r = await api("annuncio", { testo });
+    const io = mio(); if (io) { if (r.annuncio) io.annuncio = r.annuncio; else delete io.annuncio; }
+    S.annuncioAperto = false; ridisegna();
+  } catch (e) { b.disabled = false; alert(e.message); }
+});
+
 // ---------------------------------------------------------------- bacheca
 const ideeDelPost = (i) => (i.idee && i.idee.length ? i.idee : [{ titolo: i.titolo, descrizione: i.descrizione, modello: i.modello, settore: i.settore }]);
 
@@ -1488,6 +1532,7 @@ function bacheca() {
         </div>
       </div>`;
     }).join("") || `<p class="piccolo">Ancora nessuna idea: premi <b>Genera idee</b>, anche per pubblicarne una che hai già.</p>`}</div>
+    ${sezioneAnnunci()}
     ${S.dati.generazioni.length ? `<details class="precedenti"><summary>Le tue idee (${S.dati.generazioni.length})</summary>
       ${S.dati.generazioni.map((g) => `<details class="carta" style="margin-bottom:8px" data-gen="${g.id}"><summary>${quando(g.quando)} · ${g.modo === "gruppo" ? "con " + esc((g.persone || []).map((id) => (profilo(id) || {}).nome).join(", ")) : "idee per me"}${g.idea ? " · dalla mia idea" : ""} · ${g.idee.length} ${g.idee.length === 1 ? "idea" : "idee"}</summary><div></div></details>`).join("")}</details>` : ""}`;
   // Dopo un ridisegno ogni card torna sull'idea che stavi guardando.
