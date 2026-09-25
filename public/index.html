@@ -188,10 +188,12 @@
   .gettone.attivo{background:var(--accento);border-color:var(--accento);color:#fff}
   .perche-te{background:var(--accento-chiaro);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
   .motore h3{font-size:18px}
-  .percorsi{display:grid;grid-template-columns:repeat(3,1fr);gap:22px 12px;margin:22px 0 12px}
+  .percorsi{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 12px;margin:30px 0 12px}
   @media (max-width:760px){.percorsi{grid-template-columns:1fr}}
-  .percorso{position:relative;text-align:left;background:var(--carta,#fff);border:2px solid var(--bordo);border-radius:14px;padding:22px 16px 14px;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px}
+  .percorso{position:relative;text-align:left;background:var(--carta,#fff);border:2px solid var(--bordo);border-radius:14px;padding:30px 16px 14px;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px}
   .percorso:hover{border-color:var(--accento)}
+  .percorso-icona{position:absolute;top:-22px;left:16px;width:44px;height:44px;border-radius:50%;background:var(--accento);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  .percorso.scelto .percorso-icona{background:#fff;color:var(--accento);border:2px solid var(--accento)}
   .percorso.scelto{border-color:var(--accento);background:var(--accento-chiaro)}
   .fonti{display:inline-flex;border:1px solid var(--bordo);border-radius:99px;padding:3px;margin:0 0 12px;background:var(--sfondo)}
   .fonti button{border:0;background:none;padding:6px 14px;border-radius:99px;cursor:pointer;font:inherit;color:var(--grigio)}
@@ -224,7 +226,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.8.0";
+const VERSION = "2.9.0";
 const $main = document.getElementById("main");
 const S = { opz: { modello: "", perno: "", settori: [], tipo: "", fonte: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -534,6 +536,14 @@ function senzaCrediti() { const c = S.dati.io.crediti; return !!c && c.restano <
 
 // Tre strade per generare: dall'idea che hai, dalle persone che hai scelto,
 // oppure solo dal tuo profilo.
+// Icone disegnate a tratto (dal set Lucide, licenza ISC): lampadina, persone,
+// punto interrogativo.
+const ICONE = {
+  idea: '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
+  persone: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  profilo: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+};
+const icona = (k) => `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONE[k]}</svg>`;
 const PERCORSI = [
   ["idea", "Ho un'idea e vorrei trovare le persone giuste con cui svilupparla", "Scrivi l'idea: Claude la sviluppa e ti propone i compagni di strada migliori."],
   ["persone", "Ci sono persone con cui mi piacerebbe lavorare, ma non ho ancora un'idea", "Sceglile: Claude genera idee compatibili con i vostri profili."],
@@ -579,7 +589,7 @@ function genera() {
     ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano qui sotto; se te ne servono altri, chiedi a Dario.</div>' : ""}
     <p style="margin:4px 0 8px"><b>Da dove parti?</b></p>
     <div class="percorsi" data-tour="percorsi">${PERCORSI.map(([k, t, sotto], n) => `<button class="percorso ${S.percorso === k ? "scelto" : ""}" data-percorso="${k}">
-      <span class="motore-n">${n + 1}</span><b>${t}</b><span class="piccolo">${sotto}</span></button>`).join("")}</div>
+      <span class="percorso-icona">${icona(k)}</span><b>${t}</b><span class="piccolo">${sotto}</span></button>`).join("")}</div>
     ${S.percorso === "idea" ? `<div class="carta motore">
         <label style="margin-top:0">La tua idea <small>(due o tre righe: cosa, per chi, perché)</small></label>
         <textarea id="miaIdea" placeholder="Es. una piattaforma che mette in contatto le aziende agricole dell'Emilia con i ristoranti, per vendere l'invenduto">${esc(S.miaIdea || "")}</textarea>
