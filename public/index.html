@@ -275,7 +275,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.15.0";
+const VERSION = "2.15.1";
 const $main = document.getElementById("main");
 const S = { tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -625,7 +625,7 @@ function genera() {
         <textarea id="miaIdea" placeholder="Es. una piattaforma che mette in contatto le aziende agricole dell'Emilia con i ristoranti, per vendere l'invenduto">${esc(S.miaIdea || "")}</textarea>
         <div class="riga" style="margin-top:8px"><button class="btn" data-pubblica-idea>Pubblicala in bacheca</button>
           <span class="piccolo">così com'è, la vedono tutti; oppure falla sviluppare a Claude qui sotto</span></div>`)}
-      ${domanda("compagni", "persone", R.idea ? "Hai compagni con cui la vuoi sviluppare?" : "Hai compagni con cui vuoi lavorare?", "Se sì, sceglili: le squadre sono di 7 o 8, e se ne scegli meno Claude propone chi aggiungere.", `
+      ${domanda("compagni", "persone", R.idea ? "Hai compagni con cui la vuoi sviluppare?" : "Hai compagni con cui vuoi lavorare?", "", `
         <div id="pickGruppo"></div>
         <p class="piccolo" id="contaGruppo" style="margin:6px 0 0"></p>
         <p class="piccolo" style="margin:6px 0 0"><a href="#" data-scheda="persone">Sfoglia tutte le persone</a></p>`)}
