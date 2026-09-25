@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.5.0
+// VERSION: 1.7.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -10,7 +10,17 @@
 // prima di chiamare Claude e si restituisce se la generazione non va a buon
 // fine. L'amministratore non ha limiti.
 //
-// Richiede ANTHROPIC_API_KEY. Il modello si cambia con BBS_MODELLO.
+// Per spendere meno:
+// - l'elenco di tutti i partecipanti (in forma breve) sta nel prompt di
+//   sistema, uguale per tutti, con la cache dei prompt: chi genera entro 5
+//   minuti da un altro paga quella parte un decimo;
+// - del gruppo si mandano le esperienze una volta sola (il testo del PDF di
+//   LinkedIn solo se mancano) e tagliate a una lunghezza ragionevole;
+// - Claude scrive i campi in modo asciutto.
+//
+// Richiede ANTHROPIC_API_KEY. Il modello si cambia con BBS_MODELLO. Se la
+// chiave non appartiene a un workspace, serve anche ANTHROPIC_WORKSPACE_ID
+// (l'id del workspace, dalla console Anthropic: Settings > Workspaces).
 
 import Anthropic from "@anthropic-ai/sdk";
 import { esigiAccesso, corpoDi, nuovoId, tutti, uno, scrivi, conta, correggi, segna, aziendaPer, creditiDi, chiaveCrediti, CREDITI_BASE, DIECI_ANNI } from "../lib/bbs.js";
@@ -50,7 +60,7 @@ const SCHEMA = {
         required: ["titolo", "fascia", "sintesi", "problema", "soluzione", "clienti", "modello", "settore",
           "ricavi", "perche_noi", "ruoli", "compagni", "rischi", "primo_passo", "punteggio",
           "fonte_idea", "differenziazione", "scalabilita", "replicabilita", "sostenibilita",
-          "startup_innovativa", "valutazione", "criteri_startup", "punto_debole", "slide"],
+          "startup_innovativa", "valutazione", "criteri_startup", "punto_debole", "domande_di_partenza", "slide"],
         properties: {
           titolo: { type: "string" },
           fascia: { type: "string", enum: ["top", "riserva"] },
@@ -96,6 +106,10 @@ const SCHEMA = {
             properties: { innovazione: { type: "integer" }, scalabilita: { type: "integer" }, replicabilita: { type: "integer" }, sostenibilita: { type: "integer" } },
           },
           punto_debole: { type: "string" },
+          domande_di_partenza: {
+            type: "object", additionalProperties: false, required: ["fra_5_10_anni", "cosa_manca", "bisogno_latente", "chi_lo_fa_gia"],
+            properties: { fra_5_10_anni: { type: "string" }, cosa_manca: { type: "string" }, bisogno_latente: { type: "string" }, chi_lo_fa_gia: { type: "string" } },
+          },
           valutazione: {
             type: "object", additionalProperties: false, required: ["originalita", "fattibilita", "scalabilita_investibilita"],
             properties: { originalita: { type: "integer" }, fattibilita: { type: "integer" }, scalabilita_investibilita: { type: "integer" } },
@@ -116,7 +130,7 @@ const SCHEMA = {
 // Le istruzioni seguono le linee guida date da Claudio Venezia (BBS) il
 // 24 settembre 2026: cos'e' una startup, cosa va consegnato il 1 novembre,
 // come valuta la giuria del 17 luglio.
-const SISTEMA = `Sei un advisor di startup con esperienza di incubatori e venture capital. Aiuti i partecipanti dell'Executive MBA XXIV della Bologna Business School nel project work: ogni gruppo (da 5 a 8 persone) sviluppa per tutto l'anno un progetto di startup reale, che il 17 luglio presenta a una giuria di venture capitalist, business angel, imprenditori e accademici.
+const SISTEMA = `Sei un advisor di startup con esperienza di incubatori e venture capital. Aiuti i partecipanti dell'Executive MBA XXIV della Bologna Business School nel project work: ogni gruppo (7 o 8 persone) sviluppa per tutto l'anno un progetto di startup reale, che il 17 luglio presenta a una giuria di venture capitalist, business angel, imprenditori e accademici.
 
 ## La consegna a cui stai lavorando
 Entro il 1 novembre ogni gruppo presenta 3 idee GREZZE, 2 o 3 slide ciascuna: il problema (un bisogno reale e verificabile) e l'intuizione di soluzione. Niente business plan, niente numeri inventati: quelli arrivano dopo, con l'analisi di mercato, dei concorrenti e dei clienti. La scuola sceglie poi con il gruppo l'idea a piu' alto potenziale. Le 3 idee migliori di un gruppo e' meglio che siano affini fra loro (stesso ambito o stesse competenze), cosi' il gruppo resta adatto qualunque venga scelta.
@@ -131,6 +145,13 @@ Entro il 1 novembre ogni gruppo presenta 3 idee GREZZE, 2 o 3 slide ciascuna: il
 ## I quattro criteri sono vincolanti
 Per ogni idea dai un voto da 1 a 10 a innovazione, scalabilita', replicabilita' e sostenibilita' ("criteri_startup"), con la stessa severita' di un investitore. Le 3 idee "top" devono avere almeno 6 in TUTTI e quattro: se un'idea non ci arriva, non proporla e sostituiscila con una migliore. Le 2 idee "riserva" possono avere un solo criterio sotto 6. In "punto_debole" scrivi il criterio piu' debole dell'idea e cosa servirebbe per rafforzarlo (per le top: il rischio principale su quei quattro criteri).
 
+## Le domande di partenza (obbligatorie per ogni idea)
+Claudio Venezia chiede di partire da queste domande: ogni idea deve rispondere a tutte e quattro, in modo concreto e specifico per quell'idea ("domande_di_partenza"):
+- "fra_5_10_anni": come evolveranno nei prossimi 5-10 anni il bisogno e i prodotti o servizi che oggi lo risolvono, e quali nuove necessita' nasceranno attorno.
+- "cosa_manca": cosa manca oggi nel mondo, o e' risolto solo in parte, che questa idea offre.
+- "bisogno_latente": il bisogno personale o latente da cui nasce (se possibile di qualcuno del gruppo, osservando la vita quotidiana sua o di chi gli sta accanto) e perche' e' diffuso in una nicchia.
+- "chi_lo_fa_gia": cosa si fa gia' in Silicon Valley o all'estero (startup di Y Combinator, casi visti su TechCrunch) su questo tema, e in cosa questa idea si differenzia o lo adatta all'Italia e all'Europa. Cita solo aziende che conosci davvero; se non ne conosci, dillo.
+
 ## Come trovare idee buone
 Parti da una di queste domande e dichiarala in "fonte_idea": come evolvera' questo settore fra 5-10 anni e cosa servira'; cosa manca oggi; quale bisogno personale, anche latente, ha qualcuno del gruppo (molte startup nascono cosi'); quale modello che funziona all'estero (Silicon Valley, Y Combinator, TechCrunch) si puo' adattare; quale competenza rara del team apre un mercato. Le due cause principali di fallimento sono un prodotto senza un bisogno di mercato e una struttura che non si sostiene: evitale.
 
@@ -139,12 +160,16 @@ Ricevi i profili delle persone: percorso professionale da LinkedIn, azienda con 
 
 ## Cosa produrre
 Esattamente 5 idee in italiano, dalla migliore: le prime 3 con fascia "top" (affini fra loro, pronte per il 1 novembre), le ultime 2 con fascia "riserva" (valide ma piu' deboli o piu' rischiose, anche in ambiti diversi).
+Scrivi asciutto: ogni campo di testo in una o due frasi, senza ripetere in un campo cio' che hai gia' detto in un altro. Le idee di riserva possono essere piu' brevi delle top.
 - "differenziazione": come il bisogno e' risolto oggi e cosa cambia con questa idea.
 - "scalabilita", "replicabilita", "sostenibilita": una o due frasi concrete ciascuna, non generiche, coerenti con i voti in "criteri_startup".
 - "valutazione": da 1 a 10 come la vedrebbe la giuria su originalita', fattibilita', scalabilita' e investibilita'. Sii severo: un 8 deve essere meritato. "punteggio" e' il tuo giudizio complessivo per questo team.
 - "slide": 2 o 3 slide per la consegna del 1 novembre, ciascuna con un titolo e 3-5 punti brevi (problema, soluzione, perche' questo team; niente numeri inventati).
 - "ricavi": come potrebbe guadagnare, in modo plausibile, senza cifre.
-- In "ruoli" assegna a ciascuna persona del gruppo un ruolo nel progetto, con il suo id. In "compagni" metti gli id di altre persone del master che rafforzerebbero l'idea, con il motivo: nel modo "scopri" da 2 a 4 persone scelte bene, nel modo "gruppo" al massimo 2 e solo se servono davvero (i gruppi sono di 5-8 persone). Usa solo id presenti nei dati.`;
+- In "ruoli" assegna a ciascuna persona del gruppo un ruolo nel progetto, con il suo id.
+
+## La squadra: 7 o 8 persone
+I partecipanti sono circa 60 e i gruppi al massimo 8, quindi ogni squadra deve avere 7 o 8 persone. Nel messaggio trovi quante persone ha gia' il gruppo e quante ne devi proporre ("COMPAGNI DA PROPORRE"). In "compagni" metti esattamente quel numero di persone, scelte dall'elenco del master fra chi non e' nel gruppo, per completare la squadra a 7-8: scegli chi copre le competenze che mancano per quell'idea (finanza, tecnologia, vendite, marketing, operations, settore) e chi ha passioni o preferenze compatibili; per ognuno scrivi il motivo. Poi assegna un ruolo anche a loro in "ruoli". Usa solo id presenti nei dati.`;
 
 function riassunto(p, aziende, lungo) {
   const az = aziendaPer(p.azienda, aziende);
@@ -157,9 +182,10 @@ function riassunto(p, aziende, lungo) {
     az && `azienda (AIDA): ${[az.settore || az.ateco, az.fatturato && "fatturato " + az.fatturato, az.dipendenti && az.dipendenti + " dipendenti", az.citta].filter(Boolean).join(", ")}`,
     p.citta && `citta': ${p.citta}`,
     p.competenze && `competenze: ${p.competenze}`,
-    lungo && p.esperienze && `esperienze: ${p.esperienze}`,
-    lungo && p.formazione && `formazione: ${p.formazione}`,
-    lungo && p.linkedinTesto && `dal profilo LinkedIn: ${String(p.linkedinTesto).slice(0, 3000)}`,
+    lungo && p.esperienze && `esperienze: ${String(p.esperienze).slice(0, 2500)}`,
+    lungo && p.formazione && `formazione: ${String(p.formazione).slice(0, 600)}`,
+    // il testo del PDF ripete le esperienze: serve solo quando mancano
+    lungo && !p.esperienze && p.linkedinTesto && `dal profilo LinkedIn: ${String(p.linkedinTesto).slice(0, 2500)}`,
     x.passioni && `passioni: ${x.passioni}`,
     x.preferenza && `preferisce: ${x.preferenza}`,
     x.settori && `settori che gli interessano: ${x.settori}`,
@@ -205,19 +231,23 @@ export default async function handler(req, res) {
 
   const gruppo = [io, ...scelti.map((id) => profili[id])];
   const idGruppo = new Set(gruppo.map((p) => p.id));
-  const altri = Object.values(profili).filter((p) => !idGruppo.has(p.id));
+  // Elenco breve di tutti, sempre nello stesso ordine: e' la parte che va in cache.
+  const elenco = Object.values(profili).sort((a, b) => a.id.localeCompare(b.id)).map((p) => riassunto(p, aziende, false)).join("\n\n");
 
+  // Le squadre sono di 7 o 8: si propongono le persone che mancano.
+  const daMin = Math.max(0, 7 - gruppo.length), daMax = Math.max(0, 8 - gruppo.length);
   const testo = [
     `MODO: ${modo === "gruppo" ? "gruppo (le persone hanno gia' scelto di lavorare insieme)" : "scopri (una persona cerca idee e compagni di squadra)"}`,
+    `IL GRUPPO HA GIA' ${gruppo.length} ${gruppo.length === 1 ? "PERSONA" : "PERSONE"}. COMPAGNI DA PROPORRE PER OGNI IDEA: ${daMin === daMax ? daMax : `da ${daMin} a ${daMax}`}${daMax === 0 ? " (la squadra e' gia' completa: lascia vuoto)" : ""}.`,
     "",
     "## Gruppo",
     ...gruppo.map((p) => riassunto(p, aziende, true) + "\n"),
-    "## Altri partecipanti del master",
-    ...altri.map((p) => riassunto(p, aziende, false) + "\n"),
+    "Gli altri partecipanti, fra cui scegliere i compagni da proporre, sono tutti quelli dell'elenco del master tranne le persone del gruppo.",
     note ? `## Indicazioni di chi chiede\n${note}` : "",
   ].join("\n");
 
-  const client = new Anthropic();
+  const workspace = (process.env.ANTHROPIC_WORKSPACE_ID || "").trim();
+  const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
   let risposta;
   try {
     risposta = await client.beta.messages.create({
@@ -227,12 +257,16 @@ export default async function handler(req, res) {
       fallbacks: "default",
       thinking: { type: "adaptive" },
       output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-      system: SISTEMA,
+      system: [
+        { type: "text", text: SISTEMA },
+        { type: "text", text: "## Elenco di tutti i partecipanti del master\n\n" + elenco, cache_control: { type: "ephemeral" } },
+      ],
       messages: [{ role: "user", content: testo }],
     });
   } catch (e) {
     await restituisci();
     const stato = e instanceof Anthropic.RateLimitError ? 429 : 502;
+    if (/workspace/i.test(String(e.message))) return res.status(502).json({ error: "La chiave di Claude su Vercel non e' legata a un workspace: crea una chiave dentro un workspace nella console Anthropic, oppure aggiungi su Vercel ANTHROPIC_WORKSPACE_ID con l'id del workspace, poi ridistribuisci." });
     return res.status(stato).json({ error: "Claude non ha risposto: " + (e.message || e) });
   }
   if (risposta.stop_reason === "refusal" || risposta.stop_reason === "max_tokens") await restituisci();
@@ -246,7 +280,7 @@ export default async function handler(req, res) {
   const nomeDi = (id) => (profili[id] && profili[id].nome) || null;
   for (const i of idee) {
     i.ruoli = (i.ruoli || []).filter((r) => nomeDi(r.id)).map((r) => ({ ...r, nome: nomeDi(r.id) }));
-    i.compagni = (i.compagni || []).filter((c) => nomeDi(c.id) && !idGruppo.has(c.id)).map((c) => ({ ...c, nome: nomeDi(c.id) }));
+    i.compagni = (i.compagni || []).filter((c) => nomeDi(c.id) && !idGruppo.has(c.id)).slice(0, daMax).map((c) => ({ ...c, nome: nomeDi(c.id) }));
   }
 
   const costo = costoDi(risposta.model, risposta.usage);

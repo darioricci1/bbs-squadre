@@ -28,6 +28,9 @@ Chi usa la piattaforma vede due schede.
   ricerca, settore, zona e periodo. «Usa come spunto» porta l'azienda nelle
   indicazioni del generatore. Il file viene dalla directory pubblica di YC
   tramite yc-oss/api; si rigenera con lo stesso filtro quando serve.
+  Accanto c'e' **TechCrunch**: le ultime notizie su startup, venture e
+  raccolte fondi dai feed RSS pubblici (`api/spunti-tc.js`, in cache per
+  un'ora), con ricerca e filtro per tema; anche qui «Usa come spunto».
 - **Il mio profilo**: dati LinkedIn (anche dal PDF «Salva come PDF») piu'
   passioni, preferenza B2B/B2C, settori, ruolo nel team, idee, vincoli.
 
@@ -76,6 +79,7 @@ database.
 | `SESSIONE_SEGRETO` | segreto per firmare il cookie (almeno 16 caratteri) |
 | `DATABASE_URL` (o `POSTGRES_URL`) | database Neon; la mette Vercel quando colleghi il database al progetto |
 | `ANTHROPIC_API_KEY` | generazione delle idee |
+| `ANTHROPIC_WORKSPACE_ID` | solo se la chiave non appartiene a un workspace (id `wrkspc_…` dalla console Anthropic) |
 | `AMMINISTRATORI` (o `BBS_AMMINISTRATORI`) | email di chi vede Statistiche e Importa |
 | `BBS_DOMINI`, `BBS_INVITATI` | facoltative: limitano l'accesso a certi domini o a un elenco di email; senza, entra qualunque account Google |
 | `BBS_MODELLO` | facoltativa, modello Claude (predefinito `claude-opus-5`) |
@@ -86,3 +90,13 @@ database.
 CSV con intestazioni come `nome;email;linkedin;titolo;azienda;ruolo;citta;esperienze;formazione;competenze`
 (le intestazioni in inglese dell'export di LinkedIn vengono riconosciute).
 Se c'è l'email, al primo accesso con quell'account il profilo si collega da solo.
+
+## Costi delle generazioni
+
+Ogni generazione chiama Claude una volta; il costo si legge in Regia. Per
+tenerlo basso: l'elenco breve di tutti i partecipanti sta nel prompt di
+sistema con la cache dei prompt (chi genera entro 5 minuti da un altro paga
+quella parte un decimo), del gruppo si mandano le esperienze una volta sola e
+tagliate, e Claude scrive i campi in modo asciutto. La voce che pesa di piu'
+e' il testo scritto da Claude: per risparmiare ancora si puo' mettere
+`BBS_MODELLO=claude-sonnet-5` su Vercel (circa il 60% in meno a token).

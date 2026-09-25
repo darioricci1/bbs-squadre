@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.5.0
+// VERSION: 1.6.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -280,7 +280,7 @@ async function idea(chi, corpo, res) {
     modello: idee.length === 1 ? idee[0].modello : "",
     settore: idee.length === 1 ? idee[0].settore : "",
     cerco: testo(corpo.cerco, 1000),
-    posti: Math.max(2, Math.min(8, Number(corpo.posti) || 5)),
+    posti: Number(corpo.posti) === 7 ? 7 : 8,   // squadre da 7 o 8 persone
     origine: idee.some((x) => x.generata) ? "generata" : "manuale",
     generazione: testo(corpo.generazione, 80) || i.generazione || "",
     aggiornata: new Date().toISOString(),
