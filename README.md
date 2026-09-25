@@ -10,9 +10,10 @@ Chi usa la piattaforma vede due schede.
 
 - **Bacheca** (la home). In alto i post del master: ognuno contiene da 1 a 5
   idee, scritte a mano o generate, ed e' visibile a tutti oppure solo alle
-  persone scelte da chi lo pubblica. Se un post ha piu' idee si passa
-  dall'una all'altra con le linguette; in vista c'e' solo la frase che spiega
-  l'idea, il resto nei Dettagli. Con «Mi interessa» ci si candida: lo vede
+  persone scelte da chi lo pubblica. Le card sono quadrate e tutte uguali:
+  se un post ha piu' idee si scorre dall'una all'altra (col dito o coi
+  puntini in alto); in vista c'e' solo la frase che spiega l'idea, il resto
+  nella finestra Dettagli. Con «Mi interessa» ci si candida: lo vede
   solo chi ha pubblicato l'idea (e l'amministratore), che accoglie chi vuole
   nella squadra. L'amministratore vede due esempi (una proposta a un gruppo e
   un'idea per tutti) che nessun altro vede. Le mie sono in blu, le altre in
@@ -20,8 +21,12 @@ Chi usa la piattaforma vede due schede.
   si scrive, e si puo' anche pubblicare cosi' com'e'), **hai compagni?** (si
   scelgono), **vuoi dare piu' indicazioni all'AI?** (cursori, settore a pillole,
   testo libero). Poi un solo pulsante Genera.
-  Le squadre sono di 7 o 8: Claude completa quelle piu' piccole, con una
-  riga di motivo per ogni persona proposta. Perche' nessuno resti fuori,
+  Le squadre sono di 7 o 8: l'AI completa quelle piu' piccole, con una
+  riga di motivo per ogni persona proposta. La squadra e' una sola per
+  tutte le cinque proposte della stessa generazione. I risultati stanno in
+  una schermata: cinque card affiancate, tutte selezionate all'inizio (un
+  clic ne toglie una, Dettagli apre il testo intero), sotto la squadra come
+  pulsanti da accendere e spegnere, poi la condivisione. Perche' nessuno resti fuori,
   l'ultimo posto di ogni squadra va a una delle persone coinvolte meno
   finora (la piu' compatibile fra loro). Comparire in una proposta generata
   vale 1 punto; essere fra i destinatari di una proposta pubblicata con i

@@ -143,7 +143,7 @@
   .descr{white-space:pre-wrap}
   .sotto-idea{border-top:1px solid var(--bordo);padding:6px 0}
   .sotto-idea summary{cursor:pointer}
-  .finestra-genera{width:min(1180px,100%);position:relative;padding-top:10px}
+  .finestra.finestra-genera{width:min(1180px,100%);position:relative;padding-top:10px}
   .chiudi-genera{position:absolute;top:12px;right:12px;z-index:2}
   .avviso-versione{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:var(--testo,#111);color:#fff;padding:10px 14px;border-radius:12px;display:flex;gap:10px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.3);font-size:14px}
   .velo{position:fixed;inset:0;z-index:20;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 12px}
@@ -270,11 +270,34 @@
   .gettone:hover{border-color:var(--accento)}
   .conta-gettone{opacity:.6;font-size:11px}
   .gettone.attivo{background:var(--accento);border-color:var(--accento);color:#fff}
-  .linguette{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 0}
-  .linguette button{border:1px solid var(--bordo);background:#fff;border-radius:99px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--grigio)}
-  .linguette button.attiva{background:var(--accento);border-color:var(--accento);color:#fff}
+  .proposte-card{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+  @media (max-width:1000px){.proposte-card{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media (max-width:560px){.proposte-card{grid-template-columns:minmax(0,1fr)}}
+  .proposta-card{background:#fff;border:2px solid var(--bordo);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;cursor:pointer;min-height:210px}
+  .proposta-card.selezionata{border-color:var(--accento);background:var(--accento-chiaro)}
+  .spunta-card{width:20px;height:20px;border-radius:50%;border:2px solid var(--bordo);display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:#fff;margin-left:6px}
+  .proposta-card.selezionata .spunta-card{background:var(--accento);border-color:var(--accento)}
+  .titolo-card{font-size:15px;line-height:1.25}
+  .proposta-card .etichetta{white-space:nowrap}
+  .sintesi-card{font-size:13px;color:var(--grigio);display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+  .squadra-gen{margin-top:12px;background:#fff;border:1px solid var(--bordo);border-radius:12px;padding:10px 14px}
+  .gettone.tolto{text-decoration:line-through;color:var(--grigio);background:var(--sfondo)}
+  .persona-io{cursor:default}
   .etichetta.fonte-yc{background:#fff1e8;color:#c2410c}
   .etichetta.fonte-tc{background:#e8f7ee;color:#067a3a}
+  .griglia-bacheca{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+  #secBacheca .idea{aspect-ratio:1/1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+  .testa-post{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .puntini{display:flex;justify-content:center;gap:6px;margin:8px 0 0}
+  .puntini button{width:9px;height:9px;border-radius:50%;border:0;padding:0;background:var(--bordo);cursor:pointer}
+  .puntini button.attivo{background:var(--accento);width:22px;border-radius:5px}
+  .scorri-idee{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;flex:1;min-height:0}
+  .scorri-idee::-webkit-scrollbar{display:none}
+  .idea-slide{flex:0 0 100%;scroll-snap-align:start;min-width:0;display:flex;flex-direction:column;gap:6px;padding-top:8px;overflow:hidden}
+  .titolo-post{margin:0;font-size:18px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .frase-post{margin:0;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+  .piede-post{margin-top:auto;padding-top:8px}
+  .squadra-post{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .perche-te{background:var(--accento-chiaro);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
   .motore h3{font-size:18px}
   .percorsi{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 12px;margin:30px 0 12px}
@@ -315,9 +338,9 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.21.0";
+const VERSION = "2.24.0";
 const $main = document.getElementById("main");
-const S = { linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
+const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
 
 // ---------------------------------------------------------------- utilita'
@@ -812,69 +835,100 @@ function personeGen(g) {
 }
 const toltiDa = (gid) => (S.tolti[gid] = S.tolti[gid] || new Set());
 
+// Il contenuto completo di un'idea, per la finestra "Dettagli".
+function corpoIdea(i) {
+  return `${i.tipo_startup || i.fonte_idea ? `<div class="piccolo">${i.tipo_startup ? `<b>${esc(i.tipo_startup)}</b>` : ""}${i.tipo_startup && i.fonte_idea ? " · " : ""}${i.fonte_idea ? "nata da: " + esc(i.fonte_idea) : ""}${i.settore ? " · " + esc(i.settore) : ""}</div>` : ""}
+    <p style="margin:6px 0">${esc(i.sintesi)}</p>
+    ${i.criteri_startup ? barreCriteri("È una startup?", [["Innovazione", i.criteri_startup.innovazione], ["Scalabilità", i.criteri_startup.scalabilita], ["Replicabilità", i.criteri_startup.replicabilita], ["Sostenibilità", i.criteri_startup.sostenibilita]]) : ""}
+    ${i.valutazione ? barreCriteri("Come la vedrebbe la giuria", [["Originalità", i.valutazione.originalita], ["Fattibilità", i.valutazione.fattibilita], ["Scalabilità e investibilità", i.valutazione.scalabilita_investibilita]]) : ""}
+    ${i.punto_debole ? `<div class="piccolo"><b>Punto debole:</b> ${esc(i.punto_debole)}</div>` : ""}
+    <dl>
+      <dt>Problema</dt><dd>${esc(i.problema)}</dd>
+      <dt>Soluzione</dt><dd>${esc(i.soluzione)}</dd>
+      ${i.differenziazione ? `<dt>Cosa cambia</dt><dd>${esc(i.differenziazione)}</dd>` : ""}
+      <dt>Clienti</dt><dd>${esc(i.clienti)}</dd>
+      ${i.ricavi ? `<dt>Ricavi</dt><dd>${esc(i.ricavi)}</dd>` : ""}
+      <dt>Perché voi</dt><dd>${esc(i.perche_noi)}</dd>
+      ${i.rischi ? `<dt>Rischi</dt><dd>${esc(i.rischi)}</dd>` : ""}
+      ${i.primo_passo ? `<dt>Primo passo</dt><dd>${esc(i.primo_passo)}</dd>` : ""}
+    </dl>
+    ${i.domande_di_partenza ? `<details class="domande"><summary>Le domande di partenza</summary><dl>
+      <dt>Fra 5-10 anni</dt><dd>${esc(i.domande_di_partenza.fra_5_10_anni)}</dd>
+      <dt>Cosa manca</dt><dd>${esc(i.domande_di_partenza.cosa_manca)}</dd>
+      <dt>Bisogno latente</dt><dd>${esc(i.domande_di_partenza.bisogno_latente)}</dd>
+      <dt>Chi lo fa già</dt><dd>${esc(i.domande_di_partenza.chi_lo_fa_gia)}</dd></dl></details>` : ""}
+    ${i.slide && i.slide.length ? `<details class="slide-bozza"><summary>Bozza delle slide (${i.slide.length})</summary>
+      ${i.slide.map((sl, k) => `<div class="slide"><div class="piccolo">Slide ${k + 1}</div><b>${esc(sl.titolo)}</b><ul>${(sl.punti || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</details>` : ""}`;
+}
+
+// Risultati di una generazione, tutti in una schermata: le proposte come
+// card affiancate (tutte selezionate all'inizio, un clic le toglie), sotto la
+// squadra come pulsanti da accendere e spegnere, in fondo la condivisione.
 function risultati(g, vecchia) {
   if (!g) return "";
+  if (!S.selezInit[g.id]) { S.selezInit[g.id] = true; g.idee.slice(0, 5).forEach((_, n) => S.selezione.add(g.id + "|" + n)); }
   const P = personeGen(g), tolti = toltiDa(g.id);
   const scelte = (() => { const c = g.scelte || {}; const v = [c.modello && c.modello !== "indifferente" && c.modello, c.pernoNome && "basata sulla competenza di " + (c.perno === (S.dati.io.profilo) ? "chi l'ha generata" : esc(c.pernoNome)),
     c.gruppo && "competenze di tutto il gruppo", (c.settori || []).length && esc(c.settori.join(", "))].filter(Boolean);
     return v.length ? `<p class="piccolo" style="margin:0 0 6px">Scelte: ${v.join(" · ")}</p>` : ""; })();
   const selezionate = g.idee.filter((_, n) => S.selezione.has(g.id + "|" + n)).length;
   return `<div class="gen-blocco" data-gen-blocco="${g.id}">
-    ${vecchia ? "" : `<h3 style="margin-top:22px">Idee ${g.modo === "gruppo" ? "per il gruppo" : "per te"}</h3>`}
+    ${vecchia ? "" : `<h3 style="margin-top:18px">Le proposte</h3>`}
     ${scelte}
-    <div class="gen-persone">
-      <div class="riga"><b>Le persone</b><span class="piccolo">togli la spunta a chi non vuoi coinvolgere: non vedrà l'idea e sparirà dal testo</span></div>
-      ${P.map((x) => `<label class="persona-gen ${tolti.has(x.id) ? "tolta" : ""}">
-        ${x.io ? '<input type="checkbox" checked disabled>' : `<input type="checkbox" data-persona-gen="${g.id}|${x.id}" ${tolti.has(x.id) ? "" : "checked"}>`}
-        <span><b>${esc(x.nome)}</b>${x.io ? ' <span class="etichetta verde">tu</span>' : x.scelto ? ' <span class="etichetta grigia">scelto da te</span>' : ""}
-          ${x.ruoli.length ? `<span class="piccolo"> · ${esc(x.ruoli[0])}</span>` : ""}
-          ${!x.io && !x.scelto && x.idee.length ? `<span class="piccolo"> · per ${x.idee.length === g.idee.length ? "tutte le idee" : (x.idee.length === 1 ? "l'idea " : "le idee ") + x.idee.map((n) => n + 1).join(", ")}</span>` : ""}
-          ${x.motivi.length ? `<br><span class="piccolo">${esc(x.motivi[0])}</span>` : ""}</span></label>`).join("")}
-    </div>
-    <div class="gen-proposte"><div class="riga" style="margin:10px 0 4px"><b>Le proposte</b><span class="piccolo">seleziona quelle da condividere (fino a 5), aprile per i dettagli</span></div>
-    ${g.idee.map((i, n) => {
+    <div class="proposte-card">${g.idee.map((i, n) => {
       const k = g.id + "|" + n, presa = S.selezione.has(k);
-      return `<div class="proposta-riga ${presa ? "selezionata" : ""}">
-      <input type="checkbox" data-seleziona="${k}" ${presa ? "checked" : ""} aria-label="Seleziona">
-      <details class="idea"><summary>
-        <span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${i.fascia === "top" ? "Top " + (n + 1) : "Riserva"}</span>
-        <b class="titolo-proposta">${esc(i.titolo)}</b>
-        <span class="spazio"></span>${i.modello ? `<span class="etichetta">${esc(i.modello)}</span>` : ""}<b>${esc(i.punteggio)}/10</b></summary>
-        <div class="corpo-proposta">
-        ${i.tipo_startup || i.fonte_idea ? `<div class="piccolo">${i.tipo_startup ? `<b>${esc(i.tipo_startup)}</b>` : ""}${i.tipo_startup && i.fonte_idea ? " · " : ""}${i.fonte_idea ? "nata da: " + esc(i.fonte_idea) : ""}${i.settore ? " · " + esc(i.settore) : ""}</div>` : ""}
-        <p style="margin:6px 0">${esc(i.sintesi)}</p>
-        ${i.criteri_startup ? barreCriteri("È una startup?", [["Innovazione", i.criteri_startup.innovazione], ["Scalabilità", i.criteri_startup.scalabilita], ["Replicabilità", i.criteri_startup.replicabilita], ["Sostenibilità", i.criteri_startup.sostenibilita]]) : ""}
-        ${i.valutazione ? barreCriteri("Come la vedrebbe la giuria", [["Originalità", i.valutazione.originalita], ["Fattibilità", i.valutazione.fattibilita], ["Scalabilità e investibilità", i.valutazione.scalabilita_investibilita]]) : ""}
-        ${i.punto_debole ? `<div class="piccolo"><b>Punto debole:</b> ${esc(i.punto_debole)}</div>` : ""}
-        <dl>
-          <dt>Problema</dt><dd>${esc(i.problema)}</dd>
-          <dt>Soluzione</dt><dd>${esc(i.soluzione)}</dd>
-          ${i.differenziazione ? `<dt>Cosa cambia</dt><dd>${esc(i.differenziazione)}</dd>` : ""}
-          <dt>Clienti</dt><dd>${esc(i.clienti)}</dd>
-          ${i.ricavi ? `<dt>Ricavi</dt><dd>${esc(i.ricavi)}</dd>` : ""}
-          <dt>Perché voi</dt><dd>${esc(i.perche_noi)}</dd>
-          ${(i.compagni || []).length ? `<dt>Proposti per questa</dt><dd>${esc(i.compagni.map((c) => c.nome).join(", "))}</dd>` : ""}
-          ${i.rischi ? `<dt>Rischi</dt><dd>${esc(i.rischi)}</dd>` : ""}
-          ${i.primo_passo ? `<dt>Primo passo</dt><dd>${esc(i.primo_passo)}</dd>` : ""}
-        </dl>
-        ${i.domande_di_partenza ? `<details class="domande"><summary>Le domande di partenza</summary><dl>
-          <dt>Fra 5-10 anni</dt><dd>${esc(i.domande_di_partenza.fra_5_10_anni)}</dd>
-          <dt>Cosa manca</dt><dd>${esc(i.domande_di_partenza.cosa_manca)}</dd>
-          <dt>Bisogno latente</dt><dd>${esc(i.domande_di_partenza.bisogno_latente)}</dd>
-          <dt>Chi lo fa già</dt><dd>${esc(i.domande_di_partenza.chi_lo_fa_gia)}</dd></dl></details>` : ""}
-        ${i.slide && i.slide.length ? `<details class="slide-bozza"><summary>Bozza delle slide (${i.slide.length})</summary>
-          ${i.slide.map((sl, k) => `<div class="slide"><div class="piccolo">Slide ${k + 1}</div><b>${esc(sl.titolo)}</b><ul>${(sl.punti || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</details>` : ""}
-        ${APPROFONDISCI && !i.approfondita && !i.slide ? `<button class="btn approfondisci" data-approfondisci="${k}">Approfondisci</button>` : ""}
-        </div></details></div>`;
+      return `<div class="proposta-card ${presa ? "selezionata" : ""}" data-seleziona-card="${k}">
+        <div class="riga" style="flex-wrap:nowrap"><span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${i.fascia === "top" ? "Top " + (n + 1) : "Riserva"}</span>
+          <span class="spazio"></span><b class="piccolo">${esc(i.punteggio)}/10</b><span class="spunta-card">${presa ? "✓" : ""}</span></div>
+        <b class="titolo-card">${esc(i.titolo)}</b>
+        <div class="sintesi-card">${esc(i.sintesi)}</div>
+        <div class="riga piccolo" style="margin-top:auto">${i.modello ? `<span class="etichetta">${esc(i.modello)}</span>` : ""}<span class="spazio"></span><a href="#" data-dettagli-idea="${k}">Dettagli</a></div>
+      </div>`;
     }).join("")}</div>
+    <div class="squadra-gen">
+      <div class="riga"><b>La squadra</b><span class="piccolo">clicca per togliere o rimettere qualcuno: chi è tolto non vedrà le idee e sparirà dal testo</span></div>
+      <div class="gettoni" style="margin-top:6px">${P.map((x) => x.io
+        ? `<span class="gettone attivo persona-io" title="${esc(x.ruoli[0] || "")}">${esc(x.nome)} (tu)</span>`
+        : `<button class="gettone ${tolti.has(x.id) ? "tolto" : "attivo"}" data-persona-gen="${g.id}|${x.id}" title="${esc([x.ruoli[0], x.motivi[0]].filter(Boolean).join(" · "))}">${tolti.has(x.id) ? "" : "✓ "}${esc(x.nome)}${x.scelto ? " ·  scelto da te" : ""}</button>`).join("")}</div>
+    </div>
     <div class="riga azioni-gen">
       <span class="piccolo" data-conta-sel>${selezionate ? `${selezionate} ${selezionate === 1 ? "proposta selezionata" : "proposte selezionate"}` : "Seleziona almeno una proposta"}</span>
       <span class="spazio"></span>
-      <button class="btn" data-condividi-gen="${g.id}|tutti" ${selezionate ? "" : "disabled"}>Condividi con tutti, senza nomi</button>
-      <button class="btn primario" data-condividi-gen="${g.id}|persone" ${selezionate ? "" : "disabled"}>Condividi con le persone selezionate</button>
+      <button class="btn primario" data-condividi-gen="${g.id}|tutti" ${selezionate ? "" : "disabled"}>Condividi con tutti, senza nomi</button>
+      <button class="btn primario" data-condividi-gen="${g.id}|persone" ${selezionate ? "" : "disabled"}>Condividi con la squadra</button>
     </div>
   </div>`;
 }
+document.addEventListener("click", (ev) => {
+  const d = ev.target.closest("[data-dettagli-idea]");
+  if (d) {
+    ev.preventDefault(); ev.stopPropagation();
+    const k = d.dataset.dettagliIdea, [gid, n] = k.split("|");
+    const g = S.dati.generazioni.find((x) => x.id === gid) || S.ultima;
+    const i = g && g.idee[Number(n)];
+    if (!i) return;
+    document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloDettagli"><div class="finestra"><div class="riga"><h3 style="margin:0">${esc(i.titolo)}</h3><span class="spazio"></span><button class="btn piccolo" data-chiudi-dettagli>×</button></div>${corpoIdea(i)}</div></div>`);
+    return;
+  }
+  if (ev.target.closest("[data-chiudi-dettagli]") || ev.target.id === "veloDettagli") { const v = document.getElementById("veloDettagli"); if (v) v.remove(); return; }
+  const c = ev.target.closest("[data-seleziona-card]");
+  if (c) {
+    const k = c.dataset.selezionaCard;
+    if (S.selezione.has(k)) S.selezione.delete(k);
+    else { if (S.selezione.size >= 5) { alert("Puoi condividere al massimo 5 idee insieme."); return; } S.selezione.add(k); }
+    const presa = S.selezione.has(k);
+    c.classList.toggle("selezionata", presa); c.querySelector(".spunta-card").textContent = presa ? "✓" : "";
+    return aggiornaBlocco(k.split("|")[0]);
+  }
+  const p = ev.target.closest("button[data-persona-gen]");
+  if (p) {
+    const [gid, id] = p.dataset.personaGen.split("|");
+    const t = toltiDa(gid);
+    if (t.has(id)) t.delete(id); else t.add(id);
+    p.classList.toggle("tolto", t.has(id)); p.classList.toggle("attivo", !t.has(id));
+    p.textContent = (t.has(id) ? "" : "✓ ") + p.textContent.replace(/^✓ /, "");
+  }
+});
 
 // Barre da 1 a 10; sotto 6 la barra diventa ambra, perche' e' sotto la soglia.
 function barreCriteri(titolo, voci) {
@@ -954,7 +1008,7 @@ function ideeDaPubblicare(idee, visibilita, proposta, destinatari) {
 function aggiornaBlocco(gid) {
   const blocco = document.querySelector(`[data-gen-blocco="${gid}"]`);
   if (!blocco) return;
-  const n = [...blocco.querySelectorAll("[data-seleziona]")].filter((c) => c.checked).length;
+  const n = blocco.querySelectorAll(".proposta-card.selezionata").length;
   blocco.querySelector("[data-conta-sel]").textContent = n ? `${n} ${n === 1 ? "proposta selezionata" : "proposte selezionate"}` : "Seleziona almeno una proposta";
   blocco.querySelectorAll("[data-condividi-gen]").forEach((b) => { b.disabled = !n; });
 }
@@ -1141,46 +1195,87 @@ function bacheca() {
   box.innerHTML = `<div class="riga"><div><h2>Bacheca</h2>
     <p class="sotto">Le idee del master, per tutti o solo per qualche compagno: candidati a quelle che ti interessano.</p></div>
     <span class="spazio"></span><button class="btn primario grande" data-apri-genera data-tour="apri-genera">${icona("idea")} Genera idee</button></div>
-    <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">${lista.map((i) => {
+    <div class="griglia griglia-bacheca">${lista.map((i) => {
       const mia = i.autore === io;
       const dentro = (i.membri || []).includes(io) && !(i.proposti || []).includes(io);
       const interessato = (i.interessati || []).includes(io);
       const idee = ideeDelPost(i);
       const riservata = i.visibilita === "scelti";
-      // Piu' idee nello stesso post: linguette per passare dall'una all'altra.
-      const n = Math.min(S.linguette[i.id] || 0, idee.length - 1), x = idee[n];
-      // In vista solo la frase che spiega l'idea; il resto nei dettagli.
-      const [frase, ...resto] = String(x.descrizione || "").split(/\n\s*\n/);
-      return `<div class="carta idea ${mia ? "mia" : "altrui"} ${riservata ? "riservata" : ""}">
-        <div class="riga"><span class="piccolo">di <b>${esc((profilo(i.autore) || {}).nome || i.autoreNome)}</b> · ${quando(i.creata)}</span><span class="spazio"></span>
+      const proposto = riservata && !mia && i.motivi && i.motivi[io];
+      // Card quadrata: le idee del post scorrono in orizzontale, i puntini in
+      // alto dicono dove sei. Il testo lungo sta nella finestra Dettagli.
+      const n = Math.min(S.linguette[i.id] || 0, idee.length - 1);
+      return `<div class="carta idea ${mia ? "mia" : "altrui"} ${riservata ? "riservata" : ""}" data-post="${i.id}">
+        <div class="riga" style="flex-wrap:nowrap"><span class="piccolo testa-post">di <b>${esc((profilo(i.autore) || {}).nome || i.autoreNome)}</b> · ${quando(i.creata)}</span><span class="spazio"></span>
+          ${i.esempio ? `<span class="etichetta ambra">esempio</span>` : ""}${proposto ? `<span class="etichetta verde">proposto a te</span>` : ""}
           ${riservata ? `<span class="piccolo" title="${mia || S.dati.io.admin ? "Visibile solo a: " + esc(nomi(i.destinatari).join(", ")) : "Condivisa con te"}">🔒</span>` : ""}</div>
-        ${idee.length > 1 ? `<div class="piccolo" style="margin-top:6px">${esc(i.titolo)}</div>
-          <div class="linguette">${idee.map((y, k) => `<button class="${k === n ? "attiva" : ""}" data-linguetta="${i.id}|${k}">Idea ${k + 1}</button>`).join("")}</div>` : ""}
-        <h3 style="margin:8px 0 4px">${esc(x.titolo)}</h3>
-        <p class="descr" style="margin:0 0 6px">${esc(frase)}</p>
-        <div class="riga">${x.modello ? `<span class="etichetta">${esc(x.modello)}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}</div>
-        ${resto.length ? `<details class="dettagli-idea"><summary>Dettagli</summary><p class="descr">${esc(resto.join("\n\n"))}</p></details>` : ""}
-        <div class="piccolo" style="margin-top:6px">${(i.proposti || []).length
-          ? `<b>Squadra proposta:</b> ${nomi([i.autore, ...i.proposti]).map(esc).join(", ")}`
-          : `<b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}`}${i.cerco ? ` · <b>cerca:</b> ${esc(i.cerco)}` : ""}</div>
-        ${(mia || S.dati.io.admin) && (i.interessati || []).length ? `<div class="piccolo" style="margin-top:4px"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${(i.interessati || []).map((id) => `${esc((profilo(id) || {}).nome || "?")}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</div>` : ""}
-        <div class="riga" style="margin-top:10px">
-          ${mia ? `<button class="btn piccolo" data-modifica="${i.id}">Modifica</button><button class="btn piccolo pericolo" data-elimina="${i.id}">Elimina</button>
-            ${(i.membri || []).filter((m) => m !== io).map((m) => `<a href="#" class="piccolo" data-membro="${i.id}|${m}|0">togli ${esc((profilo(m) || {}).nome)}</a>`).join(" ")}`
-            : io ? `<button class="btn piccolo ${interessato ? "" : "primario"}" data-interesse="${i.id}|${interessato ? 0 : 1}" ${dentro ? "disabled" : ""}>${dentro ? "Sei nella squadra" : interessato ? "Ti interessa ✓ (togli)" : "Mi interessa"}</button>
-              <span class="piccolo">${dentro ? "" : "lo vede solo chi l'ha pubblicata"}</span>` : ""}
+        ${idee.length > 1 ? `<div class="puntini">${idee.map((y, k) => `<button class="${k === n ? "attivo" : ""}" data-puntino="${i.id}|${k}" aria-label="Idea ${k + 1}"></button>`).join("")}</div>` : ""}
+        <div class="scorri-idee" data-scorri="${i.id}">${idee.map((x, k) => {
+          const [frase] = String(x.descrizione || "").split(/\n\s*\n/);
+          return `<div class="idea-slide">
+            ${idee.length > 1 ? `<div class="piccolo">Idea ${k + 1} di ${idee.length}${i.titolo ? " · " + esc(i.titolo) : ""}</div>` : ""}
+            <h3 class="titolo-post">${esc(x.titolo)}</h3>
+            <p class="frase-post">${esc(frase)}</p>
+            <div class="riga">${x.modello ? `<span class="etichetta">${esc(x.modello)}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}</div>
+          </div>`;
+        }).join("")}</div>
+        <div class="piede-post">
+          <div class="piccolo squadra-post">${(i.proposti || []).length
+            ? `<b>Squadra proposta:</b> ${nomi([i.autore, ...i.proposti]).map(esc).join(", ")}`
+            : `<b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}`}${i.cerco ? ` · <b>cerca:</b> ${esc(i.cerco)}` : ""}</div>
+          ${(mia || S.dati.io.admin) && (i.interessati || []).length ? `<div class="piccolo"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${(i.interessati || []).length}</div>` : ""}
+          <div class="riga" style="margin-top:8px;flex-wrap:nowrap">
+            ${mia ? `<button class="btn piccolo" data-modifica="${i.id}">Modifica</button><button class="btn piccolo pericolo" data-elimina="${i.id}">Elimina</button>`
+              : io ? `<button class="btn piccolo ${interessato ? "" : "primario"}" data-interesse="${i.id}|${interessato ? 0 : 1}" ${dentro ? "disabled" : ""}>${dentro ? "Sei nella squadra" : interessato ? "Ti interessa ✓" : "Mi interessa"}</button>` : ""}
+            <span class="spazio"></span><a href="#" class="piccolo" data-dettagli-post="${i.id}">Dettagli</a>
+          </div>
         </div>
-        ${riservata && !mia && i.motivi && i.motivi[io] ? `<div class="perche-te"><b>Perché sei stato proposto:</b> ${esc(i.motivi[io])}</div>` : ""}
-        ${riservata && (mia || S.dati.io.admin) ? `<details class="piccolo"><summary>Chi la vede${i.motivi && Object.keys(i.motivi).length ? " e perché" : ""}</summary>${(i.destinatari || []).map((id) => `<div><b>${esc((profilo(id) || {}).nome || "?")}</b>${i.motivi && i.motivi[id] ? ": " + esc(i.motivi[id]) : ""}</div>`).join("")}</details>` : ""}
-        ${i.esempio ? `<div class="avviso info" style="margin:8px 0 0">È un <b>esempio</b>: lo vedi solo tu, per capire come appare l'idea di un compagno. ${S.dati.io.admin ? `<button class="btn piccolo" data-elimina="${i.id}">Elimina l'esempio</button>` : ""}</div>` : ""}
       </div>`;
     }).join("") || `<p class="piccolo">Ancora nessuna idea: premi <b>Genera idee</b>, anche per pubblicarne una che hai già.</p>`}</div>`;
+  // Dopo un ridisegno ogni card torna sull'idea che stavi guardando.
+  box.querySelectorAll("[data-scorri]").forEach((t) => { const k = S.linguette[t.dataset.scorri]; if (k) t.scrollLeft = k * t.clientWidth; });
 }
 document.addEventListener("click", (ev) => {
-  const l = ev.target.closest("[data-linguetta]");
+  const l = ev.target.closest("[data-puntino]");
   if (!l) return;
-  const [id, k] = l.dataset.linguetta.split("|");
-  S.linguette[id] = Number(k); bacheca();
+  const [id, k] = l.dataset.puntino.split("|");
+  const t = document.querySelector(`[data-scorri="${id}"]`);
+  if (t) t.scrollTo({ left: Number(k) * t.clientWidth, behavior: "smooth" });
+});
+// Scorrendo col dito o col trackpad si accende il puntino giusto.
+document.addEventListener("scroll", (ev) => {
+  const t = ev.target;
+  if (!t.dataset || !t.dataset.scorri) return;
+  const k = Math.round(t.scrollLeft / Math.max(1, t.clientWidth));
+  S.linguette[t.dataset.scorri] = k;
+  t.closest(".idea").querySelectorAll("[data-puntino]").forEach((b, j) => b.classList.toggle("attivo", j === k));
+}, true);
+// Un'azione dalla finestra Dettagli (accogli, togli, elimina) chiude la finestra.
+document.addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-dettagli-bacheca] [data-membro], [data-dettagli-bacheca] [data-elimina]"))
+    setTimeout(() => { const v = document.getElementById("veloDettagli"); if (v) v.remove(); }, 0);
+}, true);
+// Dettagli del post: il testo intero dell'idea in vista e le informazioni che
+// nella card quadrata non entrano.
+document.addEventListener("click", (ev) => {
+  const d = ev.target.closest("[data-dettagli-post]");
+  if (!d) return;
+  ev.preventDefault();
+  const i = S.dati.bacheca.find((x) => x.id === d.dataset.dettagliPost);
+  if (!i) return;
+  const io = S.dati.io.profilo, mia = i.autore === io, idee = ideeDelPost(i);
+  const x = idee[Math.min(S.linguette[i.id] || 0, idee.length - 1)];
+  const nome = (id) => (profilo(id) || {}).nome || "?";
+  const corpo = `
+    <div class="riga" style="margin:6px 0">${x.modello ? `<span class="etichetta">${esc(x.modello)}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}</div>
+    <p class="descr">${esc(x.descrizione || "")}</p>
+    ${i.visibilita === "scelti" && !mia && i.motivi && i.motivi[io] ? `<div class="perche-te"><b>Perché sei stato proposto:</b> ${esc(i.motivi[io])}</div>` : ""}
+    ${(mia || S.dati.io.admin) && (i.interessati || []).length ? `<p class="piccolo"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${(i.interessati || []).map((id) => `${esc(nome(id))}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</p>` : ""}
+    ${mia && (i.membri || []).filter((m) => m !== io).length ? `<p class="piccolo">${(i.membri || []).filter((m) => m !== io).map((m) => `<a href="#" data-membro="${i.id}|${m}|0">togli ${esc(nome(m))}</a>`).join(" · ")}</p>` : ""}
+    ${i.visibilita === "scelti" && (mia || S.dati.io.admin) ? `<div class="piccolo"><b>Chi la vede${i.motivi && Object.keys(i.motivi).length ? " e perché" : ""}:</b>${(i.destinatari || []).map((id) => `<div>${esc(nome(id))}${i.motivi && i.motivi[id] ? ": " + esc(i.motivi[id]) : ""}</div>`).join("")}</div>` : ""}
+    ${!mia && io ? `<p class="piccolo">«Mi interessa» lo vede solo chi ha pubblicato l'idea.</p>` : ""}
+    ${i.esempio ? `<div class="avviso info" style="margin:8px 0 0">È un <b>esempio</b>: lo vedi solo tu, per capire come appare l'idea di un compagno. ${S.dati.io.admin ? `<button class="btn piccolo" data-elimina="${i.id}">Elimina l'esempio</button>` : ""}</div>` : ""}`;
+  document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloDettagli"><div class="finestra" data-dettagli-bacheca><div class="riga"><h3 style="margin:0">${esc(x.titolo)}</h3><span class="spazio"></span><button class="btn piccolo" data-chiudi-dettagli>×</button></div>${corpo}</div></div>`);
 });
 document.addEventListener("click", async (ev) => {
   const t = ev.target.closest("[data-nuova-idea],[data-filtro-bacheca],[data-modifica],[data-elimina],[data-interesse],[data-membro]");

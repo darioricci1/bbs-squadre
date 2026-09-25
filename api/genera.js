@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.12.2
+// VERSION: 1.13.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -117,11 +117,13 @@ const CAMPI = {
   },
 };
 const CAMPI_BREVI = ["titolo", "fascia", "sintesi", "problema", "soluzione", "clienti", "modello", "settore",
-  "perche_noi", "ruoli", "compagni", "punteggio", "tipo_startup", "fonte_idea", "criteri_startup", "punto_debole"];
+  "perche_noi", "punteggio", "tipo_startup", "fonte_idea", "criteri_startup", "punto_debole"];
 const CAMPI_DETTAGLIO = ["differenziazione", "ricavi", "scalabilita", "replicabilita", "sostenibilita",
   "startup_innovativa", "valutazione", "domande_di_partenza", "rischi", "primo_passo", "slide"];
 const oggetto = (campi) => ({ type: "object", additionalProperties: false, required: campi, properties: Object.fromEntries(campi.map((c) => [c, CAMPI[c]])) });
-const SCHEMA = { type: "object", additionalProperties: false, required: ["idee"], properties: { idee: { type: "array", items: oggetto(CAMPI_BREVI) } } };
+// Una sola squadra per tutta la generazione, valida per ogni idea.
+const SCHEMA = { type: "object", additionalProperties: false, required: ["idee", "compagni", "ruoli"],
+  properties: { idee: { type: "array", items: oggetto(CAMPI_BREVI) }, compagni: CAMPI.compagni, ruoli: CAMPI.ruoli } };
 const SCHEMA_DETTAGLIO = oggetto(CAMPI_DETTAGLIO);
 
 // Le istruzioni seguono le linee guida date da Claudio Venezia (BBS) il
@@ -161,7 +163,7 @@ Il lavoro si fa in due passi e il messaggio dice quale stai facendo.
 PASSO 1, PROPOSTA. Esattamente 5 idee in italiano, dalla migliore: le prime 3 con fascia "top" (affini fra loro, pronte per il 1 novembre), le ultime 2 con fascia "riserva" (valide ma piu' deboli o piu' rischiose, anche in ambiti diversi). E' una proposta breve: ogni campo di testo in una o due frasi, senza ripetere in un campo cio' che hai gia' detto in un altro. Scegli le idee pensando gia' alle domande di partenza e ai quattro criteri, anche se i dettagli li scriverai solo al passo 2.
 - "punteggio": il tuo giudizio complessivo da 1 a 10 per questo team.
 - "tipo_startup": che tipo di startup e' (piattaforma o marketplace, software per aziende, app per consumatori, prodotto fisico con tecnologia, servizio tradizionale reso scalabile, deep tech); "fonte_idea": da quale delle strade per trovare idee nasce. Varia i tipi fra le idee quando ha senso.
-- In "ruoli" assegna a ciascuna persona del gruppo un ruolo nel progetto, con il suo id.
+- La squadra e' una sola per tutte e 5 le idee (vedi sotto): "compagni" e "ruoli" stanno fuori dalle idee.
 
 PASSO 2, APPROFONDIMENTO. Ricevi una delle idee del passo 1 e scrivi i dettagli, coerenti con quello che l'idea dice gia':
 - "differenziazione": come il bisogno e' risolto oggi e cosa cambia con questa idea.
@@ -173,7 +175,7 @@ PASSO 2, APPROFONDIMENTO. Ricevi una delle idee del passo 1 e scrivi i dettagli,
 - "rischi" e "primo_passo": una o due frasi ciascuno; il primo passo deve essere concreto e fattibile in poche settimane.
 
 ## La squadra: 7 o 8 persone
-I partecipanti sono circa 60 e i gruppi al massimo 8, quindi ogni squadra deve avere 7 o 8 persone. Nel messaggio trovi quante persone ha gia' il gruppo e quante ne devi proporre ("COMPAGNI DA PROPORRE"). In "compagni" metti esattamente quel numero di persone, scelte dall'elenco del master fra chi non e' nel gruppo, per completare la squadra a 7-8: scegli chi copre le competenze che mancano per quell'idea (finanza, tecnologia, vendite, marketing, operations, settore) e chi ha passioni o preferenze compatibili. Per ognuno scrivi in "motivo" una riga breve (al massimo 15 parole) che dica cosa porta a quell'idea, con un fatto concreto del suo profilo (un'azienda, un ruolo, una passione): la leggera' anche la persona proposta. Poi assegna un ruolo anche a loro in "ruoli". Usa solo id presenti nei dati.`;
+I partecipanti sono circa 60 e i gruppi al massimo 8, quindi ogni squadra deve avere 7 o 8 persone. Nel messaggio trovi quante persone ha gia' il gruppo e quante ne devi proporre ("COMPAGNI DA PROPORRE"). La squadra e' UNA SOLA per tutte e 5 le idee: le stesse 7-8 persone devono poter lavorare su ognuna, quindi scegli le idee anche pensando a questa squadra. In "compagni" (fuori dalle idee) metti esattamente quel numero di persone, scelte dall'elenco del master fra chi non e' nel gruppo, per completare la squadra a 7-8: scegli chi copre le competenze che mancano (finanza, tecnologia, vendite, marketing, operations, settore) e chi ha passioni o preferenze compatibili. Per ognuno scrivi in "motivo" una riga breve (al massimo 15 parole) che dica cosa porta alla squadra, con un fatto concreto del suo profilo (un'azienda, un ruolo, una passione): la leggera' anche la persona proposta. In "ruoli" (fuori dalle idee) assegna un ruolo a ciascuna persona della squadra, gruppo compreso, con il suo id. Usa solo id presenti nei dati.`;
 
 // Una persona in poche righe. "lungo" per chi e' nel gruppo: presentazione,
 // ruoli con settore e attivita' di ogni azienda, formazione. Breve per
@@ -334,15 +336,15 @@ export default async function handler(req, res) {
     "## Gruppo",
     ...gruppo.map((p) => riassunto(p, aziende, siti, true) + "\n"),
     "Gli altri partecipanti, fra cui scegliere i compagni da proporre, sono tutti quelli dell'elenco del master tranne le persone del gruppo.",
-    daMax > 0 ? `\n## Chi e' stato proposto poco finora\nPerche' nessuno resti fuori dalle squadre: in ogni idea l'ULTIMO compagno proposto deve essere una di queste persone, la piu' compatibile con quell'idea (anche se non e' perfetta, trova il ruolo in cui puo' essere utile e scrivilo nel motivo). Sono in ordine: le prime sono state proposte meno volte, a parita' di compatibilita' preferiscile. Varia la persona fra un'idea e l'altra.\n${pocoProposte.map((id) => `- ${id} ${profili[id].nome} (coinvolta finora: ${esposizione[id]} punti)`).join("\n")}` : "",
+    daMax > 0 ? `\n## Chi e' stato proposto poco finora\nPerche' nessuno resti fuori dalle squadre: l'ULTIMO compagno della squadra deve essere una di queste persone, la piu' compatibile (anche se non e' perfetta, trova il ruolo in cui puo' essere utile e scrivilo nel motivo). Sono in ordine: le prime sono state proposte meno volte, a parita' di compatibilita' preferiscile.\n${pocoProposte.map((id) => `- ${id} ${profili[id].nome} (coinvolta finora: ${esposizione[id]} punti)`).join("\n")}` : "",
     note ? `## Indicazioni di chi chiede\n${note}` : "",
     modelloScelto ? `\n## Vincolo sul modello di business\nTutte e 5 le idee devono essere ${modelloScelto === "B2B" ? "B2B (clienti aziende); B2B2C va bene solo se chi paga sono le aziende" : "B2C (clienti consumatori finali); B2B2C va bene solo se il valore arriva al consumatore"}. In "modello" usa ${modelloScelto} o B2B2C.` : "",
     perno ? `\n## Su chi costruire la startup\nLe idee devono basarsi principalmente sulla competenza e sull'esperienza di ${perno.nome} (${perno.id}): il settore, i clienti o la tecnologia che conosce meglio sono il cuore del progetto, e gli altri completano cio' che manca. In "perche_noi" spiega cosa porta ${perno.nome}.` : tuttoIlGruppo ? `\n## Su chi costruire la startup\nNessuno in particolare: metti insieme le competenze di tutta la squadra${gruppo.length > 1 ? "" : " (tu e i compagni che proponi)"} e cerca le idee dove si combinano meglio.` : "",
     settori.length ? `\n## Settore\nLe idee devono stare ${settori.length === 1 ? "nel settore" : "in uno di questi settori (distribuiscile fra loro, o combinali)"}: ${settori.join("; ")}.` : "",
     tipo ? `\n## Tipo di startup\nTutte le idee devono essere di questo tipo: ${tipo[1]}, cioe' ${tipo[2]}. Tienilo coerente con scalabilita' e replicabilita'.` : "",
     fonte ? `\n## Da dove partire\nParti da questa strada per trovare le idee: ${fonte[1].toLowerCase()}. In "fonte_idea" metti "${fonte[0]}" almeno per le 3 idee top.` : "",
-    miaIdea && soloCompagni ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona vuole solo trovare i compagni giusti per QUESTA idea. Eccezione alla regola delle 5 idee: in "idee" metti UNA sola idea, fascia "top", che e' quella scritta, riordinata nei campi senza cambiarla. Concentrati sui compagni: scegli chi serve davvero a realizzarla. Valutala comunque con severita' sui quattro criteri e segnala il punto debole.` : "",
-    miaIdea && !soloCompagni ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona ha gia' un'idea e cerca i compagni di strada migliori per realizzarla. Le 3 idee top sono questa idea sviluppata al meglio e due sue varianti vicine (un altro cliente, un altro modello di ricavo, un altro mercato); le 2 di riserva possono essere alternative diverse. Valutala con la stessa severita' sui quattro criteri: se ha un punto debole, dillo in "punto_debole" e proponi come rafforzarla. Per ogni idea scegli i compagni che servono davvero a realizzarla.` : "",
+    miaIdea && soloCompagni ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona vuole solo trovare i compagni giusti per QUESTA idea. Eccezione alla regola delle 5 idee: in "idee" metti UNA sola idea, fascia "top", che e' quella scritta, riordinata nei campi senza cambiarla. Concentrati sulla squadra: scegli chi serve davvero a realizzarla. Valutala comunque con severita' sui quattro criteri e segnala il punto debole.` : "",
+    miaIdea && !soloCompagni ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona ha gia' un'idea e cerca i compagni di strada migliori per realizzarla. Le 3 idee top sono questa idea sviluppata al meglio e due sue varianti vicine (un altro cliente, un altro modello di ricavo, un altro mercato); le 2 di riserva possono essere alternative diverse. Valutala con la stessa severita' sui quattro criteri: se ha un punto debole, dillo in "punto_debole" e proponi come rafforzarla. La squadra deve servire davvero a realizzarla.` : "",
   ].join("\n");
 
   let risposta;
@@ -353,13 +355,15 @@ export default async function handler(req, res) {
   if (risposta.stop_reason === "max_tokens") return res.status(502).json({ error: "Risposta troppo lunga e tagliata: riprova." });
 
   const blocco = risposta.content.find((b) => b.type === "text");
-  let idee;
-  try { idee = JSON.parse(blocco.text).idee; } catch { await restituisci(); return res.status(502).json({ error: "Risposta dell'AI non leggibile: riprova." }); }
+  let idee, uscita;
+  try { uscita = JSON.parse(blocco.text); idee = uscita.idee; } catch { await restituisci(); return res.status(502).json({ error: "Risposta dell'AI non leggibile: riprova." }); }
 
-  for (const i of idee) {
-    i.ruoli = (i.ruoli || []).filter((r) => nomeDi(r.id)).map((r) => ({ ...r, nome: nomeDi(r.id) }));
-    i.compagni = (i.compagni || []).filter((c) => nomeDi(c.id) && !idGruppo.has(c.id)).slice(0, daMax).map((c) => ({ ...c, nome: nomeDi(c.id) }));
-  }
+  // la stessa squadra vale per ogni idea (si copia in ognuna per la pagina)
+  const vistiC = new Set();
+  const compagni = (uscita.compagni || []).filter((c) => nomeDi(c.id) && !idGruppo.has(c.id) && !vistiC.has(c.id) && vistiC.add(c.id))
+    .slice(0, daMax).map((c) => ({ ...c, nome: nomeDi(c.id) }));
+  const ruoli = (uscita.ruoli || []).filter((r) => nomeDi(r.id)).map((r) => ({ ...r, nome: nomeDi(r.id) }));
+  for (const i of idee) { i.compagni = compagni; i.ruoli = ruoli; }
 
   const costo = costoDi(risposta.model, risposta.usage);
   const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, focus: soloCompagni ? "compagni" : undefined, scelte: { modello: modelloScelto || "indifferente", perno: perno ? perno.id : null, pernoNome: perno ? perno.nome : null, gruppo: tuttoIlGruppo, settori }, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
