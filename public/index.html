@@ -446,7 +446,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.42.2";
+const VERSION = "2.42.3";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -616,13 +616,16 @@ function home(vaiAGenera) {
   if (vaiAGenera || S.generaAperta) apriGenera();
   else if (!S.benvenutoVisto && !tour) benvenuto();
 }
-// Il popup d'ingresso compare una volta per ogni accesso (Google o link):
-// l'accesso lascia un segno, il popup lo consuma. Ricaricando la pagina o
-// tornando al sito con la sessione ancora aperta non ricompare.
+// Il popup d'ingresso compare dopo ogni accesso (Google o link) e ogni volta
+// che si riapre il sito dopo aver chiuso la scheda: sessionStorage vive
+// finche' la scheda resta aperta, quindi ricaricando non ricompare.
+function vistoInScheda(v) {
+  try { if (v) sessionStorage.setItem("bbs_benvenuto", "1"); return sessionStorage.getItem("bbs_benvenuto") === "1"; } catch { return false; }
+}
 function benvenuto() {
   S.benvenutoVisto = true;
-  if (memoria("bbs_benvenuto") !== "1") return;
-  memoria("bbs_benvenuto", null);
+  if (memoria("bbs_benvenuto") !== "1" && vistoInScheda()) return;
+  memoria("bbs_benvenuto", null); vistoInScheda(true);
   if (document.getElementById("veloBenvenuto")) return;
   document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloBenvenuto"><div class="finestra finestra-benvenuto" role="dialog" aria-modal="true">
     <h2>Cosa vuoi fare?</h2>
