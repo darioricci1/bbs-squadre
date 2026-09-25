@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.17.2
+// VERSION: 1.17.3
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -722,14 +722,12 @@ async function statistiche(res) {
       const x = p.extra || {}, L = lavoriPubblici(p, siti), manca = [];
       if (!p.linkedin) manca.push("link LinkedIn");
       if (!p.esperienze && !p.linkedinTesto) manca.push("dati LinkedIn (PDF)");
-      if (!x.passioni && !x.cosaCerco) manca.push("passioni e preferenze");
       const senzaSito = L.filter((l) => !l.sito).length, dubbi = L.filter((l) => l.stato === "mancante" || l.stato === "dubbio").length;
       const senzaRuolo = L.filter((l) => !l.descrizioneRuolo).length;
       if (senzaSito) manca.push(senzaSito === 1 ? "1 sito di azienda" : senzaSito + " siti di aziende");
       if (dubbi) manca.push(dubbi === 1 ? "1 azienda da controllare" : dubbi + " aziende da controllare");
-      // facoltativo: il titolo del ruolo dice gia' molto, la descrizione aiuta e basta
-      const facoltativo = senzaRuolo ? [senzaRuolo === 1 ? "1 ruolo senza «Cosa facevi tu»" : senzaRuolo + " ruoli senza «Cosa facevi tu»"] : [];
-      return { id: p.id, nome: p.nome, email: p.email, manca, facoltativo };
+      // passioni e «Cosa facevi tu» non contano: se mancano solo loro il profilo e' completo
+      return { id: p.id, nome: p.nome, email: p.email, manca };
     }).filter((r) => r.manca.length).sort((a, b) => b.manca.length - a.manca.length || String(a.nome).localeCompare(String(b.nome))),
     coppie: ordina(coppie, 40).map(([k, n]) => { const [a, b] = k.split("|"); return { a: nomeDi(a), b: nomeDi(b), n }; }),
     cercati: ordina(cercati, 30).map(([id, n]) => ({ nome: nomeDi(id), n })),
