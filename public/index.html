@@ -445,7 +445,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.40.4";
+const VERSION = "2.40.5";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -2453,13 +2453,14 @@ function tourMostra() {
     S.profiloAltrui = null; S.scheda = voluta; disegna(); window.scrollTo(0, 0);   // disegna richiama il tutorial
     return;
   }
+  // i passi su Genera idee si vedono dentro la sua finestra (o pagina, sul
+  // telefono): prima si apre o si chiude la finestra, poi si cerca il punto
+  if (passo.genera && !S.generaAperta) { S.tourChiude = true; apriGenera(); S.tourChiude = false; return setTimeout(tourMostra, 80); }
+  if (!passo.genera && S.generaAperta) { S.tourChiude = true; chiudiGenera(); S.tourChiude = false; return setTimeout(tourMostra, 80); }
   if (passo.apri) { const d = document.querySelector(passo.apri); if (d) d.open = true; }
   // la pagina puo' metterci un attimo (gli spunti si caricano): si riprova
   if (passo.sel && !document.querySelector(passo.sel) && (tour.attese || 0) < 15) { tour.attese = (tour.attese || 0) + 1; return setTimeout(tourMostra, 200); }
   tour.attese = 0;
-  // i passi su Genera idee si vedono dentro la sua finestra (o pagina, sul telefono)
-  if (passo.genera && !S.generaAperta) { apriGenera(); return setTimeout(tourMostra, 80); }
-  if (!passo.genera && S.generaAperta) { S.tourChiude = true; chiudiGenera(); S.tourChiude = false; return setTimeout(tourMostra, 80); }
   // se il punto non si vede (sul telefono le schede stanno nel menu) il fumetto va al centro
   const el0 = passo.sel ? document.querySelector(passo.sel) : null, el = el0 && el0.offsetParent ? el0 : null;
   const fumetto = document.createElement("div");
