@@ -186,6 +186,11 @@
   .annuncio.mio{border:2px solid var(--accento);background:var(--accento-chiaro)}
   .annuncio textarea{margin:0;background:#fff}
   .testo-annuncio{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+  .linguette-regia{display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid var(--bordo);margin:14px 0 16px}
+  .linguette-regia button{border:0;background:none;padding:10px 14px;font:inherit;font-weight:600;color:var(--grigio);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
+  .linguette-regia button.attiva{color:var(--accento);border-bottom-color:var(--accento)}
+  .linguette-regia button .piccolo{background:var(--accento-chiaro);color:var(--accento);border-radius:99px;padding:1px 7px;margin-left:4px}
+  @media (max-width:760px){.linguette-regia{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
   .precedenti{margin-top:24px}
   .precedenti > summary{cursor:pointer;font-weight:600;font-size:17px;margin-bottom:10px}
   .chiudi-genera{position:absolute;top:12px;right:12px;z-index:2}
@@ -415,7 +420,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.36.5";
+const VERSION = "2.37.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -2082,9 +2087,12 @@ async function regia(daCache) {
   const n = s.numeri;
   $main.innerHTML = `<div class="riga"><div><h2>Regia</h2><p class="sotto">Solo tu vedi questa pagina: quanto costa ogni generazione, tutte le idee, chi è stato scelto o suggerito, cosa è stato condiviso, e le statistiche.</p></div>
       <span class="spazio"></span><div class="riga" style="flex-wrap:nowrap"><button class="btn piccolo" id="scaricaCsv">Profili (CSV)</button><button class="btn piccolo" id="scaricaJson">Tutto (JSON)</button><button class="btn piccolo" id="aggRegia">Aggiorna</button></div></div>
-    ${sezioneAccessi(s)}
-    ${pannelloSpesa(s)}
-    <h3 style="margin-top:24px">Attività</h3>
+    ${linguetteRegia(s)}
+    ${sezioneRegia("accessi", sezioneAccessi(s).split('<h3 style="margin-top:24px">Profili da completare')[0])}
+    ${sezioneRegia("completare", '<h3 style="margin-top:8px">Profili da completare' + sezioneAccessi(s).split('<h3 style="margin-top:24px">Profili da completare')[1])}
+    ${sezioneRegia("costi", pannelloSpesa(s))}
+    <section class="sezione-regia" data-sez="attivita" ${tabRegia() === "attivita" ? "" : "hidden"}>
+    <h3 style="margin-top:8px">Attività</h3>
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
       <div class="carta"><div class="num">${n.generazioni}</div><div class="piccolo">generazioni</div></div>
       <div class="carta"><div class="num">${n.ideeGenerate}</div><div class="piccolo">idee generate</div></div>
@@ -2129,7 +2137,9 @@ async function regia(daCache) {
           <dt>Candidati</dt><dd>${esc((i.interessatiNomi || []).join(", ")) || "—"}</dd>
           ${i.cerco ? `<dt>Cerca</dt><dd>${esc(i.cerco)}</dd>` : ""}
         </dl></div>`).join("") || '<p class="piccolo">Ancora niente in bacheca.</p>')}
-    ${sezioneStatistiche(s)}`;
+    </section>
+    ${(() => { const st = sezioneStatistiche(s), [a, resto] = st.split('<h3 style="margin-top:24px">Persone entrate</h3>'), [b, c] = resto.split('<h3 style="margin-top:24px">Registro</h3>');
+      return sezioneRegia("statistiche", a.replace('<h2 style="margin-top:36px">Statistiche</h2>', "")) + sezioneRegia("persone", '<h3 style="margin-top:8px">Persone entrate</h3>' + b) + sezioneRegia("registro", '<h3 style="margin-top:8px">Registro</h3>' + c); })()}`;
   document.getElementById("aggRegia").onclick = () => regia(false);
   document.getElementById("scaricaCsv").onclick = scaricaProfiliCsv;
   document.getElementById("scaricaJson").onclick = () => {
@@ -2390,6 +2400,22 @@ setInterval(controllaVersione, 120000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") controllaVersione(); });
 
 // ---------------------------------------------------------------- statistiche (admin)
+// La Regia a linguette: ogni titolo e' una sezione, se ne vede una alla volta.
+const TAB_REGIA = [["accessi", "Controllo accessi"], ["completare", "Profili da completare"], ["costi", "Costi"], ["attivita", "Attività"],
+  ["statistiche", "Statistiche"], ["persone", "Persone entrate"], ["registro", "Registro"]];
+const tabRegia = () => (TAB_REGIA.some(([k]) => k === S.tabRegia) ? S.tabRegia : "accessi");
+function linguetteRegia(s) {
+  const conta = { completare: (s.daCompletare || []).length, persone: s.utenti.length, attivita: s.generazioni.length };
+  return `<div class="linguette-regia">${TAB_REGIA.map(([k, t]) => `<button class="${tabRegia() === k ? "attiva" : ""}" data-tab-regia="${k}">${t}${conta[k] ? ` <span class="piccolo">${conta[k]}</span>` : ""}</button>`).join("")}</div>`;
+}
+const sezioneRegia = (k, html) => `<section class="sezione-regia" data-sez="${k}" ${tabRegia() === k ? "" : "hidden"}>${html}</section>`;
+document.addEventListener("click", (ev) => {
+  const t = ev.target.closest("[data-tab-regia]");
+  if (!t) return;
+  S.tabRegia = t.dataset.tabRegia;
+  document.querySelectorAll("[data-tab-regia]").forEach((b) => b.classList.toggle("attiva", b === t));
+  document.querySelectorAll(".sezione-regia").forEach((x) => { x.hidden = x.dataset.sez !== S.tabRegia; });
+});
 // In cima alla Regia: chi e' entrato e come, e cosa manca ai profili.
 function sezioneAccessi(s) {
   return `${controlloAccessi(s)}
