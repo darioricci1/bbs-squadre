@@ -430,7 +430,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.38.1";
+const VERSION = "2.38.2";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -590,13 +590,12 @@ function memoria(k, v) {
 }
 
 // La home: in alto la bacheca, sotto i motori delle idee.
-// La home e' la bacheca. "Genera idee" e' una finestra: si apre da sola a
-// ogni apertura del sito (non durante il tutorial) e si riapre dal pulsante
-// in alto a destra della bacheca.
+// La home e' la bacheca: il sito si apre li'. "Genera idee" e' una finestra
+// che si apre solo dal pulsante in alto a destra della bacheca (o dal menu).
 function home(vaiAGenera) {
   $main.innerHTML = `<section id="secBacheca"></section>`;
   bacheca();
-  if (vaiAGenera || S.generaAperta || (!S.generaVista && !tour)) apriGenera();
+  if (vaiAGenera || S.generaAperta) apriGenera();
 }
 function apriGenera() {
   S.generaAperta = true; S.generaVista = true; S.vistaRisultati = false;
