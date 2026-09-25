@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.13.0
+// VERSION: 1.14.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -343,6 +343,17 @@ async function aggiornaProfilo(chi, corpo, res) {
 
 // Un post della bacheca contiene da 1 a 5 idee (scritte a mano o generate)
 // ed e' per tutti, oppure solo per le persone scelte.
+// I campi dell'idea (problema, soluzione, barre...) per mostrarla e
+// modificarla a sezioni; la descrizione resta il testo intero.
+const CAMPI_STRUTTURA = ["sintesi", "problema", "soluzione", "differenziazione", "clienti", "ricavi", "perche", "punto_debole", "primo_passo", "tipo_startup", "fonte_idea", "altro", "squadra"];
+function strutturaDalCorpo(x) {
+  if (!x || !x.strutturata) return {};
+  const out = { strutturata: true };
+  for (const c of CAMPI_STRUTTURA) out[c] = testo(x[c], c === "squadra" || c === "altro" ? 3000 : 1500);
+  const cr = x.criteri && typeof x.criteri === "object" ? x.criteri : null;
+  if (cr) out.criteri = Object.fromEntries(["innovazione", "scalabilita", "replicabilita", "sostenibilita"].map((k) => [k, Math.max(0, Math.min(10, Math.round(Number(cr[k]) || 0)))]));
+  return out;
+}
 function ideeDalCorpo(corpo) {
   const grezze = Array.isArray(corpo.idee) ? corpo.idee
     : [{ titolo: corpo.titolo, descrizione: corpo.descrizione, modello: corpo.modello, settore: corpo.settore }];
@@ -352,6 +363,7 @@ function ideeDalCorpo(corpo) {
     modello: testo(x && x.modello, 20),
     settore: testo(x && x.settore, 120),
     generata: !!(x && x.generata),
+    ...strutturaDalCorpo(x),
   })).filter((x) => x.titolo);
 }
 

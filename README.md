@@ -13,7 +13,10 @@ Chi usa la piattaforma vede due schede.
   persone scelte da chi lo pubblica. Le card sono quadrate e tutte uguali:
   se un post ha piu' idee si scorre dall'una all'altra (col dito o coi
   puntini in alto); in vista c'e' solo la frase che spiega l'idea, il resto
-  nella finestra Dettagli. Con «Mi interessa» ci si candida: lo vede
+  nella finestra Dettagli, che mostra l'idea a sezioni (barre dei criteri,
+  problema, soluzione, clienti, perche' voi). «Modifica» ha la stessa vista,
+  con un pennino accanto a ogni parte per cambiarla. Le idee pubblicate prima
+  si ricavano dal loro testo. Con «Mi interessa» ci si candida: lo vede
   solo chi ha pubblicato l'idea (e l'amministratore), che accoglie chi vuole
   nella squadra. L'amministratore vede due esempi (una proposta a un gruppo e
   un'idea per tutti) che nessun altro vede. Le mie sono in blu, le altre in
