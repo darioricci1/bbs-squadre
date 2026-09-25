@@ -310,7 +310,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.18.1";
+const VERSION = "2.19.0";
 const $main = document.getElementById("main");
 const S = { linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -907,7 +907,9 @@ function ideeDaPubblicare(idee, visibilita, proposta, destinatari) {
   const esclusi = proposta.filter((x) => !destinatari.has(x.id)).map((x) => profilo(x.id)).filter(Boolean);
   const parole = esclusi.flatMap((p) => String(p.nome).split(/\s+/).filter((w) => w.length > 2)).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const senzaEsclusi = (t) => !parole.length ? t : t.split(/(?<=[.;!?])\s+/).filter((fr) => !parole.some((w) => new RegExp("(^|[^\\p{L}])" + w + "($|[^\\p{L}])", "iu").test(fr))).join(" ");
-  const squadra = proposta.filter((x) => destinatari.has(x.id) && profilo(x.id)).map((x) => `- ${profilo(x.id).nome}${x.motivo ? ": " + x.motivo : ""}`);
+  const io = mio();
+  const squadra = [...(io ? [`- ${io.nome}: ha proposto l'idea`] : []),
+    ...proposta.filter((x) => destinatari.has(x.id) && profilo(x.id)).map((x) => `- ${profilo(x.id).nome}${x.motivo ? ": " + x.motivo : ""}`)];
   return idee.map((i) => {
     if (visibilita !== "scelti" || !i.generata) return i;
     const perche = i.perche ? senzaEsclusi(i.perche) : "";
@@ -1108,7 +1110,7 @@ function bacheca() {
     </div>
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">${lista.map((i) => {
       const mia = i.autore === io;
-      const dentro = (i.membri || []).includes(io);
+      const dentro = (i.membri || []).includes(io) && !(i.proposti || []).includes(io);
       const interessato = (i.interessati || []).includes(io);
       const idee = ideeDelPost(i);
       const riservata = i.visibilita === "scelti";
@@ -1125,8 +1127,10 @@ function bacheca() {
         <p class="descr" style="margin:0 0 6px">${esc(frase)}</p>
         <div class="riga">${x.modello ? `<span class="etichetta">${esc(x.modello)}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}</div>
         ${resto.length ? `<details class="dettagli-idea"><summary>Dettagli</summary><p class="descr">${esc(resto.join("\n\n"))}</p></details>` : ""}
-        <div class="piccolo" style="margin-top:6px"><b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}${i.cerco ? ` · <b>cerca:</b> ${esc(i.cerco)}` : ""}</div>
-        ${(mia || S.dati.io.admin) && (i.interessati || []).length ? `<div class="piccolo" style="margin-top:4px"><b>Interessati:</b> ${(i.interessati || []).map((id) => `${esc((profilo(id) || {}).nome || "?")}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</div>` : ""}
+        <div class="piccolo" style="margin-top:6px">${(i.proposti || []).length
+          ? `<b>Squadra proposta:</b> ${nomi([i.autore, ...i.proposti]).map(esc).join(", ")}`
+          : `<b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}`}${i.cerco ? ` · <b>cerca:</b> ${esc(i.cerco)}` : ""}</div>
+        ${(mia || S.dati.io.admin) && (i.interessati || []).length ? `<div class="piccolo" style="margin-top:4px"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${(i.interessati || []).map((id) => `${esc((profilo(id) || {}).nome || "?")}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</div>` : ""}
         <div class="riga" style="margin-top:10px">
           ${mia ? `<button class="btn piccolo" data-modifica="${i.id}">Modifica</button><button class="btn piccolo pericolo" data-elimina="${i.id}">Elimina</button>
             ${(i.membri || []).filter((m) => m !== io).map((m) => `<a href="#" class="piccolo" data-membro="${i.id}|${m}|0">togli ${esc((profilo(m) || {}).nome)}</a>`).join(" ")}`

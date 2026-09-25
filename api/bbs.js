@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.12.1
+// VERSION: 1.13.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -198,11 +198,11 @@ async function dati(chi, res) {
   // Per l'amministratore, una volta sola: un'idea di esempio "di un altro"
   // visibile solo a lui, per vedere come appare e come ci si candida. Non e'
   // attribuita a nessun compagno vero.
-  if (chi.adminVero && io && u.esempioVersione !== 3) {
+  if (chi.adminVero && io && u.esempioVersione !== 4) {
     const esempi = esempiBacheca(io, profili);
     for (const e of esempi) bacheca[e.id] = e;
     delete bacheca["esempio-" + io];
-    u.esempioVersione = 3;
+    u.esempioVersione = 4;
     await Promise.all([...esempi.map((e) => scrivi("bacheca", e.id, e)), togli("bacheca", "esempio-" + io), scrivi("utenti", chi.email, u)]);
   }
   const crediti = chi.admin ? null : await creditiDi(chi.email, u);
@@ -250,8 +250,8 @@ function esempiBacheca(io, profili) {
   return [
     {
       id: "esempio-gruppo-" + io, esempio: true, soloPer: io, autore: autore ? autore.id : "esempio", autoreNome: nome(autore, "Un compagno"),
-      creata: ora, aggiornata: ora, membri: [autore && autore.id, ingegnere && ingegnere.id].filter(Boolean), interessati: [],
-      visibilita: "scelti", destinatari: [io, ...gruppo], origine: "generata", posti: 8,
+      creata: ora, aggiornata: ora, membri: [autore && autore.id].filter(Boolean), interessati: [],
+      visibilita: "scelti", destinatari: [io, ...gruppo], proposti: [io, ...gruppo], origine: "generata", posti: 8,
       motivi: {
         [io]: "Porti controllo di gestione e AI: servono per misurare quanto la soluzione fa risparmiare ai clienti e per costruire il prodotto.",
         ...(cfo ? { [cfo.id]: "CFO in un gruppo industriale: costruisce il modello di ricavo e parla la lingua dei titolari." } : {}),
@@ -379,6 +379,9 @@ async function idea(chi, corpo, res) {
   Object.assign(i, {
     titolo: testo(corpo.titolo, 160) || (idee.length === 1 ? idee[0].titolo : idee.length + " idee di " + io.nome),
     idee, visibilita, destinatari,
+    // la squadra proposta e' chi l'ha pubblicata piu' le persone con cui e'
+    // condivisa: chi viene tolto dalla condivisione esce anche dalla squadra
+    proposti: visibilita === "scelti" ? destinatari : [],
     // perche' ogni destinatario e' stato proposto (la riga di Claude, o
     // dell'autore): la vede chi riceve la proposta
     motivi: Object.fromEntries(destinatari.map((id) => [id, testo((corpo.motivi || {})[id], 240)]).filter(([, m]) => m)),
