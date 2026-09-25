@@ -162,7 +162,7 @@
   .slide-bozza summary{cursor:pointer;font-weight:600;font-size:14px}
   .slide{border:1px solid var(--bordo);border-radius:10px;padding:10px 12px;margin-top:8px;background:var(--sfondo)}
   .slide ul{margin:6px 0 0;padding-left:18px}
-  .filtri-spunti{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+  .filtri-spunti{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px}
   @media (max-width:760px){.filtri-spunti,.filtri-spunti.due{grid-template-columns:1fr}.criterio{grid-template-columns:110px 1fr 24px}}
   .spunto{display:flex;flex-direction:column;gap:6px}
   .spunto-uno{font-weight:600}
@@ -182,9 +182,15 @@
   .voce-proposta:first-child{border-top:0}
   .voce-proposta input{margin-top:4px}
   .scelte-gen{margin-top:12px}
+  .spesa{border:2px solid var(--accento)}
+  .scelte-griglia{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:4px}
+  @media (max-width:760px){.scelte-griglia{grid-template-columns:1fr}}
+  .cursore{width:100%;accent-color:var(--accento);margin:8px 0 2px}
+  .cursore-voci{display:flex;justify-content:space-between;font-size:12px;color:var(--grigio)}
   .gettoni{display:flex;flex-wrap:wrap;gap:6px}
   .gettone{border:1px solid var(--bordo);background:var(--carta,#fff);border-radius:99px;padding:5px 11px;font:inherit;font-size:13px;cursor:pointer;color:inherit}
   .gettone:hover{border-color:var(--accento)}
+  .conta-gettone{opacity:.6;font-size:11px}
   .gettone.attivo{background:var(--accento);border-color:var(--accento);color:#fff}
   .perche-te{background:var(--accento-chiaro);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
   .motore h3{font-size:18px}
@@ -226,9 +232,9 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.9.1";
+const VERSION = "2.11.0";
 const $main = document.getElementById("main");
-const S = { opz: { modello: "", perno: "", settori: [], tipo: "", fonte: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
+const S = { opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
 
 // ---------------------------------------------------------------- utilita'
@@ -294,7 +300,7 @@ function porta() {
 // due motori che generano le idee) e il proprio profilo. L'amministratore ha
 // in piu' Regia e Statistiche; Importa si apre da /#importa.
 const SCHEDE = [["bacheca", "Bacheca"], ["spunti", "Spunti"], ["profilo", "Il mio profilo"]];
-const SCHEDE_ADMIN = [["regia", "Regia"], ["aziende", "Aziende"], ["statistiche", "Statistiche"]];
+const SCHEDE_ADMIN = [["regia", "Regia"], ["aziende", "Aziende"]];
 const SOLO_ADMIN = ["regia", "aziende", "statistiche", "importa"];
 
 function disegna() {
@@ -309,7 +315,7 @@ function disegna() {
     ${d.io.adminVero ? `<button class="btn piccolo" id="modoUtente" title="Usa la piattaforma come un collega qualsiasi">${d.io.admin ? "Vedi come utente" : "Torna amministratore"}</button>` : ""}
     <button class="btn piccolo" id="aiuto" title="Rivedi il tutorial">?</button>
     <span class="solo-largo">${esc(d.io.email)}</span><button class="btn piccolo" id="esci">Esci</button>`;
-  const viste = { bacheca: () => home(false), genera: () => home(true), persone, spunti, profilo: schedaProfilo, regia, aziende, statistiche, importa };
+  const viste = { bacheca: () => home(false), genera: () => home(true), persone, spunti, profilo: schedaProfilo, regia, aziende, statistiche: regia, importa };
   (viste[S.scheda] || viste.bacheca)();
   if (S.comeUtente) $main.insertAdjacentHTML("afterbegin", `<div class="avviso info riga" style="margin-top:0">
     <span>Stai usando la piattaforma <b>come un utente qualsiasi</b>: niente Regia, bacheca e crediti come li vedono i colleghi.</span>
@@ -549,29 +555,6 @@ const PERCORSI = [
   ["persone", "Ci sono persone con cui mi piacerebbe lavorare, ma non ho ancora un'idea", "Sceglile: Claude genera idee compatibili con i vostri profili."],
   ["profilo", "Vorrei una proposta sia di idee sia di compagni di squadra", "Claude parte dal tuo profilo e ti propone idee e squadre."],
 ];
-// Gettoni delle scelte facoltative: un clic sceglie, un altro toglie. Si
-// ridisegna tenendo la posizione, perche' il riquadro cambia poco.
-document.addEventListener("click", (ev) => {
-  const st = ev.target.closest("[data-opz-settore]"), tp = ev.target.closest("[data-opz-tipo]"), fn = ev.target.closest("[data-opz-fonte]");
-  const az = ev.target.closest("[data-opz-azzera]");
-  if (!st && !tp && !fn && !az) return;
-  if (st) {
-    const v = st.dataset.opzSettore, L = S.opz.settori;
-    if (L.includes(v)) L.splice(L.indexOf(v), 1);
-    else if (L.length < 3) L.push(v);
-    else { avvisa("msgGen", "Puoi scegliere al massimo 3 settori: togline uno prima.", "info"); return; }
-  }
-  if (tp) S.opz.tipo = S.opz.tipo === tp.dataset.opzTipo ? "" : tp.dataset.opzTipo;
-  if (fn) S.opz.fonte = S.opz.fonte === fn.dataset.opzFonte ? "" : fn.dataset.opzFonte;
-  if (az) S.opz = { modello: "", perno: "", settori: [], tipo: "", fonte: "" };
-  const y = window.scrollY; genera(); window.scrollTo(0, y);
-});
-document.addEventListener("click", (ev) => {
-  const m = ev.target.closest("[data-opz-modello]");
-  if (!m) return;
-  S.opz.modello = m.dataset.opzModello;
-  document.querySelectorAll("[data-opz-modello]").forEach((x) => x.classList.toggle("primario", x === m));
-});
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-percorso]");
   if (!b) return;
@@ -605,24 +588,19 @@ function genera() {
         <p class="piccolo" style="margin-top:0">Claude parte dal tuo profilo (esperienze, aziende, passioni, preferenze) e propone cinque idee; per ognuna ti suggerisce la squadra di 7-8 persone più adatta fra quelle del master.</p>
         <button class="btn primario" id="gScopri" ${blocca ? "disabled" : ""}>Proponi idee e compagni</button></div>` : ""}
     ${S.percorso ? `<div class="carta scelte-gen">
-      <div class="riga"><b>Scelte facoltative</b><span class="piccolo">se non scegli nulla, decide Claude</span><span class="spazio"></span>
-        ${S.opz.modello || S.opz.perno || S.opz.settori.length || S.opz.tipo || S.opz.fonte ? '<button class="btn piccolo" data-opz-azzera>Azzera</button>' : ""}</div>
-      <div class="due" style="margin-top:6px">
-        <div><label style="margin-top:0">Modello di business</label>
-          <div class="riga">${[["", "Indifferente"], ["B2B", "B2B · clienti aziende"], ["B2C", "B2C · clienti consumatori"]].map(([k, t]) =>
-            `<button class="btn piccolo ${S.opz.modello === k ? "primario" : ""}" data-opz-modello="${k}">${t}</button>`).join("")}</div></div>
-        <div id="boxPerno"><label style="margin-top:0">Su quale competenza basare la startup</label>
-          <select id="opzPerno"></select>
-          <p class="piccolo" style="margin:4px 0 0" id="notaPerno"></p></div>
+      <div class="riga"><b>Scelte facoltative</b><span class="piccolo">se lasci tutto com'è, decide Claude</span></div>
+      <div class="scelte-griglia">
+        <div><label>Modello di business</label>
+          <input type="range" class="cursore" id="opzModello" min="0" max="2" step="1" value="${{ B2B: 0, "": 1, B2C: 2 }[S.opz.modello]}">
+          <div class="cursore-voci"><span>B2B</span><span>Indifferente</span><span>B2C</span></div></div>
+        <div><label>Su quale competenza basarla</label>
+          <input type="range" class="cursore" id="opzPerno" min="0" max="2" step="1" value="${{ io: 0, "": 1, gruppo: 2 }[S.opz.perno]}">
+          <div class="cursore-voci"><span>La mia</span><span>Decidi tu</span><span>${S.percorso === "persone" ? "Tutto il gruppo" : "Tutta la squadra"}</span></div></div>
+        <div><label>Settore</label>
+          <select id="opzSettore"><option value="">Qualsiasi settore</option>${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<option ${S.opz.settore === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>
       </div>
-      ${S.dati.scelte ? `<label>Settore <small>(fino a 3; classificazione di Y Combinator)</small></label>
-      <div class="gettoni">${S.dati.scelte.settori.map((x) => `<button class="gettone ${S.opz.settori.includes(x) ? "attivo" : ""}" data-opz-settore="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-      <label>Tipo di startup</label>
-      <div class="gettoni">${S.dati.scelte.tipi.map(([k, t, d]) => `<button class="gettone ${S.opz.tipo === k ? "attivo" : ""}" data-opz-tipo="${k}" title="${esc(d)}">${esc(t)}</button>`).join("")}</div>
-      ${S.opz.tipo ? `<p class="piccolo" style="margin:4px 0 0">${esc((S.dati.scelte.tipi.find(([k]) => k === S.opz.tipo) || [])[2] || "")}</p>` : ""}
-      <label>Da dove partire <small>(le cinque strade indicate da Venezia)</small></label>
-      <div class="gettoni">${S.dati.scelte.fonti.map(([k, t]) => `<button class="gettone ${S.opz.fonte === k ? "attivo" : ""}" data-opz-fonte="${esc(k)}">${esc(t)}</button>`).join("")}</div>` : ""}
-      </div>` : ""}
+      <p class="piccolo" style="margin:8px 0 0">Il tipo di startup (piattaforma, software, app, prodotto…) e la strada da cui nasce l'idea li sceglie Claude e li scrive su ogni idea.</p>
+    </div>` : ""}
     ${S.percorso ? `<label>Indicazioni in più <small>(testo libero, facoltativo: un vincolo, un mercato, uno spunto, quello che vuoi)</small></label>
     <textarea id="note" placeholder="Es. qualcosa legato al food, B2B, che si possa validare in due mesi">${esc(S.note || "")}</textarea>` : ""}
     <div id="msgGen"></div>
@@ -636,21 +614,13 @@ function genera() {
       ? `Squadra di <b>${n}</b>: completa.`
       : `Squadra di <b>${n}</b> con te: Claude proporrà ${7 - n === 8 - n ? 7 - n : `da ${7 - n} a ${8 - n}`} persone per arrivare a 7-8.`;
   };
-  // Su chi basare la startup: io e, se scelgo delle persone, anche loro.
-  const opzioniPerno = () => {
-    const sel = document.getElementById("opzPerno");
-    if (!sel || !io) return;
-    const gruppo = [io, ...(S.percorso === "persone" ? [...S.scelti].map(profilo).filter(Boolean) : [])].filter(Boolean);
-    if (!gruppo.some((p) => p.id === S.opz.perno)) S.opz.perno = "";
-    const breve = (p) => [p.ruolo, p.azienda].filter(Boolean).join(" @ ") || p.titolo || "";
-    sel.innerHTML = `<option value="">${gruppo.length > 1 ? "Decidi tu, mettendo insieme le competenze di tutti" : "Decidi tu, partendo da tutte le mie esperienze"}</option>` +
-      gruppo.map((p) => `<option value="${esc(p.id)}" ${S.opz.perno === p.id ? "selected" : ""}>${p.id === io.id ? "La mia" : esc(p.nome)}${breve(p) ? " · " + esc(breve(p).slice(0, 60)) : ""}</option>`).join("");
-    document.getElementById("notaPerno").textContent = S.opz.perno
-      ? "Le idee partiranno dal settore e dall'esperienza di " + (S.opz.perno === io.id ? "te" : (profilo(S.opz.perno) || {}).nome) + "; gli altri completano."
-      : gruppo.length > 1 ? "Claude cerca le idee dove le competenze del gruppo si combinano meglio." : "Scegli le persone per poter basare l'idea su una di loro.";
-  };
-  const selPerno = document.getElementById("opzPerno");
-  if (selPerno) { opzioniPerno(); selPerno.onchange = () => { S.opz.perno = selPerno.value; opzioniPerno(); }; }
+  // Scelte facoltative: due cursori a tre posizioni e il settore.
+  const cur = (id, voci, k) => { const el = document.getElementById(id); if (el) el.oninput = () => { S.opz[k] = voci[Number(el.value)]; }; };
+  cur("opzModello", ["B2B", "", "B2C"], "modello");
+  cur("opzPerno", ["io", "", "gruppo"], "perno");
+  const selSet = document.getElementById("opzSettore");
+  if (selSet) selSet.onchange = () => { S.opz.settore = selSet.value; };
+  const opzioniPerno = () => {};
   const pick = document.getElementById("pickGruppo");
   if (pick) {
     pickerPersone(pick, S.scelti, () => {
@@ -672,7 +642,7 @@ function genera() {
     avvisa("msgGen", "Claude sta leggendo i profili e scrivendo le idee: di solito ci vuole meno di un minuto…");
     document.getElementById("msgGen").scrollIntoView({ behavior: "smooth", block: "center" });
     try {
-      const g = await api("", { modo, persone: modo === "gruppo" ? [...S.scelti] : [], note: S.note || "", idea: conIdea ? S.miaIdea || "" : "", modello: S.opz.modello, perno: S.opz.perno, settori: S.opz.settori, tipo: S.opz.tipo, fonte: S.opz.fonte }, "/api/genera");
+      const g = await api("", { modo, persone: modo === "gruppo" ? [...S.scelti] : [], note: S.note || "", idea: conIdea ? S.miaIdea || "" : "", modello: S.opz.modello, perno: S.opz.perno, settore: S.opz.settore }, "/api/genera");
       if (g.crediti) S.dati.io.crediti = g.crediti;
       S.ultima = g;
       S.dati.generazioni.unshift(g);
@@ -696,8 +666,8 @@ function genera() {
 function risultati(g, vecchia) {
   if (!g) return "";
   return `${vecchia ? "" : `<h3 style="margin-top:22px">Idee ${g.modo === "gruppo" ? "per il gruppo" : "per te"}</h3>
-    ${(() => { const c = g.scelte || {}; const v = [c.modello && c.modello !== "indifferente" && c.modello, c.pernoNome && "basata sulla competenza di " + esc(c.pernoNome),
-      (c.settori || []).length && esc(c.settori.join(", ")), c.tipo && esc(c.tipo), c.fonte && "partendo da: " + esc(c.fonte.toLowerCase())].filter(Boolean);
+    ${(() => { const c = g.scelte || {}; const v = [c.modello && c.modello !== "indifferente" && c.modello, c.pernoNome && "basata sulla competenza di " + (c.perno === (S.dati.io.profilo) ? "chi l'ha generata" : esc(c.pernoNome)),
+      c.gruppo && "competenze di tutto il gruppo", (c.settori || []).length && esc(c.settori.join(", ")), c.tipo && esc(c.tipo), c.fonte && "partendo da: " + esc(c.fonte.toLowerCase())].filter(Boolean);
       return v.length ? `<p class="piccolo" style="margin:0">Scelte: ${v.join(" · ")}</p>` : ""; })()}
     <p class="piccolo">Seleziona da 1 a 5 idee e premi <b>Condividi</b>: decidi tu se le vede tutto il master o solo alcuni compagni.</p>`}
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">${g.idee.map((i, n) => {
@@ -707,7 +677,7 @@ function risultati(g, vecchia) {
         <span class="etichetta">${esc(i.modello)}</span><span class="etichetta grigia">${esc(i.settore)}</span>
         <span class="spazio"></span><b>${esc(i.punteggio)}/10</b></div>
       <h3 style="margin-top:8px">${esc(i.titolo)}</h3>
-      ${i.fonte_idea ? `<div class="piccolo">Nata da: ${esc(i.fonte_idea)}</div>` : ""}
+      ${i.tipo_startup || i.fonte_idea ? `<div class="piccolo">${i.tipo_startup ? `<b>${esc(i.tipo_startup)}</b>` : ""}${i.tipo_startup && i.fonte_idea ? " · " : ""}${i.fonte_idea ? "nata da: " + esc(i.fonte_idea) : ""}</div>` : ""}
       <div>${esc(i.sintesi)}</div>
       ${i.criteri_startup ? barreCriteri("È una startup?", [["Innovazione", i.criteri_startup.innovazione], ["Scalabilità", i.criteri_startup.scalabilita], ["Replicabilità", i.criteri_startup.replicabilita], ["Sostenibilità", i.criteri_startup.sostenibilita]]) : ""}
       ${i.valutazione ? barreCriteri(i.criteri_startup ? "Come la vedrebbe la giuria" : "", [["Originalità", i.valutazione.originalita], ["Fattibilità", i.valutazione.fattibilita], ["Scalabilità e investibilità", i.valutazione.scalabilita_investibilita]]) : ""}
@@ -779,6 +749,7 @@ function ideaGenerata(k) {
   return {
     titolo: i.titolo, modello: i.modello, settore: i.settore, generata: true, generazione: gid,
     descrizione: [i.sintesi, "", "Problema: " + i.problema, "Soluzione: " + i.soluzione,
+      i.tipo_startup && "Tipo di startup: " + i.tipo_startup,
       i.differenziazione && "Cosa cambia: " + i.differenziazione, "Clienti: " + i.clienti, i.ricavi && "Ricavi: " + i.ricavi,
       i.scalabilita && "Scalabile: " + i.scalabilita, i.replicabilita && "Replicabile: " + i.replicabilita,
       i.startup_innovativa && "Startup innovativa: " + i.startup_innovativa.requisito + " (" + i.startup_innovativa.come + ")",
@@ -855,8 +826,6 @@ function apriEditor(post) {
   const leggiBlocchi = () => velo.querySelectorAll(".blocco-idea").forEach((b, n) => {
     idee[n].titolo = b.querySelector("[data-f=titolo]").value;
     idee[n].descrizione = b.querySelector("[data-f=descrizione]").value;
-    idee[n].modello = b.querySelector("[data-f=modello]").value;
-    idee[n].settore = b.querySelector("[data-f=settore]").value;
   });
   const disegnaE = () => {
     velo.innerHTML = `<div class="finestra" role="dialog" aria-modal="true">
@@ -868,8 +837,6 @@ function apriEditor(post) {
           ${idee.length > 1 ? `<button class="btn piccolo pericolo" data-togli-idea="${n}">Togli</button>` : ""}</div>
         <label>Titolo</label><input type="text" data-f="titolo" value="${esc(i.titolo || "")}">
         <label>Descrizione</label><textarea data-f="descrizione">${esc(i.descrizione || "")}</textarea>
-        <div class="due"><div><label>Modello</label><select data-f="modello">${["", "B2B", "B2C", "B2B2C"].map((m) => `<option ${i.modello === m ? "selected" : ""}>${m}</option>`).join("")}</select></div>
-        <div><label>Settore</label><input type="text" data-f="settore" value="${esc(i.settore || "")}"></div></div>
       </div>`).join("")}
       ${idee.length < 5 ? `<button class="btn" data-aggiungi-idea style="margin-top:10px">+ Aggiungi un'altra idea (${idee.length}/5)</button>` : '<p class="piccolo">Hai raggiunto 5 idee, il massimo per un post.</p>'}
       <h3 style="margin-bottom:4px">Chi la vede</h3>
@@ -1297,49 +1264,80 @@ async function spunti() {
     catch (e) { $main.innerHTML = testaSpunti() + `<div class="avviso male">Non riesco a caricare gli spunti: ${esc(e.message)}</div>`; return; }
     if (S.fonteSpunti === "tc") return;   // nel frattempo si e' passati a TechCrunch
   }
-  const F = S.filtriSpunti = S.filtriSpunti || { q: "", settore: "", zona: "", periodo: "", top: false, quanti: 60 };
+  const F = S.filtriSpunti = S.filtriSpunti || { q: "", settori: [], zona: "", periodo: "", top: false, quanti: 60 };
   const tutte = S.yc.aziende;
-  const settori = [...new Set(tutte.map((x) => x.i).filter(Boolean))].sort();
   const parole = senzaAccenti(F.q).split(/\s+/).filter(Boolean);
+  const eAI = (x) => x.t.some((t) => /^(AI|Artificial Intelligence|Generative AI|Machine Learning|AI Assistant)$/.test(t));
+  const nelSettore = (x, k) => k === "ai" ? eAI(x) : x.i === k;
   const lista = tutte.filter((x) => {
-    if (F.settore && x.i !== F.settore) return false;
+    if (F.settori.length && !F.settori.some((k) => nelSettore(x, k))) return false;
     if (F.zona === "eu" && !x.r.includes("Europe")) return false;
     if (F.zona === "us" && !x.r.some((r) => /America|United States/.test(r))) return false;
     if (F.zona === "remote" && !x.r.includes("Remote")) return false;
     if (F.periodo && !(F.periodo === "top" ? x.top : x.a >= Number(F.periodo))) return false;
-    if (F.top && !x.top) return false;
     if (!parole.length) return true;
-    const t = senzaAccenti([x.n, x.o, x.d, x.i, x.si, x.t.join(" ")].join(" "));
+    const t = senzaAccenti([x.n, x.it, x.o, x.d, x.i, x.si, SETTORI_YC[x.i], SOTTO_YC[x.si], x.t.join(" ")].join(" "));
     return parole.every((w) => new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(t));
   });
   if (F.periodo === "top") lista.sort((a, b) => (b.ts || 0) - (a.ts || 0));   // le piu' grandi, cioe' le piu' note, per prime
+  const conta = (k) => tutte.filter((x) => nelSettore(x, k)).length;
   const sel = (id, opzioni, v) => `<select id="${id}">${opzioni.map(([k, t]) => `<option value="${esc(k)}" ${v === k ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
   $main.innerHTML = testaSpunti() + `
     <div class="riga piccolo" style="margin-bottom:12px">Guarda anche la <a href="https://www.ycombinator.com/companies" target="_blank" rel="noopener">directory di Y Combinator</a></div>
+    <div class="gettoni" style="margin-bottom:10px">${[["ai", "Intelligenza artificiale"], ...Object.entries(SETTORI_YC)].map(([k, t]) =>
+      `<button class="gettone ${F.settori.includes(k) ? "attivo" : ""}" data-sp-settore="${esc(k)}">${esc(t)} <span class="conta-gettone">${conta(k).toLocaleString("it-IT")}</span></button>`).join("")}
+      ${F.settori.length ? '<button class="gettone" data-sp-settore="">× togli i filtri</button>' : ""}</div>
     <div class="filtri-spunti">
-      <input type="search" id="spQ" placeholder="Cerca in inglese: food, logistics, energy, AI, health…" value="${esc(F.q)}">
-      ${sel("spSettore", [["", "Tutti i settori"], ...settori.map((x) => [x, x])], F.settore)}
+      <input type="search" id="spQ" placeholder="Cerca: logistica, energia, AI, salute, food…" value="${esc(F.q)}">
       ${sel("spZona", [["", "Tutto il mondo"], ["eu", "Europa"], ["us", "Stati Uniti e Canada"], ["remote", "Da remoto"]], F.zona)}
       ${sel("spPeriodo", [["", "Tutti gli anni"], ["2025", "Dal 2025"], ["2023", "Dal 2023"], ["top", "Le più affermate (Airbnb, Stripe…)"]], F.periodo)}
     </div>
     <p class="piccolo">${lista.length.toLocaleString("it-IT")} aziende${lista.length > F.quanti ? `, ne vedi ${F.quanti}` : ""} · fonte: ${esc(S.yc.fonte)}, aggiornata al ${esc(S.yc.aggiornato)}</p>
-    <div class="griglia">${lista.slice(0, F.quanti).map((x, k) => `<div class="carta spunto">
-      <div class="riga"><b>${esc(x.n)}</b>${x.top ? '<span class="etichetta verde">top</span>' : ""}<span class="spazio"></span><span class="piccolo">${esc(x.b)}</span></div>
-      <div class="spunto-uno">${esc(x.o)}</div>
-      ${x.d ? `<div class="piccolo">${esc(x.d)}</div>` : ""}
-      <div>${[x.i, x.si].filter(Boolean).filter((v, n, a) => a.indexOf(v) === n).map((t) => `<span class="etichetta grigia">${esc(t)}</span>`).join("")}${x.st === "Acquired" ? '<span class="etichetta ambra">acquisita</span>' : ""}</div>
-      <div class="riga piccolo" style="margin-top:auto">${x.l ? esc(x.l) + " · " : ""}${x.w ? `<a href="${esc(x.w)}" target="_blank" rel="noopener">sito</a> · ` : ""}<a href="https://www.ycombinator.com/companies/${esc(x.s)}" target="_blank" rel="noopener">scheda YC</a>
-        <span class="spazio"></span><button class="btn piccolo primario" data-spunto="${tutte.indexOf(x)}">Usa come spunto</button></div>
+    <div class="griglia">${lista.slice(0, F.quanti).map((x) => `<div class="carta spunto">
+      <div class="riga"><b>${esc(x.n)}</b>${x.top ? '<span class="etichetta verde">top</span>' : ""}${x.st === "Acquired" ? '<span class="etichetta ambra">acquisita</span>' : ""}<span class="spazio"></span><span class="piccolo">${esc(x.b)}</span></div>
+      <div class="spunto-uno">${esc(x.it || x.o)}</div>
+      <div>${[SETTORI_YC[x.i] || x.i, SOTTO_YC[x.si] || x.si].filter(Boolean).filter((v, n, a) => a.indexOf(v) === n).map((t) => `<span class="etichetta grigia">${esc(t)}</span>`).join("")}${eAI(x) ? '<span class="etichetta">AI</span>' : ""}</div>
+      <details class="piccolo"><summary>Dettagli (in inglese)</summary>
+        <p style="margin:6px 0"><b>${esc(x.o)}</b></p>${x.d ? `<p style="margin:6px 0">${esc(x.d)}</p>` : ""}
+        <div>${x.l ? esc(x.l) + " · " : ""}${x.w ? `<a href="${esc(x.w)}" target="_blank" rel="noopener">sito</a> · ` : ""}<a href="https://www.ycombinator.com/companies/${esc(x.s)}" target="_blank" rel="noopener">scheda YC</a></div></details>
+      <div class="riga" style="margin-top:auto"><span class="spazio"></span><button class="btn piccolo primario" data-spunto="${tutte.indexOf(x)}">Usa come spunto</button></div>
     </div>`).join("") || '<p class="piccolo">Nessuna azienda con questi filtri.</p>'}</div>
     ${lista.length > F.quanti ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="spAltri">Mostra altre</button></div>` : ""}`;
   const q = document.getElementById("spQ");
   q.oninput = () => { F.q = q.value; F.quanti = 60; clearTimeout(S.tSp); S.tSp = setTimeout(() => { const pos = q.selectionStart; spunti().then(() => { const n = document.getElementById("spQ"); n.focus(); n.setSelectionRange(pos, pos); }); }, 250); };
-  [["spSettore", "settore"], ["spZona", "zona"], ["spPeriodo", "periodo"]].forEach(([id, k]) => {
+  [["spZona", "zona"], ["spPeriodo", "periodo"]].forEach(([id, k]) => {
     document.getElementById(id).onchange = (e) => { F[k] = e.target.value; F.quanti = 60; spunti(); };
   });
   const altri = document.getElementById("spAltri");
   if (altri) altri.onclick = () => { F.quanti += 60; const y = window.scrollY; spunti().then(() => window.scrollTo(0, y)); };
 }
+// Settori di Y Combinator in italiano: pillole che si accendono e spengono.
+const SETTORI_YC = { "B2B": "Servizi e software per aziende", "Fintech": "Fintech", "Healthcare": "Salute", "Industrials": "Industria",
+  "Consumer": "Consumatori", "Real Estate and Construction": "Immobiliare e costruzioni", "Education": "Formazione", "Government": "Pubblica amministrazione" };
+const SOTTO_YC = { "Engineering, Product and Design": "Sviluppo e prodotto", "Infrastructure": "Infrastruttura IT", "Consumer": "Consumatori",
+  "Manufacturing and Robotics": "Manifattura e robotica", "Productivity": "Produttività", "Operations": "Operations", "Finance and Accounting": "Finanza e contabilità",
+  "Healthcare": "Salute", "Supply Chain and Logistics": "Logistica", "Healthcare IT": "Sanità digitale", "Security": "Sicurezza", "Sales": "Vendite",
+  "Analytics": "Analisi dati", "Marketing": "Marketing", "Payments": "Pagamenti", "Education": "Formazione", "Insurance": "Assicurazioni",
+  "Aviation and Space": "Aerospazio", "Consumer Health and Wellness": "Benessere", "Legal": "Legale", "Human Resources": "Risorse umane",
+  "Content": "Contenuti", "Industrials": "Industria", "Consumer Finance": "Finanza personale", "Retail": "Retail", "Credit and Lending": "Credito",
+  "Energy": "Energia", "Therapeutics": "Terapie", "Drug Discovery and Delivery": "Farmaci", "Construction": "Costruzioni", "Asset Management": "Gestione patrimoni",
+  "Climate": "Clima", "Healthcare Services": "Servizi sanitari", "Banking and Exchange": "Banche e scambi", "Recruiting and Talent": "Selezione del personale",
+  "Food and Beverage": "Food e bevande", "Defense": "Difesa", "Housing and Real Estate": "Casa e immobili", "Real Estate and Construction": "Immobiliare",
+  "Government": "Pubblica amministrazione", "Gaming": "Videogiochi", "Diagnostics": "Diagnostica", "Medical Devices": "Dispositivi medici",
+  "Consumer Electronics": "Elettronica", "Industrial Bio": "Biotech industriale", "Drones": "Droni", "Agriculture": "Agricoltura", "Social": "Social",
+  "Travel, Leisure and Tourism": "Turismo", "Apparel and Cosmetics": "Moda e cosmetica", "Home and Personal": "Casa e persona",
+  "Job and Career Services": "Lavoro e carriera", "Automotive": "Automotive", "Virtual and Augmented Reality": "Realtà virtuale",
+  "Office Management": "Gestione ufficio", "Transportation Services": "Trasporti", "Fintech": "Fintech", "B2B": "Aziende" };
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-sp-settore]");
+  if (!b) return;
+  const F = S.filtriSpunti, k = b.dataset.spSettore;
+  if (!k) F.settori = [];
+  else if (F.settori.includes(k)) F.settori = F.settori.filter((x) => x !== k);
+  else F.settori.push(k);
+  F.quanti = 60;
+  const y = window.scrollY; spunti().then(() => window.scrollTo(0, y));
+});
 async function spuntiTC() {
   if (!S.tc) {
     $main.innerHTML = testaSpunti() + '<div class="caricamento">Carico le ultime notizie di TechCrunch…</div>';
@@ -1398,7 +1396,7 @@ document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-spunto]");
   if (!b || !S.yc) return;
   const x = S.yc.aziende[Number(b.dataset.spunto)];
-  S.note = `Spunto da Y Combinator: ${x.n} (${x.b}) — ${x.o}. ${x.d || ""} Proponi idee che adattino questo modello al nostro gruppo e al mercato italiano o europeo.`.trim();
+  S.note = `Spunto da Y Combinator: ${x.n} (${x.b}): ${(x.it || x.o).replace(/\.$/, "")}. In inglese: ${x.o.replace(/\.$/, "")}. ${x.d || ""} Proponi idee che adattino questo modello al nostro gruppo e al mercato italiano o europeo.`.trim();
   S.percorso = S.percorso || "profilo";   // lo spunto va nelle indicazioni, che si vedono dopo la scelta
   S.scheda = "genera"; disegna();
   setTimeout(() => { const n = document.getElementById("note"); if (n) { n.scrollIntoView({ block: "center" }); n.classList.add("evidenzia"); } }, 350);
@@ -1422,18 +1420,17 @@ async function regia(daCache) {
   const post = s.bacheca.filter((i) => trova(i.autoreNome, i.titolo, i.destinatariNomi || [], i.membriNomi || [], i.interessatiNomi || [],
     ideeDelPost(i).map((x) => x.titolo)));
   const n = s.numeri;
-  $main.innerHTML = `<div class="riga"><div><h2>Regia</h2><p class="sotto">Solo tu vedi questa pagina: tutte le idee generate, chi è stato scelto o suggerito, e cosa è stato condiviso con chi.</p></div>
-      <span class="spazio"></span><button class="btn" id="aggRegia">Aggiorna</button></div>
+  $main.innerHTML = `<div class="riga"><div><h2>Regia</h2><p class="sotto">Solo tu vedi questa pagina: quanto costa ogni generazione, tutte le idee, chi è stato scelto o suggerito, cosa è stato condiviso, e le statistiche.</p></div>
+      <span class="spazio"></span><div class="riga" style="flex-wrap:nowrap"><button class="btn piccolo" id="scaricaCsv">Profili (CSV)</button><button class="btn piccolo" id="scaricaJson">Tutto (JSON)</button><button class="btn piccolo" id="aggRegia">Aggiorna</button></div></div>
+    ${pannelloSpesa(s)}
+    <h3 style="margin-top:24px">Attività</h3>
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
       <div class="carta"><div class="num">${n.generazioni}</div><div class="piccolo">generazioni</div></div>
       <div class="carta"><div class="num">${n.ideeGenerate}</div><div class="piccolo">idee generate</div></div>
       <div class="carta"><div class="num">${s.bacheca.filter((i) => i.visibilita !== "scelti").length}</div><div class="piccolo">post pubblici</div></div>
       <div class="carta"><div class="num">${s.bacheca.filter((i) => i.visibilita === "scelti").length}</div><div class="piccolo">post riservati</div></div>
       <div class="carta"><div class="num">${n.collegati}/${n.profili}</div><div class="piccolo">persone entrate</div></div>
-      <div class="carta"><div class="num">${usd(s.spesa ? s.spesa.totale : 0)}</div><div class="piccolo">spesi in generazioni${s.spesa && s.spesa.generazioni ? ` · media ${usd(s.spesa.media, 3)}` : ""}</div></div>
     </div>
-    ${s.spesa && s.spesa.perPersona.length ? `<p class="piccolo" style="margin-top:8px"><b>Spesa per persona:</b> ${s.spesa.perPersona.map((x) => `${esc(x.nome)} ${usd(x.usd)}`).join(" · ")}${s.spesa.senzaDato ? ` · ${s.spesa.senzaDato} generazioni precedenti senza dato di costo` : ""}</p>` : ""}
-    ${pannelloCosti(s)}
     <div class="riga" style="margin:16px 0 10px">
       <button class="btn ${vista === "generate" ? "primario" : ""}" data-vista-regia="generate">Idee generate (${gen.length})</button>
       <button class="btn ${vista === "condivise" ? "primario" : ""}" data-vista-regia="condivise">Condivisioni e inviti (${post.length})</button>
@@ -1465,8 +1462,15 @@ async function regia(daCache) {
           <dt>Squadra</dt><dd>${esc((i.membriNomi || []).join(", "))}</dd>
           <dt>Candidati</dt><dd>${esc((i.interessatiNomi || []).join(", ")) || "—"}</dd>
           ${i.cerco ? `<dt>Cerca</dt><dd>${esc(i.cerco)}</dd>` : ""}
-        </dl></div>`).join("") || '<p class="piccolo">Ancora niente in bacheca.</p>')}`;
+        </dl></div>`).join("") || '<p class="piccolo">Ancora niente in bacheca.</p>')}
+    ${sezioneStatistiche(s)}`;
   document.getElementById("aggRegia").onclick = () => regia(false);
+  document.getElementById("scaricaCsv").onclick = scaricaProfiliCsv;
+  document.getElementById("scaricaJson").onclick = () => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ statistiche: s, profili: S.dati.profili }, null, 2)], { type: "application/json" }));
+    a.download = "squadre-bbs-" + new Date().toISOString().slice(0, 10) + ".json"; a.click();
+  };
   const c = document.getElementById("cercaRegia");
   c.oninput = () => { S.filtroRegia = c.value; clearTimeout(S.tRegia); S.tRegia = setTimeout(() => ridisegnaRegia(c.selectionStart), 200); };
 }
@@ -1475,26 +1479,53 @@ async function regia(daCache) {
 // (proposta + approfondimenti), con la proiezione su 500 generazioni.
 const NOMI_MODELLI = { "claude-opus-5": "Claude Opus 5 (il più bravo)", "claude-sonnet-5": "Claude Sonnet 5 (circa 60% in meno)" };
 const NOMI_EFFORT = { low: "basso (ragiona poco, costa meno)", medium: "medio", high: "alto (ragiona di più, costa di più)" };
-function pannelloCosti(s) {
-  const i = s.impostazioni;
-  if (!i) return "";
+function pannelloSpesa(s) {
+  const i = s.impostazioni || {};
   const sel = (id, voci, nomi, v) => `<select id="${id}">${voci.map((x) => `<option value="${x}" ${x === v ? "selected" : ""}>${esc(nomi[x] || x)}</option>`).join("")}</select>`;
-  const righe = (s.costiMedi || []).sort((a, b) => b.generazioni - a.generazioni);
-  return `<details class="carta" style="margin-top:12px" ${S.costiAperti ? "open" : ""} id="pannelloCosti"><summary><b>Costi e modello</b> <span class="piccolo">· ora: ${esc(NOMI_MODELLI[i.modello] || i.modello)}, effort ${esc(i.effort)}</span></summary>
-    <div class="due" style="margin-top:10px">
-      <div><label>Modello</label>${sel("impModello", i.modelli, NOMI_MODELLI, i.modello)}</div>
-      <div><label>Effort (quanto ragiona prima di scrivere)</label>${sel("impEffort", i.livelli || ["low", "medium", "high"], NOMI_EFFORT, i.effort)}</div>
+  const medi = (s.costiMedi || []).sort((a, b) => b.generazioni - a.generazioni);
+  const attuale = medi.find((r) => r.chiave === i.modello + " · " + i.effort);
+  const gen = s.generazioni.filter((g) => g.costo);
+  const strada = (g) => g.modo === "gruppo" ? "persone scelte" : g.idea ? "la sua idea" : "dal profilo";
+  const quante = S.speseTutte ? gen.length : 15;
+  const tok = (n) => Number(n || 0).toLocaleString("it-IT");
+  const sp = s.spesa || { totale: 0, generazioni: 0, media: 0 };
+  return `<div class="carta spesa">
+    <h3 style="margin-top:0">Quanto costa ogni generazione</h3>
+    <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">
+      <div class="carta"><div class="num">${usd(sp.totale)}</div><div class="piccolo">spesi in tutto</div></div>
+      <div class="carta"><div class="num">${sp.generazioni}</div><div class="piccolo">generazioni con il costo</div></div>
+      <div class="carta"><div class="num">${usd(sp.media, 3)}</div><div class="piccolo">media a generazione</div></div>
+      <div class="carta"><div class="num">${attuale ? usd(attuale.mediaTotale * 500, 0) : "—"}</div><div class="piccolo">500 generazioni con l'impostazione attuale${attuale ? "" : " (ancora nessun dato)"}</div></div>
     </div>
-    <div class="riga" style="margin-top:8px"><button class="btn primario" id="salvaImp">Salva</button><span class="piccolo" id="msgImp"></span></div>
-    <p class="piccolo" style="margin-top:12px">Costo medio reale per generazione, dai token che riporta l'API. La proposta è il passo 1 (5 idee brevi, 1 credito); gli approfondimenti si pagano solo sulle idee aperte.</p>
-    ${righe.length ? `<table><tr><th>Modello · effort</th><th>Generazioni</th><th>Proposta</th><th>Approfondimento</th><th>Media totale</th><th>500 generazioni</th></tr>
-      ${righe.map((r) => `<tr><td>${esc(r.chiave)}</td><td>${r.generazioni}</td><td>${usd(r.mediaProposta, 3)}</td>
+    <div class="riga" style="margin-top:12px;align-items:flex-end">
+      <div style="flex:1;min-width:220px"><label>Modello</label>${sel("impModello", i.modelli || [], NOMI_MODELLI, i.modello)}</div>
+      <div style="flex:1;min-width:220px"><label>Effort (quanto ragiona prima di scrivere)</label>${sel("impEffort", i.livelli || ["low", "medium", "high"], NOMI_EFFORT, i.effort)}</div>
+      <button class="btn primario" id="salvaImp">Salva</button></div>
+    <p class="piccolo" id="msgImp" style="margin:4px 0 0"></p>
+    <div class="scorri" style="margin-top:12px"><table><tr><th>Quando</th><th>Chi</th><th>Partendo da</th><th>Modello · effort</th><th>Token entrata / uscita / cache</th><th>Proposta</th><th>Approfondimenti</th><th>Totale</th></tr>
+      ${gen.slice(0, quante).map((g) => {
+        const appr = (g.idee || []).filter((x) => x.costoApprofondimento);
+        const costoAppr = appr.reduce((t, x) => t + x.costoApprofondimento, 0);
+        const prop = (g.costoProposta || g.costo).usd;
+        return `<tr><td>${quando(g.quando)}</td><td>${esc(g.autoreNome || g.chi)}</td><td class="piccolo">${strada(g)}</td>
+          <td class="piccolo">${esc((g.modello || g.costo.modello || "").replace("claude-", ""))} · ${esc(g.effort || "medium")}${g.costoProposta ? "" : " · una passata"}</td>
+          <td class="piccolo">${tok(g.costo.input)} / ${tok(g.costo.output)} / ${tok(g.costo.cache)}</td>
+          <td>${usd(prop, 3)}</td><td>${appr.length ? `${appr.length} · ${usd(costoAppr, 3)}` : "—"}</td><td><b>${usd(g.costo.usd, 3)}</b></td></tr>`;
+      }).join("") || '<tr><td colspan="8" class="piccolo">Ancora nessuna generazione con il costo.</td></tr>'}
+    </table></div>
+    ${gen.length > 15 ? `<button class="btn piccolo" id="speseTutte" style="margin-top:6px">${S.speseTutte ? "Mostra solo le ultime" : `Mostra tutte (${gen.length})`}</button>` : ""}
+    ${medi.length ? `<h4 style="margin:16px 0 4px">Medie per modello ed effort</h4>
+      <table><tr><th>Modello · effort</th><th>Generazioni</th><th>Proposta</th><th>Approfondimento</th><th>Media totale</th><th>500 generazioni</th></tr>
+      ${medi.map((r) => `<tr><td>${esc(r.chiave)}</td><td>${r.generazioni}</td><td>${usd(r.mediaProposta, 3)}</td>
         <td>${r.mediaApprofondimento == null ? "—" : usd(r.mediaApprofondimento, 3) + ` <span class="piccolo">× ${String(r.approfondimentiPerGenerazione).replace(".", ",")}</span>`}</td>
-        <td><b>${usd(r.mediaTotale, 3)}</b></td><td>${usd(r.mediaTotale * 500, 0)}</td></tr>`).join("")}</table>`
-      : '<p class="piccolo">Ancora nessuna generazione con il dato di costo.</p>'}
-  </details>`;
+        <td><b>${usd(r.mediaTotale, 3)}</b></td><td>${usd(r.mediaTotale * 500, 0)}</td></tr>`).join("")}</table>` : ""}
+    ${sp.perPersona && sp.perPersona.length ? `<p class="piccolo" style="margin-top:10px"><b>Spesa per persona:</b> ${sp.perPersona.map((x) => `${esc(x.nome)} ${usd(x.usd)}`).join(" · ")}</p>` : ""}
+  </div>`;
 }
-document.addEventListener("toggle", (ev) => { if (ev.target.id === "pannelloCosti") S.costiAperti = ev.target.open; }, true);
+document.addEventListener("click", (ev) => {
+  if (ev.target.id !== "speseTutte") return;
+  S.speseTutte = !S.speseTutte; ridisegnaRegia(0);
+});
 document.addEventListener("click", async (ev) => {
   if (ev.target.id !== "salvaImp") return;
   const m = document.getElementById("msgImp");
@@ -1682,10 +1713,8 @@ function tourSePrimaVolta() {
 }
 
 // ---------------------------------------------------------------- statistiche (admin)
-async function statistiche() {
-  $main.innerHTML = '<div class="caricamento">Carico le statistiche…</div>';
-  let s;
-  try { s = S.stat = await api("statistiche"); } catch (e) { $main.innerHTML = `<div class="avviso male">${esc(e.message)}</div>`; return; }
+// Le statistiche, in fondo alla Regia.
+function sezioneStatistiche(s) {
   const n = s.numeri;
   const tile = (v, t) => `<div class="carta"><div class="num">${v}</div><div class="piccolo">${t}</div></div>`;
   const barre = (arr, fmt) => {
@@ -1693,12 +1722,10 @@ async function statistiche() {
     return arr.map((x) => { const v = x[1] || x.n; return `<div style="margin:4px 0"><div class="riga piccolo"><span>${fmt(x)}</span><span class="spazio"></span><b>${v}</b></div>
       <div style="height:6px;border-radius:3px;background:var(--accento-chiaro)"><div style="height:6px;border-radius:3px;background:var(--accento);width:${(v / max) * 100}%"></div></div></div>`; }).join("") || '<p class="piccolo">Ancora niente.</p>';
   };
-  $main.innerHTML = `<div class="riga"><h2>Statistiche</h2><span class="spazio"></span>
-      <button class="btn" id="scaricaCsv">Scarica profili (CSV)</button><button class="btn" id="scarica">Scarica tutto (JSON)</button><button class="btn" id="aggiorna">Aggiorna</button></div>
-    <p class="sotto">Solo tu vedi questa scheda.</p>
+  return `<h2 style="margin-top:36px">Statistiche</h2>
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
       ${tile(n.utenti, "persone entrate")}${tile(n.collegati + "/" + n.profili, "profili collegati")}${tile(n.completati, "profili completati")}
-      ${tile(n.generazioni, "generazioni")}${tile(n.ideeGenerate, "idee generate")}${tile(n.bacheca, "idee in bacheca")}${tile(n.aziende, "aziende AIDA")}
+      ${tile(n.bacheca, "idee in bacheca")}${tile(n.aziende, "aziende AIDA")}
     </div>
     <div class="due" style="margin-top:14px">
       <div class="carta"><h3 style="margin-top:0">Chi si sta mettendo con chi</h3><p class="piccolo">Coppie scelte insieme nelle generazioni (peso 1), in una squadra in bacheca (peso 3), candidature (peso 1).</p>
@@ -1708,15 +1735,6 @@ async function statistiche() {
       <div class="carta"><h3 style="margin-top:0">Settori delle idee</h3>${barre(s.settori, (x) => esc(x[0]))}</div>
       <div class="carta"><h3 style="margin-top:0">B2B / B2C</h3>${barre(s.modelli, (x) => esc(x[0]))}</div>
     </div>
-    <h3 style="margin-top:24px">Tutte le idee generate</h3>
-    <div class="carta scorri"><table><tr><th>Quando</th><th>Chi</th><th>Con</th><th>Idee</th></tr>
-      ${s.generazioni.map((g) => `<tr><td>${quando(g.quando)}</td><td>${esc(g.autoreNome || g.chi)}</td><td>${g.modo === "gruppo" ? esc(g.personeNomi.join(", ")) : "<i>idee per sé</i>"}${g.note ? `<div class="piccolo">«${esc(g.note)}»</div>` : ""}</td>
-        <td>${g.idee.map((i) => `<div><span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${esc(i.punteggio)}</span> <b>${esc(i.titolo)}</b> <span class="piccolo">${esc(i.modello)} · ${esc(i.settore)}${i.compagni && i.compagni.length ? " · suggeriti: " + esc(i.compagni.map((c) => c.nome).join(", ")) : ""}</span></div>`).join("")}</td></tr>`).join("") || '<tr><td colspan="4" class="piccolo">Ancora nessuna.</td></tr>'}
-    </table></div>
-    <h3 style="margin-top:24px">Bacheca</h3>
-    <div class="carta scorri"><table><tr><th>Idea</th><th>Autore</th><th>Squadra</th><th>Interessati</th></tr>
-      ${s.bacheca.map((i) => `<tr><td><b>${esc(i.titolo)}</b><div class="piccolo">${esc(i.modello)} ${esc(i.settore)}</div></td><td>${esc(i.autoreNome)}</td><td>${esc(i.membriNomi.join(", "))}</td><td>${esc(i.interessatiNomi.join(", "))}</td></tr>`).join("") || '<tr><td colspan="4" class="piccolo">Vuota.</td></tr>'}
-    </table></div>
     <h3 style="margin-top:24px">Persone entrate</h3>
     <div class="carta scorri"><table><tr><th>Email</th><th>Profilo</th><th>Accessi</th><th>Ultimo</th><th>Crediti usati</th><th></th></tr>
       ${s.utenti.map((u) => `<tr><td>${esc(u.email)}</td><td>${esc(u.profiloNome || "—")}</td><td>${u.accessi || 0}</td><td>${quando(u.ultimo)}</td>
@@ -1725,15 +1743,8 @@ async function statistiche() {
     </table></div>
     <h3 style="margin-top:24px">Registro</h3>
     <div class="carta scorri"><table><tr><th>Quando</th><th>Chi</th><th>Cosa</th><th>Dettagli</th></tr>
-      ${s.eventi.map((e) => { const { quando: q, chi, tipo, ...r } = e; return `<tr><td>${quando(q)}</td><td>${esc(chi)}</td><td>${esc(tipo)}</td><td class="piccolo">${esc(Object.entries(r).map(([k, v]) => k + ": " + (Array.isArray(v) ? v.join(", ") : v)).join(" · ")).slice(0, 300)}</td></tr>`; }).join("")}
+      ${s.eventi.map((e) => { const { quando: q, chi, tipo, ...r } = e; return `<tr><td>${quando(q)}</td><td>${esc(chi)}</td><td>${esc(tipo)}</td><td class="piccolo">${esc(Object.entries(r).map(([k, v]) => k + ": " + (Array.isArray(v) ? v.join(", ") : typeof v === "object" && v ? JSON.stringify(v) : v)).join(" · ")).slice(0, 300)}</td></tr>`; }).join("")}
     </table></div>`;
-  document.getElementById("aggiorna").onclick = statistiche;
-  document.getElementById("scaricaCsv").onclick = scaricaProfiliCsv;
-  document.getElementById("scarica").onclick = () => {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([JSON.stringify({ statistiche: s, profili: S.dati.profili }, null, 2)], { type: "application/json" }));
-    a.download = "squadre-bbs-" + new Date().toISOString().slice(0, 10) + ".json"; a.click();
-  };
 }
 
 // Profili in CSV per Excel: punto e virgola e BOM, cosi' l'Excel italiano

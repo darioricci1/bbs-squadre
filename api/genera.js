@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.10.0
+// VERSION: 1.11.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -25,7 +25,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { esigiAccesso, corpoDi, nuovoId, tutti, uno, scrivi, ultimi, conta, correggi, segna, aziendaPer, creditiDi, chiaveCrediti, CREDITI_BASE, DIECI_ANNI } from "../lib/bbs.js";
 import { lavoriDi, presentazioneDa } from "../lib/lavori.js";
-import { scelteDalCorpo } from "../lib/scelte.js";
+import { scelteDalCorpo, TIPI } from "../lib/scelte.js";
 
 export const config = { maxDuration: 300 };
 
@@ -82,6 +82,7 @@ const CAMPI = {
   rischi: { type: "string" },
   primo_passo: { type: "string" },
   punteggio: { type: "integer" },
+  tipo_startup: { type: "string", enum: TIPI.map(([, t]) => t) },
   fonte_idea: { type: "string", enum: ["trend 5-10 anni", "cosa manca", "bisogno di un founder", "modello estero da adattare", "competenza del team"] },
   differenziazione: { type: "string" },
   scalabilita: { type: "string" },
@@ -116,7 +117,7 @@ const CAMPI = {
   },
 };
 const CAMPI_BREVI = ["titolo", "fascia", "sintesi", "problema", "soluzione", "clienti", "modello", "settore",
-  "perche_noi", "ruoli", "compagni", "punteggio", "fonte_idea", "criteri_startup", "punto_debole"];
+  "perche_noi", "ruoli", "compagni", "punteggio", "tipo_startup", "fonte_idea", "criteri_startup", "punto_debole"];
 const CAMPI_DETTAGLIO = ["differenziazione", "ricavi", "scalabilita", "replicabilita", "sostenibilita",
   "startup_innovativa", "valutazione", "domande_di_partenza", "rischi", "primo_passo", "slide"];
 const oggetto = (campi) => ({ type: "object", additionalProperties: false, required: campi, properties: Object.fromEntries(campi.map((c) => [c, CAMPI[c]])) });
@@ -159,6 +160,7 @@ Il lavoro si fa in due passi e il messaggio dice quale stai facendo.
 
 PASSO 1, PROPOSTA. Esattamente 5 idee in italiano, dalla migliore: le prime 3 con fascia "top" (affini fra loro, pronte per il 1 novembre), le ultime 2 con fascia "riserva" (valide ma piu' deboli o piu' rischiose, anche in ambiti diversi). E' una proposta breve: ogni campo di testo in una o due frasi, senza ripetere in un campo cio' che hai gia' detto in un altro. Scegli le idee pensando gia' alle domande di partenza e ai quattro criteri, anche se i dettagli li scriverai solo al passo 2.
 - "punteggio": il tuo giudizio complessivo da 1 a 10 per questo team.
+- "tipo_startup": che tipo di startup e' (piattaforma o marketplace, software per aziende, app per consumatori, prodotto fisico con tecnologia, servizio tradizionale reso scalabile, deep tech); "fonte_idea": da quale delle strade per trovare idee nasce. Varia i tipi fra le idee quando ha senso.
 - In "ruoli" assegna a ciascuna persona del gruppo un ruolo nel progetto, con il suo id.
 
 PASSO 2, APPROFONDIMENTO. Ricevi una delle idee del passo 1 e scrivi i dettagli, coerenti con quello che l'idea dice gia':
@@ -293,7 +295,10 @@ export default async function handler(req, res) {
   // Le scelte sotto i box: modello di business e la persona sulla cui
   // competenza costruire la startup (se no Claude mette insieme tutte).
   const modelloScelto = ["B2B", "B2C"].includes(corpo.modello) ? corpo.modello : "";
-  const perno = idGruppo.has(String(corpo.perno || "")) ? profili[String(corpo.perno)] : null;
+  // "io": la startup si basa soprattutto sulla mia competenza; "gruppo": su
+  // quelle di tutti insieme; vuoto: decide Claude.
+  const perno = corpo.perno === "io" ? io : idGruppo.has(String(corpo.perno || "")) ? profili[String(corpo.perno)] : null;
+  const tuttoIlGruppo = corpo.perno === "gruppo";
   const { settori, tipo, fonte } = scelteDalCorpo(corpo);
 
   // Nessuno resta fuori: si conta quanto ogni persona e' gia' stata
@@ -328,7 +333,7 @@ export default async function handler(req, res) {
     daMax > 0 ? `\n## Chi e' stato proposto poco finora\nPerche' nessuno resti fuori dalle squadre: in ogni idea l'ULTIMO compagno proposto deve essere una di queste persone, la piu' compatibile con quell'idea (anche se non e' perfetta, trova il ruolo in cui puo' essere utile e scrivilo nel motivo). Sono in ordine: le prime sono state proposte meno volte, a parita' di compatibilita' preferiscile. Varia la persona fra un'idea e l'altra.\n${pocoProposte.map((id) => `- ${id} ${profili[id].nome} (coinvolta finora: ${esposizione[id]} punti)`).join("\n")}` : "",
     note ? `## Indicazioni di chi chiede\n${note}` : "",
     modelloScelto ? `\n## Vincolo sul modello di business\nTutte e 5 le idee devono essere ${modelloScelto === "B2B" ? "B2B (clienti aziende); B2B2C va bene solo se chi paga sono le aziende" : "B2C (clienti consumatori finali); B2B2C va bene solo se il valore arriva al consumatore"}. In "modello" usa ${modelloScelto} o B2B2C.` : "",
-    perno ? `\n## Su chi costruire la startup\nLe idee devono basarsi principalmente sulla competenza e sull'esperienza di ${perno.nome} (${perno.id}): il settore, i clienti o la tecnologia che conosce meglio sono il cuore del progetto, e gli altri completano cio' che manca. In "perche_noi" spiega cosa porta ${perno.nome}.` : (gruppo.length > 1 ? "\n## Su chi costruire la startup\nNessuno in particolare: metti insieme le competenze di tutto il gruppo e cerca le idee dove si combinano meglio." : ""),
+    perno ? `\n## Su chi costruire la startup\nLe idee devono basarsi principalmente sulla competenza e sull'esperienza di ${perno.nome} (${perno.id}): il settore, i clienti o la tecnologia che conosce meglio sono il cuore del progetto, e gli altri completano cio' che manca. In "perche_noi" spiega cosa porta ${perno.nome}.` : tuttoIlGruppo ? `\n## Su chi costruire la startup\nNessuno in particolare: metti insieme le competenze di tutta la squadra${gruppo.length > 1 ? "" : " (tu e i compagni che proponi)"} e cerca le idee dove si combinano meglio.` : "",
     settori.length ? `\n## Settore\nLe idee devono stare ${settori.length === 1 ? "nel settore" : "in uno di questi settori (distribuiscile fra loro, o combinali)"}: ${settori.join("; ")}.` : "",
     tipo ? `\n## Tipo di startup\nTutte le idee devono essere di questo tipo: ${tipo[1]}, cioe' ${tipo[2]}. Tienilo coerente con scalabilita' e replicabilita'.` : "",
     fonte ? `\n## Da dove partire\nParti da questa strada per trovare le idee: ${fonte[1].toLowerCase()}. In "fonte_idea" metti "${fonte[0]}" almeno per le 3 idee top.` : "",
@@ -352,7 +357,7 @@ export default async function handler(req, res) {
   }
 
   const costo = costoDi(risposta.model, risposta.usage);
-  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, scelte: { modello: modelloScelto || "indifferente", perno: perno ? perno.id : null, pernoNome: perno ? perno.nome : null, settori, tipo: tipo ? tipo[1] : null, fonte: fonte ? fonte[1] : null }, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
+  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, scelte: { modello: modelloScelto || "indifferente", perno: perno ? perno.id : null, pernoNome: perno ? perno.nome : null, gruppo: tuttoIlGruppo, settori }, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
   await scrivi("generazioni", g.id, g);
   await segna(chi.email, "generazione", { modo, persone: scelti, titoli: idee.map((i) => i.titolo), usd: costo.usd });
   const perUtente = { ...g, crediti: chi.admin ? null : await creditiDi(chi.email, u) };

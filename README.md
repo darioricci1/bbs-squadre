@@ -25,11 +25,11 @@ Chi usa la piattaforma vede due schede.
   finora (la piu' compatibile fra loro). Comparire in una proposta generata
   vale 1 punto; essere fra i destinatari di una proposta pubblicata con i
   nomi, o nella squadra di un post, vale 3.
-  Sotto i box ci sono scelte facoltative (`lib/scelte.js`): modello di
-  business (B2B, B2C, indifferente), la persona del gruppo sulla cui
-  competenza basare la startup (o tutte insieme), fino a 3 settori (dalla
-  classificazione di Y Combinator), il tipo di startup e da dove partire
-  (dalla lezione di Venezia), piu' un campo di testo libero.
+  Sotto i box ci sono scelte facoltative (`lib/scelte.js`): due cursori
+  (B2B / indifferente / B2C; la mia competenza / decidi tu / tutto il
+  gruppo), il settore da una tendina di 10 voci e un campo di testo libero.
+  Il tipo di startup e la strada da cui nasce l'idea li sceglie Claude e li
+  scrive su ogni idea.
   Una proposta generata si pubblica in due modi: **solo alle persone della
   proposta** (spuntate tutte, se ne tolgono o aggiungono quante si vuole,
   senza obbligo di arrivare a 7 o 8; ognuna vede perche' e' stata proposta)
@@ -42,11 +42,13 @@ Chi usa la piattaforma vede due schede.
   credito**; su ogni idea «Approfondisci» fa scrivere a Claude domande di
   partenza, criteri spiegati e bozza delle slide (compreso nel credito).
   Ognuno ha 10 crediti (`BBS_CREDITI`), l'amministratore ne aggiunge da
-  Statistiche. Il credito si restituisce se la generazione fallisce. Le idee
+  Regia. Il credito si restituisce se la generazione fallisce. Le idee
   si selezionano (da 1 a 5) e si condividono con un clic.
 - **Spunti**: circa 3.500 aziende di Y Combinator (attive o acquisite dal
-  2021, piu' le piu' affermate di sempre) da `public/spunti-yc.json`, con
-  ricerca, settore, zona e periodo. «Usa come spunto» porta l'azienda nelle
+  2021, piu' le piu' affermate di sempre) da `public/spunti-yc.json`, ognuna
+  con una riga in italiano che dice cosa fa (campo `it`, scritto da Claude una
+  volta sola) e i dettagli in inglese a richiesta. Settori come pillole da
+  accendere e spegnere, ricerca, zona e periodo. «Usa come spunto» porta l'azienda nelle
   indicazioni del generatore. Il file viene dalla directory pubblica di YC
   tramite yc-oss/api; si rigenera con lo stesso filtro quando serve.
   Accanto c'e' **TechCrunch**: le ultime notizie su startup, venture e
@@ -75,10 +77,10 @@ Solo per l'amministratore (`AMMINISTRATORI`):
   dubbio stanno in cima, da sistemare a mano, con «Leggi dal sito» che
   riempie la descrizione dalla pagina (senza costi). Si modificano anche le
   descrizioni dei ruoli. Le correzioni vanno nella tabella `siti`.
-- **Regia → Costi e modello**: modello (Opus 5 o Sonnet 5) ed effort delle
-  generazioni, con il costo medio reale di proposta e approfondimento e la
-  proiezione su 500 generazioni.
-- **Statistiche**: coppie che si formano, persone piu' cercate, settori,
+- **Regia**: in alto, sempre aperto, quanto costa ogni generazione (tabella
+  una per una con token e costo di proposta e approfondimenti, medie per
+  modello ed effort, proiezione su 500 generazioni) e la scelta di modello
+  (Opus 5 o Sonnet 5) ed effort. In fondo le statistiche: coppie che si formano, persone piu' cercate, settori,
   B2B/B2C, accessi, crediti per persona (con «+5 crediti»), registro,
   esportazione CSV e JSON.
 - **Importa** (non e' nel menu, si apre da `/#importa`): profili da CSV, JSON
@@ -113,7 +115,7 @@ database.
 | `DATABASE_URL` (o `POSTGRES_URL`) | database Neon; la mette Vercel quando colleghi il database al progetto |
 | `ANTHROPIC_API_KEY` | generazione delle idee |
 | `ANTHROPIC_WORKSPACE_ID` | solo se la chiave non appartiene a un workspace (id `wrkspc_…` dalla console Anthropic) |
-| `AMMINISTRATORI` (o `BBS_AMMINISTRATORI`) | email di chi vede Statistiche e Importa |
+| `AMMINISTRATORI` (o `BBS_AMMINISTRATORI`) | email di chi vede Regia, Aziende e Importa |
 | `BBS_DOMINI`, `BBS_INVITATI` | facoltative: limitano l'accesso a certi domini o a un elenco di email; senza, entra qualunque account Google |
 | `BBS_MODELLO` | facoltativa, modello Claude (predefinito `claude-opus-5`) |
 | `BBS_CREDITI` | facoltativa, crediti di partenza per persona (predefinito 10) |
