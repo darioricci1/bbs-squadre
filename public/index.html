@@ -205,6 +205,10 @@
   .avviso-versione{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:var(--testo,#111);color:#fff;padding:10px 14px;border-radius:12px;display:flex;gap:10px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.3);font-size:14px}
   .velo{position:fixed;inset:0;z-index:20;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 12px}
   .velo > .finestra{margin:auto}
+  .finestra-benvenuto{width:min(440px,100%);text-align:center;padding:26px 22px;display:flex;flex-direction:column;gap:12px}
+  .finestra-benvenuto h2{margin:0 0 6px}
+  .nota-benvenuto{margin:-4px 0 6px;font-size:13px;color:var(--grigio)}
+  .finestra-benvenuto .btn{width:100%;white-space:normal}
   .finestra{background:var(--carta);color:var(--testo);border-radius:16px;padding:20px;width:min(720px,100%);box-shadow:0 20px 60px rgba(0,0,0,.35)}
   .blocco-idea{border:1px solid var(--bordo);border-radius:12px;padding:12px;margin-top:12px}
   body.bloccato{overflow:hidden}
@@ -430,7 +434,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.38.2";
+const VERSION = "2.39.1";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -477,6 +481,7 @@ async function carica() {
 }
 
 function porta() {
+  chiudiBenvenuto();
   // Sessione assente o scaduta: via la pagina Genera (sul telefono coprirebbe
   // l'accesso) e via il menu, che senza accesso resterebbe vuoto.
   if (document.getElementById("veloGenera")) { S.generaAperta = false; document.getElementById("veloGenera").remove(); }
@@ -591,11 +596,27 @@ function memoria(k, v) {
 
 // La home: in alto la bacheca, sotto i motori delle idee.
 // La home e' la bacheca: il sito si apre li'. "Genera idee" e' una finestra
-// che si apre solo dal pulsante in alto a destra della bacheca (o dal menu).
+// che si apre dal pulsante in cima alla bacheca (o dal menu). Al primo
+// ingresso un piccolo popup chiede da dove partire.
 function home(vaiAGenera) {
   $main.innerHTML = `<section id="secBacheca"></section>`;
   bacheca();
   if (vaiAGenera || S.generaAperta) apriGenera();
+  else if (!S.benvenutoVisto && !tour) benvenuto();
+}
+function benvenuto() {
+  S.benvenutoVisto = true;
+  if (document.getElementById("veloBenvenuto")) return;
+  document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloBenvenuto"><div class="finestra finestra-benvenuto" role="dialog" aria-modal="true">
+    <h2>Da dove vuoi partire?</h2>
+    <button class="btn grande primario" data-apri-genera>💡 Genera un'idea con l'AI</button>
+    <p class="nota-benvenuto">Resta tua: in bacheca finisce solo se decidi di pubblicarla.</p>
+    <button class="btn grande" data-chiudi-benvenuto>👀 Do solo un'occhiata alle idee già presenti</button>
+  </div></div>`);
+}
+function chiudiBenvenuto() {
+  const v = document.getElementById("veloBenvenuto");
+  if (v) v.remove();
 }
 function apriGenera() {
   S.generaAperta = true; S.generaVista = true; S.vistaRisultati = false;
@@ -623,12 +644,14 @@ function chiudiGenera() {
   if (tour && !S.tourChiude) setTimeout(tourMostra, 60);
 }
 document.addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-chiudi-benvenuto], [data-apri-genera]") || ev.target.id === "veloBenvenuto") chiudiBenvenuto();
   const cg = ev.target.closest("[data-chiudi-genera]");
   if (cg) { chiudiGenera(); if (cg.hasAttribute("data-vai-bacheca")) S.scheda = "bacheca"; disegna(); window.scrollTo(0, 0); }
   else if (ev.target.closest("[data-apri-genera]")) { apriGenera(); window.scrollTo(0, 0); }
   else if (ev.target.closest("#burger")) document.getElementById("testata").classList.toggle("menu-aperto");
 });
 document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && document.getElementById("veloBenvenuto")) return chiudiBenvenuto();
   if (ev.key === "Escape" && S.generaAperta && document.querySelectorAll(".velo").length === 1 && !document.querySelector("#veloGenera .elenco-persone:not([hidden])")) chiudiGenera();
 });
 function sezione(id) {
@@ -2553,7 +2576,7 @@ function sezioneStatistiche(s) {
     </div>
     <h3 style="margin-top:24px">Persone entrate</h3>
     <div class="carta scorri"><table><tr><th>Email</th><th>Profilo</th><th>Accessi</th><th>Ultimo</th><th>Crediti usati</th><th></th></tr>
-      ${s.utenti.map((u) => `<tr><td>${esc(u.email)}</td><td>${esc(u.profiloNome || "—")}</td><td>${u.accessi || 0}</td><td>${quando(u.ultimo)}</td>
+      ${[...s.utenti].sort((x, y) => (y.crediti?.usati || 0) - (x.crediti?.usati || 0)).map((u) => `<tr><td>${esc(u.email)}</td><td>${esc(u.profiloNome || "—")}</td><td>${u.accessi || 0}</td><td>${quando(u.ultimo)}</td>
         <td>${u.crediti ? `${u.crediti.usati} su ${u.crediti.totale}` : ""}</td>
         <td><button class="btn piccolo" data-crediti="${esc(u.email)}">+5 crediti</button></td></tr>`).join("")}
     </table></div>
