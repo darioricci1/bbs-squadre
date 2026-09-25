@@ -415,7 +415,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.36.3";
+const VERSION = "2.36.4";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -2105,6 +2105,11 @@ async function regia(daCache) {
         ${g.costo ? `<div class="piccolo">${esc(g.costo.modello)} · ${g.costo.input.toLocaleString("it-IT")} token in entrata · ${g.costo.output.toLocaleString("it-IT")} in uscita (ragionamento compreso)</div>` : ""}
         ${g.modo === "gruppo" ? `<div class="piccolo" style="margin-top:4px"><b>Ha scelto:</b> ${esc((g.personeNomi || []).join(", "))}</div>` : ""}
         ${g.note ? `<div class="piccolo"><b>Indicazioni:</b> «${esc(g.note)}»</div>` : ""}
+        ${g.idea ? `<div class="piccolo"><b>La sua idea:</b> «${esc(g.idea)}»</div>` : ""}
+        ${(() => { const c = g.scelte || {}; const v = [c.modello && c.modello !== "indifferente" && "modello " + c.modello,
+            c.gruppo ? "competenze di tutto il gruppo" : c.pernoNome && "basata sulla competenza di " + c.pernoNome,
+            (c.settori || []).length && "settore " + c.settori.join(", ")].filter(Boolean);
+          return `<div class="piccolo"><b>Indicazioni all'AI:</b> ${v.length ? esc(v.join(" · ")) : "nessuna, ha deciso l'AI"}</div>`; })()}
         <table style="margin-top:8px"><tr><th></th><th>Idea</th><th>Settore</th><th>Compagni suggeriti dall'AI</th></tr>
           ${g.idee.map((i) => `<tr><td><span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${esc(i.punteggio)}</span></td>
             <td><b>${esc(i.titolo)}</b><div class="piccolo">${esc(i.sintesi || "")}</div></td>
