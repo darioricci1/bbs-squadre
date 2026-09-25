@@ -51,8 +51,10 @@ Chi usa la piattaforma vede due schede.
 - **Spunti**: circa 3.500 aziende di Y Combinator (attive o acquisite dal
   2021, piu' le piu' affermate di sempre) da `public/spunti-yc.json`, ognuna
   con una riga in italiano che dice cosa fa (campo `it`, scritto da Claude una
-  volta sola) e i dettagli in inglese a richiesta. Settori come pillole da
-  accendere e spegnere, ricerca, zona e periodo. «Usa come spunto» porta l'azienda nelle
+  volta sola) e il link alla sua pagina. Settori come pillole da accendere e
+  spegnere, ricerca, zona e periodo. Le notizie di TechCrunch sono nella stessa
+  lista (una ogni sei card), con l'etichetta della fonte. «Usa come spunto»
+  apre Genera idee con lo spunto gia' scritto in «La tua idea». «Usa come spunto» porta l'azienda nelle
   indicazioni del generatore. Il file viene dalla directory pubblica di YC
   tramite yc-oss/api; si rigenera con lo stesso filtro quando serve.
   Accanto c'e' **TechCrunch**: le ultime notizie su startup, venture e

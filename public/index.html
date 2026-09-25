@@ -143,6 +143,9 @@
   .descr{white-space:pre-wrap}
   .sotto-idea{border-top:1px solid var(--bordo);padding:6px 0}
   .sotto-idea summary{cursor:pointer}
+  .finestra-genera{width:min(1180px,100%);position:relative;padding-top:10px}
+  .chiudi-genera{position:absolute;top:12px;right:12px;z-index:2}
+  .avviso-versione{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;background:var(--testo,#111);color:#fff;padding:10px 14px;border-radius:12px;display:flex;gap:10px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.3);font-size:14px}
   .velo{position:fixed;inset:0;z-index:20;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 12px}
   .finestra{background:var(--carta);color:var(--testo);border-radius:16px;padding:20px;width:min(720px,100%);box-shadow:0 20px 60px rgba(0,0,0,.35)}
   .blocco-idea{border:1px solid var(--bordo);border-radius:12px;padding:12px;margin-top:12px}
@@ -270,6 +273,8 @@
   .linguette{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 0}
   .linguette button{border:1px solid var(--bordo);background:#fff;border-radius:99px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--grigio)}
   .linguette button.attiva{background:var(--accento);border-color:var(--accento);color:#fff}
+  .etichetta.fonte-yc{background:#fff1e8;color:#c2410c}
+  .etichetta.fonte-tc{background:#e8f7ee;color:#067a3a}
   .perche-te{background:var(--accento-chiaro);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
   .motore h3{font-size:18px}
   .percorsi{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 12px;margin:30px 0 12px}
@@ -310,7 +315,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.19.0";
+const VERSION = "2.21.0";
 const $main = document.getElementById("main");
 const S = { linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -418,12 +423,41 @@ function memoria(k, v) {
 }
 
 // La home: in alto la bacheca, sotto i motori delle idee.
+// La home e' la bacheca. "Genera idee" e' una finestra: si apre da sola a
+// ogni apertura del sito (non durante il tutorial) e si riapre dal pulsante
+// in alto a destra della bacheca.
 function home(vaiAGenera) {
-  $main.innerHTML = `<section id="secBacheca"></section><section id="secGenera" class="sezione-genera"></section>`;
-  bacheca(); genera();
-  if (vaiAGenera) document.getElementById("secGenera").scrollIntoView({ behavior: "smooth" });
+  $main.innerHTML = `<section id="secBacheca"></section>`;
+  bacheca();
+  if (vaiAGenera || S.generaAperta || (!S.generaVista && !tour)) apriGenera();
 }
+function apriGenera() {
+  S.generaAperta = true; S.generaVista = true;
+  if (!document.getElementById("veloGenera")) {
+    document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloGenera"><div class="finestra finestra-genera" role="dialog" aria-modal="true">
+      <button class="btn piccolo chiudi-genera" data-chiudi-genera title="Chiudi (Esc)">×</button>
+      <section id="secGenera" class="sezione-genera"></section></div></div>`);
+    document.body.classList.add("bloccato");
+  }
+  genera();
+}
+function chiudiGenera() {
+  S.generaAperta = false;
+  if (S.scheda === "genera") S.scheda = "bacheca";
+  const v = document.getElementById("veloGenera");
+  if (v) v.remove();
+  if (!document.querySelector(".velo")) document.body.classList.remove("bloccato");
+  if (tour) setTimeout(tourMostra, 60);
+}
+document.addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-chiudi-genera]")) chiudiGenera();
+  else if (ev.target.closest("[data-apri-genera]")) apriGenera();
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape" && S.generaAperta && document.querySelectorAll(".velo").length === 1 && !document.querySelector("#veloGenera .elenco-persone:not([hidden])")) chiudiGenera();
+});
 function sezione(id) {
+  if (id === "secGenera" && !document.getElementById(id)) { apriGenera(); return document.getElementById(id); }
   if (!document.getElementById(id)) home(false);
   return document.getElementById(id);
 }
@@ -676,8 +710,7 @@ function genera() {
         </div>
         <label>Settore</label>
         <select id="opzSettore"><option value="">Qualsiasi settore</option>${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<option ${S.opz.settore === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
-        <label>Indicazioni in più <small>(testo libero)</small></label>
-        <textarea id="note" class="note-corta" placeholder="Es. qualcosa che si possa validare in due mesi">${esc(S.note || "")}</textarea>`)}
+`)}
       </div>
       <p class="piccolo" style="margin:16px 0 6px"><b>Pubblica</b>: la tua idea va in bacheca così com'è, con i compagni che hai scelto in squadra, e la vedono tutti. <b>Genera con l'AI</b>: ${nomeGenera.toLowerCase()}, 1 credito.</p>
       <div class="riga pulsanti-gen" style="margin-top:0">
@@ -720,8 +753,8 @@ function genera() {
     try {
       await api("idea", { titolo: titoloIdea(), idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }], visibilita: "tutti",
         membri: R.compagni ? [...S.scelti] : [] });
-      S.miaIdea = ""; S.ideaTitolo = "";
-      S.dati = await api("dati"); disegna();
+      S.miaIdea = ""; S.ideaTitolo = ""; R.idea = false;
+      S.dati = await api("dati"); chiudiGenera(); disegna();
       document.getElementById("secBacheca").scrollIntoView({ behavior: "smooth" });
     } catch (err) { pubb.disabled = false; avvisa("msgGen", err.message, "male"); }
   };
@@ -736,7 +769,7 @@ function genera() {
     document.getElementById("msgGen").scrollIntoView({ behavior: "smooth", block: "center" });
     const paletti = R.paletti ? S.opz : { modello: "", perno: "", settore: "" };
     try {
-      const g = await api("", { modo: persone.length ? "gruppo" : "scopri", persone, note: R.paletti ? S.note || "" : "", idea: conIdea || "",
+      const g = await api("", { modo: persone.length ? "gruppo" : "scopri", persone, note: "", idea: conIdea || "",
         modello: paletti.modello, perno: paletti.perno, settore: paletti.settore }, "/api/genera");
       if (g.crediti) S.dati.io.crediti = g.crediti;
       S.ultima = g;
@@ -969,7 +1002,7 @@ document.addEventListener("click", async (ev) => {
       generazione: gid,
     });
     indici.forEach((n) => S.selezione.delete(gid + "|" + n));
-    S.dati = await api("dati"); disegna();
+    S.dati = await api("dati"); chiudiGenera(); disegna();
     document.getElementById("secBacheca").scrollIntoView({ behavior: "smooth" });
   } catch (e) { b.disabled = false; alert(e.message); }
 });
@@ -1106,8 +1139,8 @@ function bacheca() {
   const lista = tutte;
   const nomi = (ids) => (ids || []).map((id) => (profilo(id) || {}).nome || (id === "esempio" ? "Un compagno (esempio)" : "?"));
   box.innerHTML = `<div class="riga"><div><h2>Bacheca</h2>
-    <p class="sotto">Le idee del master, per tutti o solo per qualche compagno: candidati a quelle degli altri. Per pubblicarne una, parti qui sotto da «Hai un'idea?».</p></div>
-    </div>
+    <p class="sotto">Le idee del master, per tutti o solo per qualche compagno: candidati a quelle che ti interessano.</p></div>
+    <span class="spazio"></span><button class="btn primario grande" data-apri-genera data-tour="apri-genera">${icona("idea")} Genera idee</button></div>
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">${lista.map((i) => {
       const mia = i.autore === io;
       const dentro = (i.membri || []).includes(io) && !(i.proposti || []).includes(io);
@@ -1141,7 +1174,7 @@ function bacheca() {
         ${riservata && (mia || S.dati.io.admin) ? `<details class="piccolo"><summary>Chi la vede${i.motivi && Object.keys(i.motivi).length ? " e perché" : ""}</summary>${(i.destinatari || []).map((id) => `<div><b>${esc((profilo(id) || {}).nome || "?")}</b>${i.motivi && i.motivi[id] ? ": " + esc(i.motivi[id]) : ""}</div>`).join("")}</details>` : ""}
         ${i.esempio ? `<div class="avviso info" style="margin:8px 0 0">È un <b>esempio</b>: lo vedi solo tu, per capire come appare l'idea di un compagno. ${S.dati.io.admin ? `<button class="btn piccolo" data-elimina="${i.id}">Elimina l'esempio</button>` : ""}</div>` : ""}
       </div>`;
-    }).join("") || `<p class="piccolo">Ancora nessuna idea: parti qui sotto, anche da un'idea che hai già.</p>`}</div>`;
+    }).join("") || `<p class="piccolo">Ancora nessuna idea: premi <b>Genera idee</b>, anche per pubblicarne una che hai già.</p>`}</div>`;
 }
 document.addEventListener("click", (ev) => {
   const l = ev.target.closest("[data-linguetta]");
@@ -1449,43 +1482,45 @@ document.addEventListener("click", async (ev) => {
 const FONTI_SPUNTI = [["yc", "Y Combinator"], ["tc", "TechCrunch"]];
 function testaSpunti() {
   return `<h2>Spunti</h2>
-    <p class="sotto">Per trovare idee Claudio Venezia consiglia di guardare cosa fanno le startup della Silicon Valley, su <b>Y Combinator</b> e su <b>TechCrunch</b>. Trova un modello o una notizia che ti incuriosisce e premi <b>Usa come spunto</b>: Claude lo userà per proporti idee adattate al vostro gruppo.</p>
-    <div class="fonti">${FONTI_SPUNTI.map(([k, t]) => `<button data-fonte="${k}" class="${(S.fonteSpunti || "yc") === k ? "attiva" : ""}">${t}</button>`).join("")}</div>`;
+    <p class="sotto">Per trovare idee Claudio Venezia consiglia di guardare cosa fanno le startup della Silicon Valley. Qui ci sono le aziende di <b>Y Combinator</b> e le ultime notizie di <b>TechCrunch</b>: premi <b>Usa come spunto</b> e diventa la tua idea di partenza, da sviluppare con l'AI.</p>`;
 }
-document.addEventListener("click", (ev) => {
-  const b = ev.target.closest("[data-fonte]");
-  if (!b) return;
-  S.fonteSpunti = b.dataset.fonte; spunti();
-});
 async function spunti() {
-  if (S.fonteSpunti === "tc") return spuntiTC();
   if (!S.yc) {
-    $main.innerHTML = testaSpunti() + '<div class="caricamento">Carico le aziende di Y Combinator…</div>';
+    $main.innerHTML = testaSpunti() + '<div class="caricamento">Carico gli spunti…</div>';
     try { S.yc = await (await fetch("/spunti-yc.json")).json(); }
     catch (e) { $main.innerHTML = testaSpunti() + `<div class="avviso male">Non riesco a caricare gli spunti: ${esc(e.message)}</div>`; return; }
-    if (S.fonteSpunti === "tc") return;   // nel frattempo si e' passati a TechCrunch
+    // le notizie sono un di piu': se TechCrunch non risponde, si va avanti senza
+    try { const r = await fetch("/api/spunti-tc"); if (r.ok) S.tc = await r.json(); } catch {}
   }
-  const F = S.filtriSpunti = S.filtriSpunti || { q: "", settori: [], zona: "", periodo: "", top: false, quanti: 60 };
-  const tutte = S.yc.aziende;
+  const F = S.filtriSpunti = S.filtriSpunti || { q: "", settori: [], zona: "", periodo: "", quanti: 60 };
+  const tutte = S.yc.aziende, notizie = (S.tc && S.tc.articoli) || [];
   const parole = senzaAccenti(F.q).split(/\s+/).filter(Boolean);
+  const cerca = (t) => !parole.length || parole.every((w) => new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(senzaAccenti(t)));
   const eAI = (x) => x.t.some((t) => /^(AI|Artificial Intelligence|Generative AI|Machine Learning|AI Assistant)$/.test(t));
   const nelSettore = (x, k) => k === "ai" ? eAI(x) : x.i === k;
-  const lista = tutte.filter((x) => {
+  const aziende = tutte.filter((x) => {
     if (F.settori.length && !F.settori.some((k) => nelSettore(x, k))) return false;
     if (F.zona === "eu" && !x.r.includes("Europe")) return false;
     if (F.zona === "us" && !x.r.some((r) => /America|United States/.test(r))) return false;
     if (F.zona === "remote" && !x.r.includes("Remote")) return false;
     if (F.periodo && !(F.periodo === "top" ? x.top : x.a >= Number(F.periodo))) return false;
-    if (!parole.length) return true;
-    const t = senzaAccenti([x.n, x.it, x.o, x.d, x.i, x.si, SETTORI_YC[x.i], SOTTO_YC[x.si], x.t.join(" ")].join(" "));
-    return parole.every((w) => new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(t));
+    return cerca([x.n, x.it, x.o, x.d, x.i, x.si, SETTORI_YC[x.i], SOTTO_YC[x.si], x.t.join(" ")].join(" "));
   });
-  if (F.periodo === "top") lista.sort((a, b) => (b.ts || 0) - (a.ts || 0));   // le piu' grandi, cioe' le piu' note, per prime
+  if (F.periodo === "top") aziende.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  // le notizie si mescolano alle aziende (una ogni sei), solo senza filtri sui settori
+  const news = F.settori.length || F.zona || F.periodo ? [] : notizie.filter((a) => cerca([a.titolo, a.sintesi, a.categorie.join(" ")].join(" ")));
+  const lista = [];
+  let ia = 0, in_ = 0;
+  while (ia < aziende.length || in_ < news.length) {
+    for (let k = 0; k < 5 && ia < aziende.length; k++) lista.push({ tipo: "yc", x: aziende[ia++] });
+    if (in_ < news.length) lista.push({ tipo: "tc", x: news[in_++] });
+    if (ia >= aziende.length) while (in_ < news.length) lista.push({ tipo: "tc", x: news[in_++] });
+  }
   const conta = (k) => tutte.filter((x) => nelSettore(x, k)).length;
   const sel = (id, opzioni, v) => `<select id="${id}">${opzioni.map(([k, t]) => `<option value="${esc(k)}" ${v === k ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
+  const data = (iso) => new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short" });
   $main.innerHTML = testaSpunti() + `
-    <div class="riga piccolo" style="margin-bottom:12px">Guarda anche la <a href="https://www.ycombinator.com/companies" target="_blank" rel="noopener">directory di Y Combinator</a></div>
-    <div class="gettoni" style="margin-bottom:10px">${[["ai", "Intelligenza artificiale"], ...Object.entries(SETTORI_YC)].map(([k, t]) =>
+    <div class="gettoni" style="margin:10px 0">${[["ai", "Intelligenza artificiale"], ...Object.entries(SETTORI_YC)].map(([k, t]) =>
       `<button class="gettone ${F.settori.includes(k) ? "attivo" : ""}" data-sp-settore="${esc(k)}">${esc(t)} <span class="conta-gettone">${conta(k).toLocaleString("it-IT")}</span></button>`).join("")}
       ${F.settori.length ? '<button class="gettone" data-sp-settore="">× togli i filtri</button>' : ""}</div>
     <div class="filtri-spunti">
@@ -1493,17 +1528,20 @@ async function spunti() {
       ${sel("spZona", [["", "Tutto il mondo"], ["eu", "Europa"], ["us", "Stati Uniti e Canada"], ["remote", "Da remoto"]], F.zona)}
       ${sel("spPeriodo", [["", "Tutti gli anni"], ["2025", "Dal 2025"], ["2023", "Dal 2023"], ["top", "Le più affermate (Airbnb, Stripe…)"]], F.periodo)}
     </div>
-    <p class="piccolo">${lista.length.toLocaleString("it-IT")} aziende${lista.length > F.quanti ? `, ne vedi ${F.quanti}` : ""} · fonte: ${esc(S.yc.fonte)}, aggiornata al ${esc(S.yc.aggiornato)}</p>
-    <div class="griglia">${lista.slice(0, F.quanti).map((x) => `<div class="carta spunto">
-      <div class="riga"><b>${esc(x.n)}</b>${x.top ? '<span class="etichetta verde">top</span>' : ""}${x.st === "Acquired" ? '<span class="etichetta ambra">acquisita</span>' : ""}<span class="spazio"></span><span class="piccolo">${esc(x.b)}</span></div>
+    <p class="piccolo">${aziende.length.toLocaleString("it-IT")} aziende${news.length ? ` e ${news.length} notizie` : ""}${lista.length > F.quanti ? `, ne vedi ${F.quanti}` : ""}</p>
+    <div class="griglia">${lista.slice(0, F.quanti).map(({ tipo, x }) => tipo === "yc" ? `<div class="carta spunto">
+      <div class="riga"><b>${esc(x.n)}</b>${x.top ? '<span class="etichetta verde">top</span>' : ""}<span class="spazio"></span><span class="piccolo">${esc(x.b)}</span></div>
       <div class="spunto-uno">${esc(x.it || x.o)}</div>
-      <div>${[SETTORI_YC[x.i] || x.i, SOTTO_YC[x.si] || x.si].filter(Boolean).filter((v, n, a) => a.indexOf(v) === n).map((t) => `<span class="etichetta grigia">${esc(t)}</span>`).join("")}${eAI(x) ? '<span class="etichetta">AI</span>' : ""}</div>
-      <details class="piccolo"><summary>Dettagli (in inglese)</summary>
-        <p style="margin:6px 0"><b>${esc(x.o)}</b></p>${x.d ? `<p style="margin:6px 0">${esc(x.d)}</p>` : ""}
-        <div>${x.l ? esc(x.l) + " · " : ""}${x.w ? `<a href="${esc(x.w)}" target="_blank" rel="noopener">sito</a> · ` : ""}<a href="https://www.ycombinator.com/companies/${esc(x.s)}" target="_blank" rel="noopener">scheda YC</a></div></details>
-      <div class="riga" style="margin-top:auto"><span class="spazio"></span><button class="btn piccolo primario" data-spunto="${tutte.indexOf(x)}">Usa come spunto</button></div>
-    </div>`).join("") || '<p class="piccolo">Nessuna azienda con questi filtri.</p>'}</div>
-    ${lista.length > F.quanti ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="spAltri">Mostra altre</button></div>` : ""}`;
+      <div><span class="etichetta fonte-yc">Y Combinator</span>${[SETTORI_YC[x.i] || x.i].filter(Boolean).map((t) => `<span class="etichetta grigia">${esc(t)}</span>`).join("")}${eAI(x) ? '<span class="etichetta">AI</span>' : ""}${x.st === "Acquired" ? '<span class="etichetta ambra">acquisita</span>' : ""}</div>
+      <div class="riga piccolo" style="margin-top:auto"><a href="https://www.ycombinator.com/companies/${esc(x.s)}" target="_blank" rel="noopener">Pagina su Y Combinator ↗</a>
+        <span class="spazio"></span><button class="btn piccolo primario" data-spunto="${tutte.indexOf(x)}">Usa come spunto</button></div>
+    </div>` : `<div class="carta spunto">
+      <div class="riga"><b>${esc(x.titolo)}</b><span class="spazio"></span><span class="piccolo">${esc(data(x.data))}</span></div>
+      <div><span class="etichetta fonte-tc">TechCrunch</span><span class="etichetta grigia">notizia</span></div>
+      <div class="riga piccolo" style="margin-top:auto"><a href="${esc(x.link)}" target="_blank" rel="noopener">Leggi l'articolo ↗</a>
+        <span class="spazio"></span><button class="btn piccolo primario" data-spunto-tc="${notizie.indexOf(x)}">Usa come spunto</button></div>
+    </div>`).join("") || '<p class="piccolo">Niente con questi filtri.</p>'}</div>
+    ${lista.length > F.quanti ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="spAltri">Mostra altri</button></div>` : ""}`;
   const q = document.getElementById("spQ");
   q.oninput = () => { F.q = q.value; F.quanti = 60; clearTimeout(S.tSp); S.tSp = setTimeout(() => { const pos = q.selectionStart; spunti().then(() => { const n = document.getElementById("spQ"); n.focus(); n.setSelectionRange(pos, pos); }); }, 250); };
   [["spZona", "zona"], ["spPeriodo", "periodo"]].forEach(([id, k]) => {
@@ -1511,6 +1549,13 @@ async function spunti() {
   });
   const altri = document.getElementById("spAltri");
   if (altri) altri.onclick = () => { F.quanti += 60; const y = window.scrollY; spunti().then(() => window.scrollTo(0, y)); };
+}
+// Lo spunto diventa l'idea di partenza: si apre "Genera idee" con il campo
+// "La tua idea" gia' scritto.
+function usaSpunto(testo) {
+  S.miaIdea = testo; S.ideaTitolo = ""; S.risposte.idea = true;
+  S.scheda = "bacheca"; disegna(); apriGenera();
+  setTimeout(() => { const n = document.getElementById("miaIdea"); if (n) { n.focus(); n.classList.add("evidenzia"); } }, 200);
 }
 // Settori di Y Combinator in italiano: pillole che si accendono e spengono.
 const SETTORI_YC = { "B2B": "Servizi e software per aziende", "Fintech": "Fintech", "Healthcare": "Salute", "Industrials": "Industria",
@@ -1539,68 +1584,17 @@ document.addEventListener("click", (ev) => {
   F.quanti = 60;
   const y = window.scrollY; spunti().then(() => window.scrollTo(0, y));
 });
-async function spuntiTC() {
-  if (!S.tc) {
-    $main.innerHTML = testaSpunti() + '<div class="caricamento">Carico le ultime notizie di TechCrunch…</div>';
-    try {
-      const r = await fetch("/api/spunti-tc");
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "HTTP " + r.status);
-      S.tc = d;
-    } catch (e) { if (S.fonteSpunti === "tc") $main.innerHTML = testaSpunti() + `<div class="avviso male">Non riesco a caricare TechCrunch: ${esc(e.message)}</div>`; return; }
-    if (S.fonteSpunti !== "tc") return;
-  }
-  const F = S.filtriTC = S.filtriTC || { q: "", cat: "", quanti: 40 };
-  const tutti = S.tc.articoli;
-  const conteggio = {};
-  tutti.forEach((a) => a.categorie.forEach((c) => { conteggio[c] = (conteggio[c] || 0) + 1; }));
-  const categorie = Object.keys(conteggio).filter((c) => conteggio[c] >= 2).sort((a, b) => conteggio[b] - conteggio[a] || a.localeCompare(b));
-  const parole = senzaAccenti(F.q).split(/\s+/).filter(Boolean);
-  const lista = tutti.filter((a) => {
-    if (F.cat && !a.categorie.includes(F.cat)) return false;
-    if (!parole.length) return true;
-    const t = senzaAccenti([a.titolo, a.sintesi, a.categorie.join(" ")].join(" "));
-    return parole.every((w) => new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(t));
-  });
-  const data = (iso) => new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short", year: "numeric" });
-  $main.innerHTML = testaSpunti() + `
-    <div class="riga piccolo" style="margin-bottom:12px">Guarda anche <a href="https://techcrunch.com/category/startups/" target="_blank" rel="noopener">TechCrunch Startups</a> e <a href="https://techcrunch.com/category/venture/" target="_blank" rel="noopener">Venture</a></div>
-    <div class="filtri-spunti due">
-      <input type="search" id="tcQ" placeholder="Cerca in inglese: raises, seed, AI, climate, fintech…" value="${esc(F.q)}">
-      <select id="tcCat"><option value="">Tutti i temi</option>${categorie.map((c) => `<option value="${esc(c)}" ${F.cat === c ? "selected" : ""}>${esc(c)} (${conteggio[c]})</option>`).join("")}</select>
-    </div>
-    <p class="piccolo">${lista.length} articoli${lista.length > F.quanti ? `, ne vedi ${F.quanti}` : ""} · fonte: ${esc(S.tc.fonte)}, aggiornata ${esc(new Date(S.tc.aggiornato).toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}</p>
-    <div class="articoli">${lista.slice(0, F.quanti).map((a) => `<div class="carta articolo spunto">
-      <div class="riga"><b>${esc(a.titolo)}</b><span class="spazio"></span><span class="piccolo">${esc(data(a.data))}</span></div>
-      ${a.sintesi ? `<div class="sintesi">${esc(a.sintesi)}</div>` : ""}
-      <div>${a.categorie.map((c) => `<span class="etichetta grigia">${esc(c)}</span>`).join("")}</div>
-      <div class="riga piccolo">${a.autore ? esc(a.autore) + " · " : ""}<a href="${esc(a.link)}" target="_blank" rel="noopener">leggi su TechCrunch</a>
-        <span class="spazio"></span><button class="btn piccolo primario" data-spunto-tc="${tutti.indexOf(a)}">Usa come spunto</button></div>
-    </div>`).join("") || '<p class="piccolo">Nessun articolo con questi filtri.</p>'}</div>
-    ${lista.length > F.quanti ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="tcAltri">Mostra altri</button></div>` : ""}`;
-  const q = document.getElementById("tcQ");
-  q.oninput = () => { F.q = q.value; F.quanti = 40; clearTimeout(S.tSp); S.tSp = setTimeout(() => { const pos = q.selectionStart; spuntiTC().then(() => { const n = document.getElementById("tcQ"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }); }, 250); };
-  document.getElementById("tcCat").onchange = (e) => { F.cat = e.target.value; F.quanti = 40; spuntiTC(); };
-  const altri = document.getElementById("tcAltri");
-  if (altri) altri.onclick = () => { F.quanti += 40; const y = window.scrollY; spuntiTC().then(() => window.scrollTo(0, y)); };
-}
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-spunto-tc]");
   if (!b || !S.tc) return;
   const a = S.tc.articoli[Number(b.dataset.spuntoTc)];
-  S.note = `Spunto da TechCrunch: "${a.titolo}" (${a.link}). ${a.sintesi || ""} Parti da questa notizia: quale bisogno o tendenza rivela? Proponi idee che la adattino al nostro gruppo e al mercato italiano o europeo.`.trim();
-  S.risposte.paletti = true;   // lo spunto va nelle indicazioni, che stanno nei paletti
-  S.scheda = "genera"; disegna();
-  setTimeout(() => { const n = document.getElementById("note"); if (n) { n.scrollIntoView({ block: "center" }); n.classList.add("evidenzia"); } }, 350);
+  usaSpunto(`Spunto dalla notizia di TechCrunch "${a.titolo}" (${a.link}): quale bisogno rivela, e come potremmo rispondere in Italia o in Europa?`);
 });
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-spunto]");
   if (!b || !S.yc) return;
   const x = S.yc.aziende[Number(b.dataset.spunto)];
-  S.note = `Spunto da Y Combinator: ${x.n} (${x.b}): ${(x.it || x.o).replace(/\.$/, "")}. In inglese: ${x.o.replace(/\.$/, "")}. ${x.d || ""} Proponi idee che adattino questo modello al nostro gruppo e al mercato italiano o europeo.`.trim();
-  S.risposte.paletti = true;   // lo spunto va nelle indicazioni, che stanno nei paletti
-  S.scheda = "genera"; disegna();
-  setTimeout(() => { const n = document.getElementById("note"); if (n) { n.scrollIntoView({ block: "center" }); n.classList.add("evidenzia"); } }, 350);
+  usaSpunto(`Come ${x.n} (Y Combinator, ${x.b}): ${(x.it || x.o).replace(/\.$/, "")}. Adattato al mercato italiano o europeo.`);
 });
 
 // ---------------------------------------------------------------- regia (admin)
@@ -1851,9 +1845,8 @@ const TOUR = [
   { sel: '[data-tour="linkedin"] h3', testo: "Qui ci sono i tuoi <b>dati LinkedIn</b>, caricati da noi: dai un'occhiata che siano giusti. Se mancano, li prendi dal PDF del tuo profilo." },
   { sel: '#passioni', testo: "Poi aggiungi <b>passioni, settori e preferenze</b>: servono all'AI per proporti le idee giuste e i compagni adatti. Alla fine ricordati <b>Salva profilo</b>." },
   { sel: '[data-scheda="bacheca"]', azione: true, testo: "Ora andiamo alla home: <b>clicca «Bacheca»</b>." },
-  { sel: '[data-tour="percorsi"]', testo: "Qui generi le idee con l'AI, rispondendo a tre domande: <b>hai un'idea?</b> <b>hai compagni?</b> <b>vuoi dare più indicazioni?</b> Poi premi Genera. Le squadre sono di <b>7 o 8</b>." },
+  { sel: '[data-tour="apri-genera"]', testo: "Qui si generano le idee: il pulsante apre una finestra con tre domande (<b>hai un'idea?</b> <b>hai compagni?</b> <b>vuoi dare più indicazioni?</b>). Si apre anche da sola ogni volta che entri. Ogni generazione costa <b>1 credito</b>." },
   { sel: '[data-scheda="spunti"]', testo: "Cerchi ispirazione? Nella scheda <b>Spunti</b> ci sono migliaia di startup di Y Combinator e le ultime notizie di TechCrunch: con <b>Usa come spunto</b> l'AI parte da lì per le tue idee." },
-  { sel: '[data-tour="crediti"]', testo: "Ogni generazione costa <b>1 credito</b>. Usali con calma: prima completa il profilo, le idee vengono meglio." },
   { testo: "<b>Fatto!</b> Quando l'AI ti propone le idee, selezionane da 1 a 5 e premi <b>Condividi</b>.<br>Il tutorial lo ritrovi dal pulsante <b>?</b> in alto." },
 ];
 let tour = null;
@@ -1911,6 +1904,20 @@ document.addEventListener("click", (ev) => {
 function tourSePrimaVolta() {
   if (!tour && S.dati.io.profilo && !memoria("bbs-tutorial-" + S.dati.io.email)) setTimeout(tourAvvia, 400);
 }
+
+// ---------------------------------------------------------------- nuova versione
+// Se nel frattempo e' uscita una versione nuova del sito, un avviso in basso
+// propone di ricaricare (cosi' nessuno resta con la pagina vecchia).
+async function controllaVersione() {
+  if (document.getElementById("avvisoVersione")) return;
+  try {
+    const t = await (await fetch("/?v=" + Date.now(), { cache: "no-store" })).text();
+    const m = t.match(/const VERSION = "([^"]+)"/);
+    if (m && m[1] !== VERSION) document.body.insertAdjacentHTML("beforeend", `<div id="avvisoVersione" class="avviso-versione">È uscita una nuova versione del sito. <button class="btn piccolo primario" onclick="location.reload()">Aggiorna</button></div>`);
+  } catch {}
+}
+setInterval(controllaVersione, 120000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") controllaVersione(); });
 
 // ---------------------------------------------------------------- statistiche (admin)
 // Le statistiche, in fondo alla Regia.
