@@ -438,7 +438,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.40.1";
+const VERSION = "2.40.2";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -932,9 +932,7 @@ function genera() {
     ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano in fondo alla bacheca; se te ne servono altri, chiedi a Dario.</div>' : ""}
     <div class="carta percorso-gen" data-tour="percorsi"><div class="domande-riga">
       ${domanda("idea", "idea", "Hai un problema da risolvere?", "Rispondi Sì per scriverlo: basta il problema, la soluzione può essere solo un'intuizione o la cerca l'AI.", `
-        <label style="margin-top:0">Titolo</label>
-        <input type="text" id="ideaTitolo" value="${esc(S.ideaTitolo || "")}" placeholder="Es. L'invenduto dei campi nei ristoranti">
-        <label>Il problema che vuoi risolvere</label>
+        <label style="margin-top:0">Il problema che vuoi risolvere</label>
         <textarea id="ideaProblema" placeholder="Chi ha il problema? Perché oggi è un problema?">${esc(S.ideaProblema || "")}</textarea>
         <label>La tua soluzione <small>(anche solo un'intuizione)</small></label>
         <textarea id="miaIdea" placeholder="Se non ce l'hai lascia vuoto: la cerca l'AI">${esc(S.miaIdea || "")}</textarea>
@@ -981,7 +979,12 @@ function genera() {
   su("note", "note"); su("miaIdea", "miaIdea"); su("ideaTitolo", "ideaTitolo"); su("ideaProblema", "ideaProblema");
   // I campi si rileggono al clic: cosi' vale sempre quello che si vede.
   const leggi = () => [["miaIdea", "miaIdea"], ["ideaTitolo", "ideaTitolo"], ["ideaProblema", "ideaProblema"], ["note", "note"]].forEach(([id, k]) => { const el = document.getElementById(id); if (el) S[k] = el.value; });
-  const titoloIdea = () => (S.ideaTitolo || "").trim() || ((S.miaIdea || "").trim() || (S.ideaProblema || "").trim()).split(/[.\n]/)[0].slice(0, 80);
+  // Il titolo non si chiede: e' la prima frase della soluzione (o del
+  // problema), tagliata su una parola; poi si cambia con la pennina.
+  const titoloIdea = () => {
+    const f = (S.ideaTitolo || "").trim() || ((S.miaIdea || "").trim() || (S.ideaProblema || "").trim()).split(/[.\n]/)[0].trim();
+    return f.length <= 80 ? f : f.slice(0, 80).replace(/\s+\S*$/, "") + "…";
+  };
   const pubb = box.querySelector("[data-pubblica-idea]");
   // Pubblica subito in bacheca, per tutti.
   if (pubb) pubb.onclick = async (e) => {
