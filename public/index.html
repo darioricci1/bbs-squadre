@@ -344,7 +344,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.26.0";
+const VERSION = "2.26.1";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -700,6 +700,10 @@ document.addEventListener("click", (ev) => {
   if (tour) setTimeout(tourMostra, 30);
 });
 
+// Pubblica: senza compagni l'idea la vedono tutti, con i compagni solo loro.
+const testoPubblica = () => S.scelti.size
+  ? `<b>Pubblica</b>: l'idea sarà condivisa solo con i compagni che hai scelto (${S.scelti.size}), che la trovano in bacheca con te in squadra.`
+  : `<b>Pubblica</b>: la tua idea va in bacheca così com'è e la vedono tutti.`;
 function genera() {
   const box = sezione("secGenera");
   const io = mio();
@@ -743,7 +747,7 @@ function genera() {
         <select id="opzSettore"><option value="">Qualsiasi settore</option>${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<option ${S.opz.settore === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
 `)}
       </div>
-      <p class="piccolo" style="margin:16px 0 6px"><b>Pubblica</b>: la tua idea va in bacheca così com'è, con i compagni che hai scelto in squadra, e la vedono tutti. <b>Sviluppa con l'AI</b>: l'AI parte da quello che hai scritto (o da zero, se hai lasciato tutto vuoto) e propone cinque idee con la squadra, 1 credito.</p>
+      <p class="piccolo" style="margin:16px 0 6px"><span id="spiegaPubblica">${testoPubblica()}</span> <b>Sviluppa con l'AI</b>: l'AI parte da quello che hai scritto (o da zero, se hai lasciato tutto vuoto) e propone cinque idee con la squadra, 1 credito.</p>
       <div class="riga pulsanti-gen" style="margin-top:0">
         <button class="btn primario grande" data-pubblica-idea>Pubblica l'idea in bacheca</button>
         <button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} Sviluppa con l'AI</button></div>
@@ -752,6 +756,7 @@ function genera() {
     <div id="risultati"></div>
 `;
   const contaGruppo = () => {
+    const sp = document.getElementById("spiegaPubblica"); if (sp) sp.innerHTML = testoPubblica();
     const n = S.scelti.size + 1, el = document.getElementById("contaGruppo");
     if (el) el.innerHTML = !S.scelti.size ? "" : n >= 7
       ? `Squadra di <b>${n}</b>: completa.`
@@ -779,8 +784,9 @@ function genera() {
     }
     pubb.disabled = true;
     try {
-      await api("idea", { titolo: titoloIdea(), idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }], visibilita: "tutti",
-        membri: [...S.scelti] });
+      const scelti = [...S.scelti];
+      await api("idea", { titolo: titoloIdea(), idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }],
+        visibilita: scelti.length ? "scelti" : "tutti", destinatari: scelti, membri: scelti });
       S.miaIdea = ""; S.ideaTitolo = "";
       S.dati = await api("dati"); chiudiGenera(); disegna();
       document.getElementById("secBacheca").scrollIntoView({ behavior: "smooth" });
