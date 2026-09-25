@@ -429,7 +429,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.37.5";
+const VERSION = "2.37.6";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1585,6 +1585,7 @@ function bacheca() {
       return `<div class="carta idea ${mia ? "mia" : "altrui"} ${riservata ? "riservata" : ""}" data-post="${i.id}">
         <div class="riga" style="flex-wrap:nowrap"><span class="piccolo testa-post">di <b>${esc((profilo(i.autore) || {}).nome || i.autoreNome)}</b> · ${quando(i.creata)}</span><span class="spazio"></span>
           ${i.esempio ? `<span class="etichetta ambra">esempio</span>` : ""}${proposto ? `<span class="etichetta verde">proposto a te</span>` : ""}
+          ${riservata && !mia && !i.esempio && S.dati.io.admin && !(i.destinatari || []).includes(io) && !(i.membri || []).includes(io) ? `<span class="etichetta grigia" title="È privata: la vedi solo perché sei amministratore">la vedi da admin</span>` : ""}
           ${riservata ? `<span class="piccolo" title="${mia || S.dati.io.admin ? "Visibile solo a: " + esc(nomi(i.destinatari).join(", ")) : "Condivisa con te"}">🔒</span>` : ""}</div>
         ${idee.length > 1 ? `<div class="puntini">${idee.map((y, k) => `<button class="${k === n ? "attivo" : ""}" data-puntino="${i.id}|${k}" aria-label="Idea ${k + 1}"></button>`).join("")}</div>` : ""}
         <div class="scorri-idee" data-scorri="${i.id}">${idee.map((x, k) => {
