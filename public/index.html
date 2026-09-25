@@ -191,6 +191,9 @@
     header.menu-aperto nav{display:flex !important;flex-direction:column;align-items:stretch;order:4;flex:0 0 100%;margin:4px 0 0;padding:6px 0;border-top:1px solid var(--bordo)}
     header.menu-aperto nav button{text-align:left;padding:12px 10px;font-size:16px}
     header.menu-aperto nav .solo-stretto{display:block}
+    .chi{display:none !important}
+    .menu-sotto{border-top:1px solid var(--bordo);margin-top:6px;padding-top:6px}
+    .menu-sotto button{display:block;width:100%;text-align:left;background:none;border:0;padding:12px 10px;font:inherit;font-size:16px;color:var(--grigio);cursor:pointer}
     body.genera-pagina main{display:none}
     body.genera-pagina.bloccato{overflow:auto}
     body.genera-pagina #veloGenera{position:static;background:none;padding:0;display:block;overflow:visible;z-index:auto}
@@ -394,7 +397,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.31.2";
+const VERSION = "2.31.3";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -471,10 +474,15 @@ function disegna() {
   const schede = SCHEDE.concat(d.io.admin ? SCHEDE_ADMIN : []);
   const attiva = (k) => S.scheda === k || (k === "bacheca" && ["genera", "persone"].includes(S.scheda));
   document.getElementById("nav").innerHTML = `<button data-apri-genera class="solo-stretto ${S.generaAperta ? "attivo" : ""}">Genera idee</button>` + schede.map(([k, t]) =>
-    `<button data-scheda="${k}" class="${attiva(k) && !S.generaAperta ? "attivo" : ""}">${t}</button>`).join("");
+    `<button data-scheda="${k}" class="${attiva(k) && !S.generaAperta ? "attivo" : ""}">${t}</button>`).join("") +
+    // sul telefono il menu ☰ contiene anche i pulsanti di destra
+    `<div class="menu-sotto solo-stretto">
+      <button data-clic="aiuto">Come funziona</button>
+      ${d.io.adminVero ? `<button data-clic="modoUtente">${d.io.admin ? "Vedi come utente" : "Torna amministratore"}</button>` : ""}
+      <button data-clic="esci">Esci <span class="piccolo">${esc(d.io.email)}</span></button></div>`;
   document.getElementById("chi").innerHTML = `
     ${d.io.adminVero ? `<button class="btn piccolo" id="modoUtente" title="Usa la piattaforma come un collega qualsiasi">${d.io.admin ? `<span class="solo-largo">Vedi come </span>utente` : `<span class="solo-largo">Torna </span>admin`}</button>` : ""}
-    <button class="btn piccolo" id="aiuto" title="Rivedi il tutorial">?</button>
+    <button class="btn piccolo" id="aiuto" title="Il tutorial">Come funziona</button>
     <span class="solo-largo">${esc(d.io.email)}</span><button class="btn piccolo" id="esci">Esci</button>`;
   const viste = { bacheca: () => home(false), genera: () => home(true), persone, spunti, profilo: schedaProfilo, regia, aziende, statistiche: regia, importa };
   (viste[S.scheda] || viste.bacheca)();
@@ -491,6 +499,8 @@ document.addEventListener("click", async (ev) => {
     if (S.generaAperta) chiudiGenera();
     S.scheda = b.dataset.scheda; disegna(); if (S.scheda !== "genera") window.scrollTo(0, 0);
   }
+  const mc = ev.target.closest("[data-clic]");
+  if (mc) { document.getElementById("testata").classList.remove("menu-aperto"); const t = document.getElementById(mc.dataset.clic); if (t) t.click(); return; }
   if (ev.target.id === "esci") api("esci", {}).then(porta);
   if (ev.target.id === "aiuto") tourAvvia();
   if (ev.target.closest("#modoUtente") || ev.target.closest("[data-torna-admin]")) {
@@ -2157,7 +2167,7 @@ const TOUR = [
   { sel: '.precedenti', testo: "In fondo alla bacheca, in <b>Le tue idee</b>, ritrovi tutte le proposte che l'AI ha scritto per te, anche quelle salvate per dopo." },
   { sel: '[data-scheda="spunti"]', testo: "Cerchi ispirazione? In <b>Spunti</b> ci sono migliaia di startup e le ultime notizie: con <b>Usa come spunto</b> l'AI parte da lì." },
   { sel: '[data-scheda="profilo"]', testo: "Per ultimo il tuo <b>profilo</b>: controlla i dati LinkedIn e aggiungi passioni e settori. Più è completo, più le idee e i compagni che propone l'AI sono giusti." },
-  { testo: "<b>Fatto!</b> Il tutorial lo ritrovi quando vuoi dal pulsante <b>?</b> in alto." },
+  { testo: "<b>Fatto!</b> Il tutorial lo ritrovi quando vuoi da <b>Come funziona</b> (sul telefono è nel menu ☰)." },
 ];
 let tour = null;
 function tourAvvia() {
