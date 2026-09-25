@@ -398,7 +398,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.31.6";
+const VERSION = "2.31.7";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -780,7 +780,7 @@ function mostraCucina() {
     <div class="padella">🍳</div>
     <div class="frase-cucina" id="fraseCucina">${FRASI_CUCINA[0]}</div>
     <div class="barra-cucina"><span></span></div>
-    <div class="piccolo">Di solito ci vuole meno di un minuto.</div></div>`);
+    <div class="piccolo">Di solito ci vuole meno di un minuto. Tieni aperta questa pagina e lo schermo acceso.</div></div>`);
   let k = 0;
   if (FRASI_CUCINA.length > 1) S.timerCucina = setInterval(() => {
     const el = document.getElementById("fraseCucina");
@@ -886,14 +886,35 @@ function genera() {
     const persone = [...S.scelti];
     S.generando = true; genera(); mostraCucina();
     const paletti = S.opz;
+    const prima = new Set(S.dati.generazioni.map((x) => x.id));
+    const mostra = (g) => {
+      S.ultima = g;
+      if (!S.dati.generazioni.some((x) => x.id === g.id)) S.dati.generazioni.unshift(g);
+      togliCucina(); S.generando = false; S.vistaRisultati = true; genera();
+    };
     try {
       const g = await api("", { modo: persone.length ? "gruppo" : "scopri", persone, note: "", idea: conIdea || "",
         modello: paletti.modello, perno: paletti.perno, settore: paletti.settore }, "/api/genera");
       if (g.crediti) S.dati.io.crediti = g.crediti;
-      S.ultima = g;
-      S.dati.generazioni.unshift(g);
-      togliCucina(); S.generando = false; S.vistaRisultati = true; genera();
+      mostra(g);
     } catch (e) {
+      // Connessione caduta (schermo spento, cambio app, rete): il server di
+      // solito finisce lo stesso e salva la generazione. La si va a cercare.
+      if (!e.stato || e.stato >= 500) {
+        const fr = document.getElementById("fraseCucina");
+        if (fr) fr.textContent = "La connessione si è interrotta: controllo se l'AI ha finito lo stesso…";
+        for (let t = 0; t < 36; t++) {
+          await new Promise((r) => setTimeout(r, 5000));
+          try {
+            const d = await api("dati");
+            const nuova = d.generazioni.find((x) => !prima.has(x.id));
+            if (nuova) { S.dati = d; return mostra(nuova); }
+          } catch {}
+        }
+        togliCucina(); S.generando = false; genera();
+        avvisa("msgGen", "La connessione si è interrotta prima che l'AI finisse. Tieni la pagina aperta e lo schermo acceso mentre lavora, poi riprova.", "male");
+        return;
+      }
       togliCucina(); S.generando = false; genera(); avvisa("msgGen", e.message, "male");
       try { S.dati = await api("dati"); } catch {}
     }
