@@ -358,7 +358,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.29.1";
+const VERSION = "2.29.2";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1296,7 +1296,7 @@ function bacheca() {
         </div>
       </div>`;
     }).join("") || `<p class="piccolo">Ancora nessuna idea: premi <b>Genera idee</b>, anche per pubblicarne una che hai già.</p>`}</div>
-    ${S.dati.generazioni.length ? `<details class="precedenti"><summary>Le tue generazioni precedenti (${S.dati.generazioni.length})</summary>
+    ${S.dati.generazioni.length ? `<details class="precedenti"><summary>Le tue idee (${S.dati.generazioni.length})</summary>
       ${S.dati.generazioni.map((g) => `<details class="carta" style="margin-bottom:8px" data-gen="${g.id}"><summary>${quando(g.quando)} · ${g.modo === "gruppo" ? "con " + esc((g.persone || []).map((id) => (profilo(id) || {}).nome).join(", ")) : "idee per me"}${g.idea ? " · dalla mia idea" : ""} · ${g.idee.length} ${g.idee.length === 1 ? "idea" : "idee"}</summary><div></div></details>`).join("")}</details>` : ""}`;
   // Dopo un ridisegno ogni card torna sull'idea che stavi guardando.
   box.querySelectorAll("[data-scorri]").forEach((t) => { const k = S.linguette[t.dataset.scorri]; if (k) t.scrollLeft = k * t.clientWidth; });

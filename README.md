@@ -22,8 +22,10 @@ Chi usa la piattaforma vede due schede.
   anche pubblicare cosi' com'e'), **hai compagni con cui la vorresti
   sviluppare?**, **vuoi dare piu' indicazioni all'AI?** (cursori e settore).
   Poi «Sviluppa con l'AI»: la finestra mostra solo le proposte, con un
-  pulsante per tornare alle domande. Le generazioni precedenti sono in fondo
-  alla bacheca, chiuse a tendina.
+  pulsante «Genera nuova idea» per tornare ai campi. Si condivide con tutto
+  l'EMBA o con la squadra, oppure si salva per dopo: ogni generazione resta
+  in fondo alla bacheca, in «Le tue idee», chiusa a tendina. Mentre l'AI
+  lavora c'e' un caricamento in sovrimpressione con frasi scherzose.
   Le squadre sono di 7 o 8: l'AI completa quelle piu' piccole, con una
   riga di motivo per ogni persona proposta. La squadra e' una sola per
   tutte le cinque proposte della stessa generazione. I risultati stanno in
