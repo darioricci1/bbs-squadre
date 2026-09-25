@@ -199,3 +199,7 @@ quell'account; altrimenti crea un utente `link-<id profilo>@squadre-bbs.link`.
 La sessione che apre dura 400 giorni (il massimo che i browser tengono) e a
 ogni richiesta si ricontrolla che il link valga ancora: con un link nuovo si
 chiude subito.
+
+Sotto, «Link attivi» elenca chi ha un link, con la data e un pulsante Copia
+per rimandarlo senza rigenerarlo. Il link sta nel profilo (campo
+`linkAccesso`) e arriva solo all'amministratore.

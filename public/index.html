@@ -446,7 +446,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.41.2";
+const VERSION = "2.42.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -2639,12 +2639,16 @@ function scaricaProfiliCsv() {
 // link e lo si manda alla persona. Un link nuovo annulla il precedente.
 function boxLinkAccesso() {
   const nomi = [...S.dati.profili].sort((a, b) => a.nome.localeCompare(b.nome));
-  return `<div class="carta" style="margin-top:8px"><h3 style="margin-top:0">Link d'accesso senza Google</h3>
+  const attivi = nomi.filter((p) => p.linkAccesso);
+  return `<div class="carta" id="boxLink" style="margin-top:8px"><h3 style="margin-top:0">Link d'accesso senza Google</h3>
     <p class="piccolo" style="margin-top:0">Per chi non ha un account Google: scegli il suo profilo e mandagli il link. Con quello entra direttamente e resta dentro, senza scadenza. Se ne crei uno nuovo, il vecchio non vale più.</p>
     <div class="riga" style="flex-wrap:wrap"><select id="linkProfilo" style="flex:1;min-width:220px"><option value="">Scegli la persona…</option>
       ${nomi.map((p) => `<option value="${esc(p.id)}">${esc(p.nome)}${p.rivendicato ? " (già collegato)" : ""}</option>`).join("")}</select>
       <button class="btn primario" data-crea-link>Crea link</button></div>
-    <div id="linkFatto"></div></div>`;
+    <div id="linkFatto"></div>
+    ${attivi.length ? `<h4 style="margin:18px 0 6px">Link attivi</h4><div class="scorri"><table><tr><th>Persona</th><th>Creato</th><th></th></tr>
+      ${attivi.map((p) => `<tr><td>${esc(p.nome)}</td><td>${quando(p.linkCreato)}</td>
+        <td style="text-align:right"><button class="btn piccolo" data-copia-link="${esc(p.linkAccesso)}">Copia</button></td></tr>`).join("")}</table></div>` : ""}</div>`;
 }
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-crea-link]");
@@ -2654,6 +2658,9 @@ document.addEventListener("click", async (ev) => {
     b.disabled = true;
     try {
       const r = await api("link-accesso", { profilo: id });
+      const pr = profilo(id); if (pr) { pr.linkAccesso = r.link; pr.linkCreato = r.creato; }
+      document.getElementById("boxLink").outerHTML = boxLinkAccesso();
+      document.getElementById("linkProfilo").value = id;
       document.getElementById("linkFatto").innerHTML = `<p class="piccolo" style="margin:10px 0 4px">Link per <b>${esc(r.nome)}</b>:</p>
         <div class="riga"><input type="text" readonly value="${esc(r.link)}" style="flex:1" onclick="this.select()"><button class="btn" data-copia-link>Copia</button></div>`;
     } catch (e) { avvisa("linkFatto", e.message, "male"); }
@@ -2662,8 +2669,9 @@ document.addEventListener("click", async (ev) => {
   }
   const cl = ev.target.closest("[data-copia-link]");
   if (cl) {
-    const inp = cl.parentElement.querySelector("input");
-    try { await navigator.clipboard.writeText(inp.value); } catch { inp.select(); document.execCommand("copy"); }
+    const valore = cl.dataset.copiaLink || cl.parentElement.querySelector("input").value;
+    try { await navigator.clipboard.writeText(valore); }
+    catch { const t = document.createElement("textarea"); t.value = valore; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
     cl.textContent = "Copiato";
   }
 });

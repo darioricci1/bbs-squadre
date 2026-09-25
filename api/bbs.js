@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.18.1
+// VERSION: 1.18.2
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -550,11 +550,14 @@ async function linkAccesso(chi, corpo, req, res) {
   if (!p) return res.status(404).json({ error: "Profilo non trovato" });
   const email = p.email || `link-${p.id}@squadre-bbs.link`.toLowerCase();
   p.codiceLink = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-  await scrivi("profili", p.id, p);
   const t = await firma({ inv: 1, e: email, n: p.nome, p: p.id, k: p.codiceLink }, process.env.SESSIONE_SEGRETO, { durataMs: DURATA_LINK_MS });
   const host = (req.headers && (req.headers["x-forwarded-host"] || req.headers.host)) || "bbs-squadre.vercel.app";
+  // Il link resta nel profilo perche' l'amministratore lo possa ricopiare
+  // dalla Regia (agli altri non arriva: vedi profiloPubblico).
+  p.linkAccesso = `https://${host}/#entra=${t}`; p.linkCreato = new Date().toISOString();
+  await scrivi("profili", p.id, p);
   await segna(chi.email, "link-accesso", { profilo: p.id, nome: p.nome, email });
-  return res.status(200).json({ ok: true, link: `https://${host}/#entra=${t}`, nome: p.nome });
+  return res.status(200).json({ ok: true, link: p.linkAccesso, creato: p.linkCreato, nome: p.nome });
 }
 async function entraConLink(req, res, token, segreto) {
   const c = await leggi(String(token), segreto);
