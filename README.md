@@ -70,7 +70,7 @@ Chi usa la piattaforma vede due schede.
   volta sola) e il link alla sua pagina. Settori come pillole da accendere e
   spegnere, ricerca, zona e periodo. Le notizie di TechCrunch sono nella stessa
   lista (una ogni sei card), con l'etichetta della fonte. «Usa come spunto»
-  apre Genera idee con lo spunto gia' scritto in «La tua idea». «Usa come spunto» porta l'azienda nelle
+  apre Genera idee con lo spunto gia' scritto in «La tua soluzione». «Usa come spunto» porta l'azienda nelle
   indicazioni del generatore. Il file viene dalla directory pubblica di YC
   tramite yc-oss/api; si rigenera con lo stesso filtro quando serve.
   Accanto c'e' **TechCrunch**: le ultime notizie su startup, venture e

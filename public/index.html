@@ -318,8 +318,8 @@
   .domanda-gen.aperta{border-color:var(--accento);background:var(--accento-chiaro)}
   .domanda-testa{flex-wrap:nowrap;align-items:center;width:100%;gap:10px}
   .domanda-corpo{width:100%;flex:1;display:flex;flex-direction:column;min-height:0}
-  .domanda-corpo #miaIdea{flex:1;resize:none}
-  @media (max-width:900px){.domanda-corpo #miaIdea{flex:none;min-height:120px}}
+  .domanda-corpo #miaIdea,.domanda-corpo #ideaProblema{flex:1;resize:none;min-height:56px}
+  @media (max-width:900px){.domanda-corpo #miaIdea,.domanda-corpo #ideaProblema{flex:none;min-height:96px}}
   .domanda-gen{aspect-ratio:1/1}
   .domanda-vuota{flex:1;width:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--grigio);font-size:14px;border:1px dashed var(--bordo);border-radius:10px;padding:14px}
   .domanda-corpo label:first-child{margin-top:0}
@@ -369,6 +369,7 @@
   .proposta-card.selezionata .spunta-card{background:var(--accento);border-color:var(--accento)}
   .titolo-card{font-size:15px;line-height:1.25}
   .proposta-card .etichetta{white-space:nowrap}
+  .sintesi-card.corta{-webkit-line-clamp:3}
   .sintesi-card{font-size:13px;color:var(--grigio);display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
   .squadra-gen{margin-top:12px;background:#fff;border:1px solid var(--bordo);border-radius:12px;padding:10px 14px}
   .gettone.tolto{text-decoration:line-through;color:var(--grigio);background:var(--sfondo)}
@@ -391,6 +392,9 @@
   .testa-slide .piccolo,.testa-slide .modello-slide{white-space:nowrap;flex-shrink:0}
   .titolo-post{margin:0;font-size:18px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .frase-post{margin:0;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+  .frase-post.corta{-webkit-line-clamp:3}
+  .problema-post,.problema-card{margin:0;background:#fff4e5;border-left:3px solid #f0a040;border-radius:6px;padding:5px 8px;font-size:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .problema-card{font-size:12.5px;-webkit-line-clamp:2}
   .piede-post{margin-top:auto;padding-top:8px}
   .squadra-post{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .perche-te{background:var(--accento-chiaro);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
@@ -434,7 +438,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.39.1";
+const VERSION = "2.40.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -927,11 +931,13 @@ function genera() {
       <span class="spazio"></span><span data-tour="crediti">${testoCrediti()}</span></div>
     ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano in fondo alla bacheca; se te ne servono altri, chiedi a Dario.</div>' : ""}
     <div class="carta percorso-gen" data-tour="percorsi"><div class="domande-riga">
-      ${domanda("idea", "idea", "Hai un'idea?", "Rispondi Sì per scriverla: poi la pubblichi così com'è o la fai sviluppare all'AI.", `
+      ${domanda("idea", "idea", "Hai un problema da risolvere?", "Rispondi Sì per scriverlo: basta il problema, la soluzione può essere solo un'intuizione o la cerca l'AI.", `
         <label style="margin-top:0">Titolo</label>
         <input type="text" id="ideaTitolo" value="${esc(S.ideaTitolo || "")}" placeholder="Es. L'invenduto dei campi nei ristoranti">
-        <label>La tua idea <small>(cosa, per chi, perché: bastano due o tre righe)</small></label>
-        <textarea id="miaIdea" placeholder="Es. una piattaforma che mette in contatto le aziende agricole dell'Emilia con i ristoranti, per vendere l'invenduto">${esc(S.miaIdea || "")}</textarea>
+        <label>🎯 Il problema che vuoi risolvere</label>
+        <textarea id="ideaProblema" placeholder="Chi ha il problema? Perché oggi è un problema?">${esc(S.ideaProblema || "")}</textarea>
+        <label>💡 La tua soluzione <small>(anche solo un'intuizione)</small></label>
+        <textarea id="miaIdea" placeholder="Se non ce l'hai lascia vuoto: la cerca l'AI">${esc(S.miaIdea || "")}</textarea>
 `)}
       ${domanda("compagni", "persone", "Hai compagni con cui la vorresti sviluppare?", "Rispondi Sì per scegliere le persone con cui lavorare.", `
         <div id="pickGruppo"></div>
@@ -972,31 +978,32 @@ function genera() {
   const pick = document.getElementById("pickGruppo");
   if (pick) { pickerPersone(pick, S.scelti, contaGruppo, "Seleziona i compagni con cui ti piacerebbe lavorare", 7, true); contaGruppo(); }
   const su = (id, k) => { const el = document.getElementById(id); if (el) el.addEventListener("input", (e) => { S[k] = e.target.value; }); };
-  su("note", "note"); su("miaIdea", "miaIdea"); su("ideaTitolo", "ideaTitolo");
+  su("note", "note"); su("miaIdea", "miaIdea"); su("ideaTitolo", "ideaTitolo"); su("ideaProblema", "ideaProblema");
   // I campi si rileggono al clic: cosi' vale sempre quello che si vede.
-  const leggi = () => [["miaIdea", "miaIdea"], ["ideaTitolo", "ideaTitolo"], ["note", "note"]].forEach(([id, k]) => { const el = document.getElementById(id); if (el) S[k] = el.value; });
-  const titoloIdea = () => (S.ideaTitolo || "").trim() || (S.miaIdea || "").trim().split(/[.\n]/)[0].slice(0, 80);
+  const leggi = () => [["miaIdea", "miaIdea"], ["ideaTitolo", "ideaTitolo"], ["ideaProblema", "ideaProblema"], ["note", "note"]].forEach(([id, k]) => { const el = document.getElementById(id); if (el) S[k] = el.value; });
+  const titoloIdea = () => (S.ideaTitolo || "").trim() || ((S.miaIdea || "").trim() || (S.ideaProblema || "").trim()).split(/[.\n]/)[0].slice(0, 80);
   const pubb = box.querySelector("[data-pubblica-idea]");
   // Pubblica subito in bacheca, per tutti.
   if (pubb) pubb.onclick = async (e) => {
     e.preventDefault(); leggi();
-    if (!(S.miaIdea || "").trim()) {
-      const t = document.getElementById("miaIdea"); if (t) t.focus();
-      avvisa("msgGen", "Scrivi la tua idea qui sopra, poi premi di nuovo Pubblica.", "info"); return;
+    if (!(S.ideaProblema || "").trim()) {
+      const t = document.getElementById("ideaProblema"); if (t) t.focus();
+      avvisa("msgGen", "Scrivi il problema che vuoi risolvere, poi premi di nuovo Pubblica.", "info"); return;
     }
     pubb.disabled = true;
     try {
       const scelti = [...S.scelti];
-      await api("idea", { titolo: titoloIdea(), idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }],
+      const st = { ...strutturaIdea({}), titolo: titoloIdea(), problema: S.ideaProblema.trim(), soluzione: (S.miaIdea || "").trim() };
+      await api("idea", { titolo: titoloIdea(), idee: [{ ...st, descrizione: descrizioneDa({ ...st, problema: st.problema.replace(/\s*\n\s*/g, " "), soluzione: st.soluzione.replace(/\s*\n\s*/g, " ") }) }],
         visibilita: scelti.length ? "scelti" : "tutti", destinatari: scelti, membri: scelti });
-      S.miaIdea = ""; S.ideaTitolo = "";
+      S.miaIdea = ""; S.ideaTitolo = ""; S.ideaProblema = "";
       S.dati = await api("dati"); chiudiGenera(); disegna();
       document.getElementById("secBacheca").scrollIntoView({ behavior: "smooth" });
     } catch (err) { pubb.disabled = false; avvisa("msgGen", err.message, "male"); }
   };
   document.getElementById("gVai").onclick = async () => {
     leggi();
-    const conIdea = (S.miaIdea || "").trim();
+    const conIdea = (S.miaIdea || "").trim(), problema = (S.ideaProblema || "").trim();
     const persone = [...S.scelti];
     S.generando = true; genera(); mostraCucina();
     const paletti = S.opz;
@@ -1007,7 +1014,7 @@ function genera() {
       togliCucina(); S.generando = false; S.vistaRisultati = true; genera();
     };
     try {
-      const g = await api("", { modo: persone.length ? "gruppo" : "scopri", persone, note: "", idea: conIdea || "",
+      const g = await api("", { modo: persone.length ? "gruppo" : "scopri", persone, note: "", idea: conIdea || "", problema,
         modello: paletti.modello, perno: paletti.perno, settore: paletti.settore }, "/api/genera");
       if (g.crediti) S.dati.io.crediti = g.crediti;
       mostra(g);
@@ -1124,7 +1131,8 @@ function risultati(g, vecchia, nuova) {
         <div class="riga" style="flex-wrap:nowrap"><span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${i.fascia === "top" ? "Top " + (n + 1) : "Riserva"}</span>
           <span class="spazio"></span><b class="piccolo">${esc(i.punteggio)}/10</b><span class="spunta-card">${presa ? "✓" : ""}</span></div>
         <b class="titolo-card">${esc(i.titolo)}</b>
-        <div class="sintesi-card">${esc(i.sintesi)}</div>
+        ${i.problema ? `<div class="problema-card"><b>🎯</b> ${esc(i.problema)}</div>` : ""}
+        <div class="sintesi-card ${i.problema ? "corta" : ""}">${esc(i.sintesi)}</div>
         <div class="riga piccolo" style="margin-top:auto">${i.modello ? `<span class="etichetta">${esc(i.modello)}</span>` : ""}<span class="spazio"></span><a href="#" data-dettagli-idea="${k}">Dettagli</a></div>
       </div>`;
     }).join("")}</div>
@@ -1611,11 +1619,12 @@ function bacheca() {
           ${riservata ? `<span class="piccolo" title="${mia || S.dati.io.admin ? "Visibile solo a: " + esc(nomi(i.destinatari).join(", ")) : "Condivisa con te"}">🔒</span>` : ""}</div>
         ${idee.length > 1 ? `<div class="puntini">${idee.map((y, k) => `<button class="${k === n ? "attivo" : ""}" data-puntino="${i.id}|${k}" aria-label="Idea ${k + 1}"></button>`).join("")}</div>` : ""}
         <div class="scorri-idee" data-scorri="${i.id}">${idee.map((x, k) => {
-          const [frase] = String(x.descrizione || "").split(/\n\s*\n/);
+          const st = strutturaIdea(x), [frase] = String(st.sintesi || st.soluzione || "").split(/\n\s*\n/);
           return `<div class="idea-slide">
             <div class="riga testa-slide">${idee.length > 1 ? `<span class="piccolo">Idea ${k + 1} di ${idee.length}${i.titolo && !/^\d+ idee di /.test(i.titolo) ? " · " + esc(i.titolo) : ""}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}<span class="spazio"></span>${x.modello ? `<span class="etichetta modello-slide">${esc(x.modello)}</span>` : ""}</div>
             <h3 class="titolo-post">${esc(x.titolo)}</h3>
-            <p class="frase-post">${esc(frase)}</p>
+            ${st.problema ? `<p class="problema-post"><b>🎯 Problema</b> ${esc(st.problema)}</p>` : ""}
+            ${frase ? `<p class="frase-post ${st.problema ? "corta" : ""}">${esc(frase)}</p>` : ""}
           </div>`;
         }).join("")}</div>
         <div class="piede-post">
@@ -2092,7 +2101,7 @@ async function spunti() {
   if (altri) altri.onclick = () => { F.quanti += 60; const y = window.scrollY; spunti().then(() => window.scrollTo(0, y)); };
 }
 // Lo spunto diventa l'idea di partenza: si apre "Genera idee" con il campo
-// "La tua idea" gia' scritto.
+// "La tua soluzione" gia' scritto.
 function usaSpunto(testo) {
   S.miaIdea = testo; S.ideaTitolo = ""; S.risposte.idea = true;
   S.scheda = "bacheca"; disegna(); apriGenera();
@@ -2393,7 +2402,7 @@ const usd = (v, dec = 2) => "$" + Number(v || 0).toLocaleString("it-IT", { minim
 // altri hanno il pulsante Avanti. Parte da solo la prima volta.
 const TOUR = [
   { testo: "<b>Benvenuto in Squadre BBS!</b><br>In un minuto ti faccio vedere le due cose che contano: <b>generare le idee</b> e la <b>bacheca</b>." },
-  { genera: true, sel: "#secGenera .domanda-gen:nth-child(1)", testo: "<b>Hai un'idea?</b> Scrivila qui: un titolo e due o tre righe. Se non ce l'hai, lascia vuoto: la inventa l'AI." },
+  { genera: true, sel: "#secGenera .domanda-gen:nth-child(1)", testo: "<b>Hai un problema da risolvere?</b> Scrivilo qui, con la tua soluzione se ce l'hai. Il problema resta separato e compare su ogni idea. Se non hai niente, lascia vuoto: pensa a tutto l'AI." },
   { genera: true, sel: "#secGenera .domanda-gen:nth-child(2)", testo: "<b>I compagni</b>: seleziona le persone con cui ti piacerebbe lavorare. L'AI completa la squadra fino a 7-8." },
   { genera: true, sel: "#secGenera .domanda-gen:nth-child(3)", testo: "<b>Più indicazioni</b>, se vuoi: B2B o B2C, su quale competenza basarla, il settore. Se no decide l'AI." },
   { genera: true, sel: "#secGenera .pulsanti-gen", testo: "<b>Pubblica in bacheca</b> mette subito la tua idea così com'è. <b>Sviluppa con l'AI</b> ti propone cinque idee con la squadra; ogni generazione costa <b>1 credito</b>." },

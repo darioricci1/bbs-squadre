@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.13.1
+// VERSION: 1.14.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -163,6 +163,7 @@ Il lavoro si fa in due passi e il messaggio dice quale stai facendo.
 PASSO 1, PROPOSTA. Esattamente 5 idee in italiano, dalla migliore: le prime 3 con fascia "top" (affini fra loro, pronte per il 1 novembre), le ultime 2 con fascia "riserva" (valide ma piu' deboli o piu' rischiose, anche in ambiti diversi). E' una proposta breve: ogni campo di testo in una o due frasi, senza ripetere in un campo cio' che hai gia' detto in un altro. Scegli le idee pensando gia' alle domande di partenza e ai quattro criteri, anche se i dettagli li scriverai solo al passo 2.
 - "punteggio": il tuo giudizio complessivo da 1 a 10 per questo team.
 - "tipo_startup": che tipo di startup e' (piattaforma o marketplace, software per aziende, app per consumatori, prodotto fisico con tecnologia, servizio tradizionale reso scalabile, deep tech); "fonte_idea": da quale delle strade per trovare idee nasce. Varia i tipi fra le idee quando ha senso.
+- "problema": chi ha il problema e perche' oggi fa male, in una o due frasi che chiunque capisca al volo. E' il cuore dell'idea e va spiegato agli altri: tienilo separato dalla soluzione, senza anticiparla.
 - La squadra e' una sola per tutte e 5 le idee (vedi sotto): "compagni" e "ruoli" stanno fuori dalle idee.
 
 PASSO 2, APPROFONDIMENTO. Ricevi una delle idee del passo 1 e scrivi i dettagli, coerenti con quello che l'idea dice gia':
@@ -279,6 +280,9 @@ export default async function handler(req, res) {
   // cercano solo i compagni: una sola idea, quella scritta, e costa meno.
   const miaIdea = String(corpo.idea || "").trim().slice(0, 1500);
   const soloCompagni = !!miaIdea && corpo.focus === "compagni";
+  // Il problema che chi chiede vuole risolvere: resta separato dall'idea ed
+  // e' il punto fermo di tutte le proposte.
+  const problema = String(corpo.problema || "").trim().slice(0, 1500);
   const scelti = [...new Set((Array.isArray(corpo.persone) ? corpo.persone : []).map(String))]
     .filter((id) => id !== io.id && profili[id]).slice(0, 7);
   if (modo === "gruppo" && !scelti.length) return res.status(400).json({ error: "Scegli almeno una persona con cui lavorare." });
@@ -343,6 +347,7 @@ export default async function handler(req, res) {
     settori.length ? `\n## Settore\nLe idee devono stare ${settori.length === 1 ? "nel settore" : "in uno di questi settori (distribuiscile fra loro, o combinali)"}: ${settori.join("; ")}.` : "",
     tipo ? `\n## Tipo di startup\nTutte le idee devono essere di questo tipo: ${tipo[1]}, cioe' ${tipo[2]}. Tienilo coerente con scalabilita' e replicabilita'.` : "",
     fonte ? `\n## Da dove partire\nParti da questa strada per trovare le idee: ${fonte[1].toLowerCase()}. In "fonte_idea" metti "${fonte[0]}" almeno per le 3 idee top.` : "",
+    problema ? `\n## Il problema che vuole risolvere chi chiede\n${problema}\n\nE' il punto di partenza e non si cambia: le 3 idee top devono risolvere proprio questo problema, con soluzioni diverse fra loro; le 2 di riserva possono affrontarlo da un'angolatura vicina. In "problema" riprendi questo problema, reso piu' chiaro e concreto se serve (chi lo ha e perche' oggi fa male), senza cambiarlo e senza metterci la soluzione.` : "",
     miaIdea && soloCompagni ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona vuole solo trovare i compagni giusti per QUESTA idea. Eccezione alla regola delle 5 idee: in "idee" metti UNA sola idea, fascia "top", che e' quella scritta, riordinata nei campi senza cambiarla. Concentrati sulla squadra: scegli chi serve davvero a realizzarla. Valutala comunque con severita' sui quattro criteri e segnala il punto debole.` : "",
     miaIdea && !soloCompagni ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona ha gia' un'idea e cerca i compagni di strada migliori per realizzarla. Le 3 idee top sono questa idea sviluppata al meglio e due sue varianti vicine (un altro cliente, un altro modello di ricavo, un altro mercato); le 2 di riserva possono essere alternative diverse. Valutala con la stessa severita' sui quattro criteri: se ha un punto debole, dillo in "punto_debole" e proponi come rafforzarla. La squadra deve servire davvero a realizzarla.` : "",
   ].join("\n");
@@ -366,7 +371,7 @@ export default async function handler(req, res) {
   for (const i of idee) { i.compagni = compagni; i.ruoli = ruoli; }
 
   const costo = costoDi(risposta.model, risposta.usage);
-  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, focus: soloCompagni ? "compagni" : undefined, scelte: { modello: modelloScelto || "indifferente", perno: perno ? perno.id : null, pernoNome: perno ? perno.nome : null, gruppo: tuttoIlGruppo, settori }, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
+  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, problema: problema || undefined, focus: soloCompagni ? "compagni" : undefined, scelte: { modello: modelloScelto || "indifferente", perno: perno ? perno.id : null, pernoNome: perno ? perno.nome : null, gruppo: tuttoIlGruppo, settori }, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
   await scrivi("generazioni", g.id, g);
   await segna(chi.email, "generazione", { modo, persone: scelti, titoli: idee.map((i) => i.titolo), usd: costo.usd });
   const perUtente = { ...g, crediti: chi.admin ? null : await creditiDi(chi.email, u) };
@@ -397,6 +402,7 @@ async function approfondisci(chi, corpo, { profili, aziende, siti, imp, elenco }
     "## Gruppo",
     ...gruppo.map((p) => riassunto(p, aziende, siti, false) + "\n"),
     g.note ? `## Indicazioni di chi chiede\n${g.note}\n` : "",
+    g.problema ? `## Il problema che vuole risolvere chi chiede\n${g.problema}\nL'idea deve restare una soluzione a questo problema.\n` : "",
     g.idea ? `## L'idea che aveva gia' chi chiede\n${g.idea}\n` : "",
     "## L'idea da approfondire",
     JSON.stringify(breve, null, 1),
