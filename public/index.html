@@ -438,7 +438,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.40.0";
+const VERSION = "2.40.1";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -613,9 +613,9 @@ function benvenuto() {
   if (document.getElementById("veloBenvenuto")) return;
   document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloBenvenuto"><div class="finestra finestra-benvenuto" role="dialog" aria-modal="true">
     <h2>Da dove vuoi partire?</h2>
-    <button class="btn grande primario" data-apri-genera>💡 Genera un'idea con l'AI</button>
+    <button class="btn grande primario" data-apri-genera>Genera un'idea con l'AI</button>
     <p class="nota-benvenuto">Resta tua: in bacheca finisce solo se decidi di pubblicarla.</p>
-    <button class="btn grande" data-chiudi-benvenuto>👀 Do solo un'occhiata alle idee già presenti</button>
+    <button class="btn grande" data-chiudi-benvenuto>Do solo un'occhiata alle idee già presenti</button>
   </div></div>`);
 }
 function chiudiBenvenuto() {
@@ -934,16 +934,16 @@ function genera() {
       ${domanda("idea", "idea", "Hai un problema da risolvere?", "Rispondi Sì per scriverlo: basta il problema, la soluzione può essere solo un'intuizione o la cerca l'AI.", `
         <label style="margin-top:0">Titolo</label>
         <input type="text" id="ideaTitolo" value="${esc(S.ideaTitolo || "")}" placeholder="Es. L'invenduto dei campi nei ristoranti">
-        <label>🎯 Il problema che vuoi risolvere</label>
+        <label>Il problema che vuoi risolvere</label>
         <textarea id="ideaProblema" placeholder="Chi ha il problema? Perché oggi è un problema?">${esc(S.ideaProblema || "")}</textarea>
-        <label>💡 La tua soluzione <small>(anche solo un'intuizione)</small></label>
+        <label>La tua soluzione <small>(anche solo un'intuizione)</small></label>
         <textarea id="miaIdea" placeholder="Se non ce l'hai lascia vuoto: la cerca l'AI">${esc(S.miaIdea || "")}</textarea>
 `)}
       ${domanda("compagni", "persone", "Hai compagni con cui la vorresti sviluppare?", "Rispondi Sì per scegliere le persone con cui lavorare.", `
         <div id="pickGruppo"></div>
         <p class="piccolo" id="contaGruppo" style="margin:6px 0 0"></p>
 `)}
-      ${domanda("paletti", "paletti", "Vuoi dare più indicazioni all'AI?", "Rispondi Sì per scegliere modello di business, competenza e settore. Se no, decide l'AI.", `
+      ${domanda("paletti", "paletti", "Vuoi dare più indicazioni all'AI?", "Rispondi Sì per scegliere modello di business, competenza e area tematica. Se no, decide l'AI.", `
         <div class="scelte-griglia">
           <div><label style="margin-top:0">Modello di business</label>
             <input type="range" class="cursore" id="opzModello" min="0" max="2" step="1" value="${{ B2B: 0, "": 1, B2C: 2 }[S.opz.modello]}">
@@ -952,8 +952,8 @@ function genera() {
             <input type="range" class="cursore" id="opzPerno" min="0" max="2" step="1" value="${{ io: 0, "": 1, gruppo: 2 }[S.opz.perno]}">
             <div class="cursore-voci"><span>La mia</span><span>Decidi tu</span><span>Tutto il gruppo</span></div></div>
         </div>
-        <label>Settore</label>
-        <select id="opzSettore"><option value="">Qualsiasi settore</option>${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<option ${S.opz.settore === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
+        <label>Area tematica</label>
+        <select id="opzSettore"><option value="">Qualsiasi area</option>${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<option ${S.opz.settore === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select>
 `)}
       </div>
       <div class="riga pulsanti-gen">
@@ -993,7 +993,7 @@ function genera() {
     pubb.disabled = true;
     try {
       const scelti = [...S.scelti];
-      const st = { ...strutturaIdea({}), titolo: titoloIdea(), problema: S.ideaProblema.trim(), soluzione: (S.miaIdea || "").trim() };
+      const st = { ...strutturaIdea({}), titolo: titoloIdea(), problema: S.ideaProblema.trim(), soluzione: (S.miaIdea || "").trim(), settore: S.opz.settore || "" };
       await api("idea", { titolo: titoloIdea(), idee: [{ ...st, descrizione: descrizioneDa({ ...st, problema: st.problema.replace(/\s*\n\s*/g, " "), soluzione: st.soluzione.replace(/\s*\n\s*/g, " ") }) }],
         visibilita: scelti.length ? "scelti" : "tutti", destinatari: scelti, membri: scelti });
       S.miaIdea = ""; S.ideaTitolo = ""; S.ideaProblema = "";
@@ -1131,7 +1131,7 @@ function risultati(g, vecchia, nuova) {
         <div class="riga" style="flex-wrap:nowrap"><span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${i.fascia === "top" ? "Top " + (n + 1) : "Riserva"}</span>
           <span class="spazio"></span><b class="piccolo">${esc(i.punteggio)}/10</b><span class="spunta-card">${presa ? "✓" : ""}</span></div>
         <b class="titolo-card">${esc(i.titolo)}</b>
-        ${i.problema ? `<div class="problema-card"><b>🎯</b> ${esc(i.problema)}</div>` : ""}
+        ${i.problema ? `<div class="problema-card"><b>Problema</b> ${esc(i.problema)}</div>` : ""}
         <div class="sintesi-card ${i.problema ? "corta" : ""}">${esc(i.sintesi)}</div>
         <div class="riga piccolo" style="margin-top:auto">${i.modello ? `<span class="etichetta">${esc(i.modello)}</span>` : ""}<span class="spazio"></span><a href="#" data-dettagli-idea="${k}">Dettagli</a></div>
       </div>`;
@@ -1623,7 +1623,7 @@ function bacheca() {
           return `<div class="idea-slide">
             <div class="riga testa-slide">${idee.length > 1 ? `<span class="piccolo">Idea ${k + 1} di ${idee.length}${i.titolo && !/^\d+ idee di /.test(i.titolo) ? " · " + esc(i.titolo) : ""}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}<span class="spazio"></span>${x.modello ? `<span class="etichetta modello-slide">${esc(x.modello)}</span>` : ""}</div>
             <h3 class="titolo-post">${esc(x.titolo)}</h3>
-            ${st.problema ? `<p class="problema-post"><b>🎯 Problema</b> ${esc(st.problema)}</p>` : ""}
+            ${st.problema ? `<p class="problema-post"><b>Problema</b> ${esc(st.problema)}</p>` : ""}
             ${frase ? `<p class="frase-post ${st.problema ? "corta" : ""}">${esc(frase)}</p>` : ""}
           </div>`;
         }).join("")}</div>
