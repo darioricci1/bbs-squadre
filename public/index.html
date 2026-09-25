@@ -415,7 +415,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.36.2";
+const VERSION = "2.36.3";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -622,13 +622,20 @@ function pickerPersone(box, scelti, alCambio, segnaposto, massimo, conMe) {
     const parole = senzaAccenti(inp.value).split(/[\s'’-]+/).filter(Boolean);
     trovati = tutti.filter((p) => parole.every((w) => senzaAccenti(p.nome).split(/[\s'’,.-]+/).some((x) => x.startsWith(w))));
     if (sel >= trovati.length) sel = Math.max(0, trovati.length - 1);
+    // io compaio al mio posto in ordine alfabetico, spuntato e bloccato
     const me = conMe && mio();
-    elenco.innerHTML = (me && !inp.value.trim() ? `<label class="voce-persona voce-io"><input type="checkbox" checked disabled>
-        <span><b>${esc(me.nome)}</b> <span class="piccolo">(tu) · ci sei sempre</span></span></label>` : "") + (massimo && scelti.size >= massimo ? `<div class="voce-persona piccolo">Hai già scelto ${massimo} persone, il massimo: per aggiungerne una, togline un'altra.</div>` : "") +
-      (trovati.map((p, i) => `<label class="voce-persona ${i === sel ? "attivo" : ""}" data-i="${i}">
+    const trovoMe = me && parole.every((w) => senzaAccenti(me.nome).split(/[\s'’,.-]+/).some((x) => x.startsWith(w)));
+    const rigaMe = trovoMe ? `<label class="voce-persona voce-io"><input type="checkbox" checked disabled>
+        <span><b>${esc(me.nome)}</b> <span class="piccolo">(tu) · ci sei sempre</span></span></label>` : "";
+    let messo = !rigaMe;
+    const righe = trovati.map((p, i) => {
+      const prima = !messo && String(me.nome).localeCompare(String(p.nome), "it", { sensitivity: "base" }) < 0 ? (messo = true, rigaMe) : "";
+      return prima + `<label class="voce-persona ${i === sel ? "attivo" : ""}" data-i="${i}">
         <input type="checkbox" ${scelti.has(p.id) ? "checked" : ""} ${massimo && scelti.size >= massimo && !scelti.has(p.id) ? "disabled" : ""}>
-        <span><b>${esc(p.nome)}</b> <span class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || (p.titolo || "").slice(0, 60))}</span></span></label>`).join("")
-       || '<div class="voce-persona piccolo">Nessun nome così.</div>');
+        <span><b>${esc(p.nome)}</b> <span class="piccolo">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || (p.titolo || "").slice(0, 60))}</span></span></label>`;
+    }).join("") + (messo ? "" : rigaMe);
+    elenco.innerHTML = (massimo && scelti.size >= massimo ? `<div class="voce-persona piccolo">Hai già scelto ${massimo} persone, il massimo: per aggiungerne una, togline un'altra.</div>` : "") +
+      (righe || '<div class="voce-persona piccolo">Nessun nome così.</div>');
     elenco.querySelectorAll(".voce-persona[data-i]").forEach((el) => {
       el.querySelector("input").onchange = (e) => {
         const p = trovati[Number(el.dataset.i)];
