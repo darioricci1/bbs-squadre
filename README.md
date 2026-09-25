@@ -203,3 +203,15 @@ chiude subito.
 Sotto, «Link attivi» elenca chi ha un link, con la data e un pulsante Copia
 per rimandarlo senza rigenerarlo. Il link sta nel profilo (campo
 `linkAccesso`) e arriva solo all'amministratore.
+
+## Scritture contemporanee e aziende per persona
+
+Le modifiche a un'idea in bacheca («Mi interessa», squadra, modifica del post)
+passano da `aggiorna()` in `lib/db.js`: si scrive solo se la riga non è
+cambiata dalla lettura (versione `xmin` di Postgres), altrimenti si rilegge e
+si riapplica. Così due clic nello stesso istante non si cancellano a vicenda.
+
+Sito, settore e descrizione di un'azienda corretti dal profilo restano di
+quella persona (`profilo.lavoriMiei[id].azienda`): chi ha lavorato nella
+stessa azienda tiene la sua versione. La tabella `siti` resta la base comune,
+corretta dall'amministratore nella sezione Aziende.

@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.18.3
+// VERSION: 1.19.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -36,7 +36,7 @@
 import { verificaIdToken, clientDiAccesso } from "../lib/google-id.js";
 import { firma, leggi, cookieDaMettere, cookieDaTogliere } from "../lib/sessione.js";
 import {
-  esigiAccesso, sonoAmministratore, puoEntrare, corpoDi, nuovoId, tutti, uno, scrivi, scriviMolti,
+  esigiAccesso, sonoAmministratore, puoEntrare, corpoDi, nuovoId, tutti, uno, scrivi, aggiorna, scriviMolti,
   togli, ultimi, eventi, conta, ceArchivio, segna, chiaveAzienda, profiloPubblico,
   creditiDi, vedeIdea,
 } from "../lib/bbs.js";
@@ -426,7 +426,7 @@ async function idea(chi, corpo, res) {
     const compagni = [...new Set((Array.isArray(corpo.membri) ? corpo.membri : []).map(String))].filter((id) => profiliTutti[id] && id !== io.id).slice(0, 7);
     i = { id: nuovoId("i"), autore: io.id, autoreNome: io.nome, creata: new Date().toISOString(), membri: [io.id, ...compagni], interessati: [] };
   }
-  Object.assign(i, {
+  const campi = {
     titolo: testo(corpo.titolo, 160) || (idee.length === 1 ? idee[0].titolo : idee.length + " idee di " + io.nome),
     idee, visibilita, destinatari,
     // la squadra proposta e' chi l'ha pubblicata piu' le persone con cui e'
@@ -443,10 +443,19 @@ async function idea(chi, corpo, res) {
     origine: idee.some((x) => x.generata) ? "generata" : "manuale",
     generazione: testo(corpo.generazione, 80) || i.generazione || "",
     aggiornata: new Date().toISOString(),
-  });
+  };
   // idea riservata: chi non e' piu' fra i destinatari esce anche dalla squadra
-  if (visibilita === "scelti") i.membri = (i.membri || []).filter((id) => id === i.autore || destinatari.includes(id));
-  await scrivi("bacheca", i.id, i);
+  const applica = (x) => {
+    Object.assign(x, campi);
+    if (visibilita === "scelti") x.membri = (x.membri || []).filter((id) => id === x.autore || destinatari.includes(id));
+    return x;
+  };
+  if (corpo.id) {
+    // modifica: si parte dalla riga com'e' adesso, cosi' un "Mi interessa"
+    // arrivato nel frattempo non si perde
+    i = await aggiorna("bacheca", i.id, (x) => (x.autore === io.id || chi.admin ? applica(x) : null));
+    if (!i) return res.status(404).json({ error: "Idea non trovata" });
+  } else await scrivi("bacheca", i.id, applica(i));
   await segna(chi.email, corpo.id ? "idea-modificata" : "idea-pubblicata",
     { idea: i.id, titolo: i.titolo, origine: i.origine, quante: idee.length, visibilita, destinatari });
   return res.status(200).json({ ok: true, id: i.id });
@@ -465,29 +474,35 @@ async function ideaElimina(chi, corpo, res) {
 async function interesse(chi, corpo, res) {
   const io = await mioProfilo(chi.email);
   if (!io) return res.status(404).json({ error: "Prima collega il tuo profilo." });
-  const i = await uno("bacheca", testo(corpo.id, 80));
-  if (!i || !vedeIdea(i, io.id, chi.admin)) return res.status(404).json({ error: "Idea non trovata" });
-  const s = new Set(i.interessati || []);
-  if (corpo.on) s.add(io.id); else s.delete(io.id);
-  i.interessati = [...s];
-  await scrivi("bacheca", i.id, i);
+  const i = await aggiorna("bacheca", testo(corpo.id, 80), (x) => {
+    if (!vedeIdea(x, io.id, chi.admin)) return null;
+    const s = new Set(x.interessati || []);
+    if (corpo.on) s.add(io.id); else s.delete(io.id);
+    x.interessati = [...s];
+    return x;
+  });
+  if (!i) return res.status(404).json({ error: "Idea non trovata" });
   await segna(chi.email, corpo.on ? "interesse" : "interesse-tolto", { idea: i.id, titolo: i.titolo, autore: i.autore });
   return res.status(200).json({ ok: true });
 }
 
 async function membro(chi, corpo, res) {
   const io = await mioProfilo(chi.email);
-  const i = await uno("bacheca", testo(corpo.id, 80));
-  if (!i) return res.status(404).json({ error: "Idea non trovata" });
-  if (!chi.admin && (!io || i.autore !== io.id)) return res.status(403).json({ error: "Solo chi ha pubblicato l'idea sceglie la squadra." });
   const pid = testo(corpo.profilo, 80);
-  const s = new Set(i.membri || []);
-  if (corpo.on) {
-    if (s.size >= (i.posti || 5) && !s.has(pid)) return res.status(409).json({ error: "La squadra e' al completo." });
-    s.add(pid);
-  } else if (pid !== i.autore) s.delete(pid);
-  i.membri = [...s];
-  await scrivi("bacheca", i.id, i);
+  let esito = "nessuna";
+  const i = await aggiorna("bacheca", testo(corpo.id, 80), (x) => {
+    if (!chi.admin && (!io || x.autore !== io.id)) { esito = "vietato"; return null; }
+    const s = new Set(x.membri || []);
+    if (corpo.on) {
+      if (s.size >= (x.posti || 5) && !s.has(pid)) { esito = "piena"; return null; }
+      s.add(pid);
+    } else if (pid !== x.autore) s.delete(pid);
+    x.membri = [...s];
+    return x;
+  });
+  if (esito === "vietato") return res.status(403).json({ error: "Solo chi ha pubblicato l'idea sceglie la squadra." });
+  if (esito === "piena") return res.status(409).json({ error: "La squadra e' al completo." });
+  if (!i) return res.status(404).json({ error: "Idea non trovata" });
   await segna(chi.email, corpo.on ? "membro-aggiunto" : "membro-tolto", { idea: i.id, titolo: i.titolo, profilo: pid });
   return res.status(200).json({ ok: true });
 }
@@ -619,13 +634,13 @@ async function salvaLavori(chi, corpo, res) {
   const [p, siti] = await Promise.all([idProfilo ? uno("profili", idProfilo) : null, tutti("siti")]);
   if (!p) return res.status(404).json({ error: "Profilo non trovato: collega prima il tuo profilo." });
   const miei = Object.fromEntries(lavoriDi(p, siti).map((l) => [l.id, l]));
-  const nuoviSiti = [];
+  const cambiate = [];
   let riletti = 0;
   p.lavoriMiei = p.lavoriMiei || {};
   for (const x of Array.isArray(corpo.lavori) ? corpo.lavori.slice(0, 60) : []) {
     const l = miei[String(x.id)];
     if (!l) continue;
-    if (typeof x.descrizioneRuolo === "string") p.lavoriMiei[l.id] = { descrizioneRuolo: testo(x.descrizioneRuolo, 1500) };
+    if (typeof x.descrizioneRuolo === "string") p.lavoriMiei[l.id] = { ...(p.lavoriMiei[l.id] || {}), descrizioneRuolo: testo(x.descrizioneRuolo, 1500) };
     // l'azienda si tocca solo se nel corpo ci sono i suoi campi
     const prima = l.info;
     if (!["sito", "settore", "descrizioneAzienda"].some((k) => typeof x[k] === "string")) continue;
@@ -644,14 +659,16 @@ async function salvaLavori(chi, corpo, res) {
         if (d.descrizione) az.descrizione = d.descrizione;
       } catch {}
     }
+    // l'azienda corretta resta di questa persona: chi ha lavorato nella
+    // stessa azienda tiene la sua versione
     if (az.sito !== (prima.sito || "") || az.settore !== (prima.settore || "") || az.descrizione !== (prima.descrizione || "")) {
-      nuoviSiti.push([l.chiave, { ...(siti[l.chiave] || {}), nome: prima.nome || l.azienda, ...az, stato: "verificata", da: chi.email, quando: new Date().toISOString() }]);
+      p.lavoriMiei[l.id] = { ...(p.lavoriMiei[l.id] || {}), azienda: { ...az, da: chi.email, quando: new Date().toISOString() } };
+      cambiate.push(l.chiave);
     }
   }
   await scrivi("profili", p.id, p);
-  if (nuoviSiti.length) await scriviMolti("siti", nuoviSiti.map(([id, dati]) => ({ id, dati })));
-  await segna(chi.email, "lavori", { profilo: p.id, aziende: nuoviSiti.map(([k]) => k) });
-  return res.status(200).json({ ok: true, lavori: lavoriPubblici(p, { ...siti, ...Object.fromEntries(nuoviSiti) }) });
+  await segna(chi.email, "lavori", { profilo: p.id, aziende: cambiate });
+  return res.status(200).json({ ok: true, lavori: lavoriPubblici(p, siti) });
 }
 
 // Tutte le aziende dove hanno lavorato le persone, per la sezione Aziende:
