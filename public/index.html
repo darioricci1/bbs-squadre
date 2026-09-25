@@ -148,6 +148,15 @@
   .finestra-genera .sotto{margin:2px 0 0;font-size:14px}
   .finestra-genera .percorso-gen{margin-top:8px;padding:14px;border-radius:6px}
   .finestra-genera .domande-riga{margin-top:0}
+  .cucina{position:absolute;inset:0;z-index:5;border-radius:inherit;background:rgba(255,255,255,.93);backdrop-filter:blur(3px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+  .padella{font-size:72px;animation:salta 1.1s ease-in-out infinite;transform-origin:50% 80%}
+  @keyframes salta{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-18px) rotate(-12deg)}60%{transform:translateY(0) rotate(8deg)}}
+  .frase-cucina{font-size:20px;font-weight:600;max-width:560px;min-height:56px}
+  .frase-cucina.entra{animation:entra .45s ease}
+  @keyframes entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .barra-cucina{width:min(420px,80%);height:8px;border-radius:99px;background:var(--bordo);overflow:hidden}
+  .barra-cucina span{display:block;height:100%;width:0;background:var(--accento);border-radius:99px;animation:riempi 55s cubic-bezier(.1,.7,.3,1) forwards}
+  @keyframes riempi{to{width:95%}}
   .precedenti{margin-top:24px}
   .precedenti > summary{cursor:pointer;font-weight:600;font-size:17px;margin-bottom:10px}
   .chiudi-genera{position:absolute;top:12px;right:12px;z-index:2}
@@ -278,8 +287,10 @@
   .gettone:hover{border-color:var(--accento)}
   .conta-gettone{opacity:.6;font-size:11px}
   .gettone.attivo{background:var(--accento);border-color:var(--accento);color:#fff}
-  .proposte-card{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
-  @media (max-width:1000px){.proposte-card{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .proposte-card{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+  .proposte-card > .proposta-card{grid-column:span 2;min-height:150px}
+  .proposte-card > .proposta-card:nth-child(4){grid-column:2 / span 2}
+  @media (max-width:1000px){.proposte-card{grid-template-columns:repeat(2,minmax(0,1fr))}.proposte-card > .proposta-card,.proposte-card > .proposta-card:nth-child(4){grid-column:auto}}
   @media (max-width:560px){.proposte-card{grid-template-columns:minmax(0,1fr)}}
   .proposta-card{background:#fff;border:2px solid var(--bordo);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;cursor:pointer;min-height:210px}
   .proposta-card.selezionata{border-color:var(--accento);background:var(--accento-chiaro)}
@@ -346,7 +357,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.26.4";
+const VERSION = "2.28.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -471,6 +482,7 @@ function apriGenera() {
     document.body.classList.add("bloccato");
   }
   genera();
+  if (S.generando) mostraCucina();
 }
 function chiudiGenera() {
   S.generaAperta = false;
@@ -702,6 +714,39 @@ document.addEventListener("click", (ev) => {
   if (tour) setTimeout(tourMostra, 30);
 });
 
+// Mentre l'AI lavora: una sovrimpressione con la padella e frasi che cambiano.
+const FRASI_CUCINA = [
+  "What's cooking, good looking? 👀",
+  "L'AI sta sbirciando i LinkedIn di tutti. Tranquilli, non giudica (troppo).",
+  "Soffritto di competenze in corso…",
+  "Aggiungo un pizzico di B2B, quanto basta.",
+  "Sto cercando chi sa fare i conti e chi sa vendere il ghiaccio agli eschimesi.",
+  "Mescolo ingegneri e commerciali: a fuoco lento, sennò litigano.",
+  "Assaggio le idee: questa è sciapa, la butto.",
+  "Impiatto cinque idee con la squadra di contorno.",
+  "Il pitch deck lo lascio a voi, io faccio solo la spesa.",
+  "Quasi pronto: apparecchiate la tavola.",
+];
+function mostraCucina() {
+  const f = document.querySelector(".finestra-genera");
+  if (!f || document.getElementById("cucina")) return;
+  f.insertAdjacentHTML("beforeend", `<div class="cucina" id="cucina" role="status" aria-live="polite">
+    <div class="padella">🍳</div>
+    <div class="frase-cucina" id="fraseCucina">${FRASI_CUCINA[0]}</div>
+    <div class="barra-cucina"><span></span></div>
+    <div class="piccolo">Di solito ci vuole meno di un minuto.</div></div>`);
+  let k = 0;
+  S.timerCucina = setInterval(() => {
+    const el = document.getElementById("fraseCucina");
+    if (!el) return clearInterval(S.timerCucina);
+    k = (k + 1) % FRASI_CUCINA.length;
+    el.classList.remove("entra"); void el.offsetWidth; el.textContent = FRASI_CUCINA[k]; el.classList.add("entra");
+  }, 3500);
+}
+function togliCucina() {
+  clearInterval(S.timerCucina);
+  const c = document.getElementById("cucina"); if (c) c.remove();
+}
 function genera() {
   const box = sezione("secGenera");
   const io = mio();
@@ -712,7 +757,7 @@ function genera() {
       <div class="riga domanda-testa"><span class="domanda-icona">${icona(ic)}</span><b style="flex:1">${testo}</b></div>
       <div class="domanda-corpo">${corpo}</div></div>`;
   if (S.vistaRisultati && S.ultima && !S.generando) {
-    box.innerHTML = `<div class="riga"><h2 style="margin:0">Le proposte dell'AI</h2><span class="spazio"></span>
+    box.innerHTML = `<div class="riga" style="padding-right:44px;margin-bottom:10px"><h2 style="margin:0">Le proposte dell'AI</h2><span class="spazio"></span>
         <button class="btn" data-torna-domande>← Nuova generazione</button></div>
       <div id="msgGen"></div><div id="risultati">${risultati(S.ultima, true)}</div>`;
     return;
@@ -793,9 +838,7 @@ function genera() {
     leggi();
     const conIdea = (S.miaIdea || "").trim();
     const persone = [...S.scelti];
-    S.generando = true; genera();
-    avvisa("msgGen", "L'AI sta leggendo i profili e scrivendo le idee: di solito ci vuole meno di un minuto…");
-    document.getElementById("msgGen").scrollIntoView({ behavior: "smooth", block: "center" });
+    S.generando = true; genera(); mostraCucina();
     const paletti = S.opz;
     try {
       const g = await api("", { modo: persone.length ? "gruppo" : "scopri", persone, note: "", idea: conIdea || "",
@@ -803,9 +846,9 @@ function genera() {
       if (g.crediti) S.dati.io.crediti = g.crediti;
       S.ultima = g;
       S.dati.generazioni.unshift(g);
-      S.generando = false; S.vistaRisultati = true; genera();
+      togliCucina(); S.generando = false; S.vistaRisultati = true; genera();
     } catch (e) {
-      S.generando = false; genera(); avvisa("msgGen", e.message, "male");
+      togliCucina(); S.generando = false; genera(); avvisa("msgGen", e.message, "male");
       try { S.dati = await api("dati"); } catch {}
     }
   };
