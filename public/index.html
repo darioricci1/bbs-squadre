@@ -275,7 +275,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.14.0";
+const VERSION = "2.15.0";
 const $main = document.getElementById("main");
 const S = { tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -609,7 +609,7 @@ function genera() {
   const blocca = !io || S.generando || senzaCrediti();
   const siNo = (k) => `<div class="si-no"><button class="btn piccolo ${R[k] ? "primario" : ""}" data-risposta="${k}|si">Sì</button><button class="btn piccolo ${R[k] ? "" : "primario"}" data-risposta="${k}|no">No</button></div>`;
   const domanda = (k, ic, testo, sotto, dentro) => `<div class="domanda-gen ${R[k] ? "aperta" : ""}">
-      <div class="riga"><span class="domanda-icona">${icona(ic)}</span><div style="flex:1"><b>${testo}</b><div class="piccolo">${sotto}</div></div>${siNo(k)}</div>
+      <div class="riga"><span class="domanda-icona">${icona(ic)}</span><div style="flex:1"><b>${testo}</b>${sotto ? `<div class="piccolo">${sotto}</div>` : ""}</div>${siNo(k)}</div>
       ${R[k] ? `<div class="domanda-dentro">${dentro}</div>` : ""}</div>`;
   const nomeGenera = R.idea && R.compagni ? "Sviluppa l'idea con il gruppo" : R.idea ? "Sviluppa l'idea e trova i compagni"
     : R.compagni ? "Genera idee per il gruppo" : "Proponi idee e compagni";
@@ -618,7 +618,7 @@ function genera() {
       <span class="spazio"></span><span data-tour="crediti">${testoCrediti()}</span></div>
     ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano qui sotto; se te ne servono altri, chiedi a Dario.</div>' : ""}
     <div class="carta percorso-gen" data-tour="percorsi">
-      ${domanda("idea", "idea", "Hai un'idea?", "Se sì, scrivila: Claude la sviluppa (con due varianti e due alternative) e trova chi serve per realizzarla.", `
+      ${domanda("idea", "idea", "Hai un'idea?", "", `
         <label style="margin-top:0">Titolo <small>(facoltativo)</small></label>
         <input type="text" id="ideaTitolo" value="${esc(S.ideaTitolo || "")}" placeholder="Es. L'invenduto dei campi nei ristoranti">
         <label>La tua idea <small>(cosa, per chi, perché: bastano due o tre righe)</small></label>
@@ -859,6 +859,20 @@ function ideaGenerata(k) {
   };
 }
 function barraSelezione() { return ""; }
+// Il testo delle idee da pubblicare. Con i nomi solo se la vedono le persone
+// della proposta, e solo i loro: chi e' stato tolto non compare e non la vede.
+function ideeDaPubblicare(idee, visibilita, proposta, destinatari) {
+  const esclusi = proposta.filter((x) => !destinatari.has(x.id)).map((x) => profilo(x.id)).filter(Boolean);
+  const parole = esclusi.flatMap((p) => String(p.nome).split(/\s+/).filter((w) => w.length > 2)).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const senzaEsclusi = (t) => !parole.length ? t : t.split(/(?<=[.;!?])\s+/).filter((fr) => !parole.some((w) => new RegExp("(^|[^\\p{L}])" + w + "($|[^\\p{L}])", "iu").test(fr))).join(" ");
+  const squadra = proposta.filter((x) => destinatari.has(x.id) && profilo(x.id)).map((x) => `- ${profilo(x.id).nome}${x.motivo ? ": " + x.motivo : ""}`);
+  return idee.map((i) => {
+    if (visibilita !== "scelti" || !i.generata) return i;
+    const perche = i.perche ? senzaEsclusi(i.perche) : "";
+    return { ...i, descrizione: i.descrizione + (perche ? "\n\nPerché voi: " + perche : "") + (squadra.length ? "\n\nLa squadra proposta:\n" + squadra.join("\n") : "") };
+  });
+}
+
 // Selezione delle proposte e delle persone, dentro il blocco di ogni generazione.
 function aggiornaBlocco(gid) {
   const blocco = document.querySelector(`[data-gen-blocco="${gid}"]`);
@@ -885,7 +899,7 @@ document.addEventListener("change", (ev) => {
     p.closest(".persona-gen").classList.toggle("tolta", !p.checked);
   }
 });
-document.addEventListener("click", (ev) => {
+document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-condividi-gen]");
   if (!b) return;
   const [gid, modo] = b.dataset.condividiGen.split("|");
@@ -894,13 +908,26 @@ document.addEventListener("click", (ev) => {
   const indici = g.idee.map((_, n) => n).filter((n) => S.selezione.has(gid + "|" + n));
   const idee = indici.map((n) => ideaGenerata(gid + "|" + n)).filter(Boolean);
   if (!idee.length) return;
-  if (modo === "tutti") return apriEditor({ idee: idee.map((i) => ({ ...i, perche: "" })), visibilita: "tutti", daSelezione: true });
   // Con le persone: quelle spuntate che c'entrano con le idee scelte (il
   // gruppo, o proposte per almeno una di queste idee).
   const tolti = toltiDa(gid);
-  const P = personeGen(g).filter((x) => !x.io && (x.scelto || x.idee.some((n) => indici.includes(n)) || !x.idee.length));
+  const P = modo === "tutti" ? [] : personeGen(g).filter((x) => !x.io && (x.scelto || x.idee.some((n) => indici.includes(n)) || !x.idee.length));
   const proposta = P.map((x) => ({ id: x.id, motivo: x.motivi[0] || x.ruoli[0] || "", scelto: x.scelto }));
-  apriEditor({ idee, visibilita: "scelti", proposta, destinatari: P.filter((x) => !tolti.has(x.id)).map((x) => x.id), daSelezione: true });
+  const destinatari = new Set(P.filter((x) => !tolti.has(x.id)).map((x) => x.id));
+  const visibilita = modo === "tutti" ? "tutti" : "scelti";
+  if (visibilita === "scelti" && !destinatari.size) { alert("Hai tolto la spunta a tutte le persone: spuntane almeno una, oppure condividi con tutti."); return; }
+  b.disabled = true;
+  try {
+    await api("idea", {
+      titolo: idee.length === 1 ? idee[0].titolo : "", idee: ideeDaPubblicare(idee.map((i) => visibilita === "tutti" ? { ...i, perche: "" } : i), visibilita, proposta, destinatari),
+      visibilita, destinatari: [...destinatari],
+      motivi: Object.fromEntries(proposta.filter((x) => destinatari.has(x.id) && x.motivo).map((x) => [x.id, x.motivo])),
+      generazione: gid,
+    });
+    indici.forEach((n) => S.selezione.delete(gid + "|" + n));
+    S.dati = await api("dati"); disegna();
+    document.getElementById("secBacheca").scrollIntoView({ behavior: "smooth" });
+  } catch (e) { b.disabled = false; alert(e.message); }
 });
 document.addEventListener("click", (ev) => {
   const una = ev.target.closest("[data-condividi-una]");
@@ -988,17 +1015,7 @@ function apriEditor(post) {
       const b = ev.target; b.disabled = true;
       try {
         // "Perche' voi" (con i nomi) solo se la vedono le persone della proposta
-        // Con i nomi solo se la vedono le persone della proposta, e solo i loro:
-        // chi e' stato tolto non compare nel testo e non la vede.
-        const esclusi = proposta.filter((x) => !destinatari.has(x.id)).map((x) => profilo(x.id)).filter(Boolean);
-        const parole = esclusi.flatMap((p) => String(p.nome).split(/\s+/).filter((w) => w.length > 2)).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-        const senzaEsclusi = (t) => !parole.length ? t : t.split(/(?<=[.;!?])\s+/).filter((fr) => !parole.some((w) => new RegExp("(^|[^\\p{L}])" + w + "($|[^\\p{L}])", "iu").test(fr))).join(" ");
-        const squadra = proposta.filter((x) => destinatari.has(x.id) && profilo(x.id)).map((x) => `- ${profilo(x.id).nome}${x.motivo ? ": " + x.motivo : ""}`);
-        const daPubblicare = idee.map((i) => {
-          if (visibilita !== "scelti" || !i.generata) return i;
-          const perche = i.perche ? senzaEsclusi(i.perche) : "";
-          return { ...i, descrizione: i.descrizione + (perche ? "\n\nPerché voi: " + perche : "") + (squadra.length ? "\n\nLa squadra proposta:\n" + squadra.join("\n") : "") };
-        });
+        const daPubblicare = ideeDaPubblicare(idee, visibilita, proposta, destinatari);
         const motivi = Object.fromEntries(proposta.filter((x) => destinatari.has(x.id) && x.motivo).map((x) => [x.id, x.motivo]));
         await api("idea", {
           id: post.id, titolo: velo.querySelector("#eTitolo").value, idee: daPubblicare, visibilita, destinatari: [...destinatari], motivi,
