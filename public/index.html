@@ -232,7 +232,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.11.0";
+const VERSION = "2.11.1";
 const $main = document.getElementById("main");
 const S = { opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -551,7 +551,7 @@ const ICONE = {
 };
 const icona = (k) => `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONE[k]}</svg>`;
 const PERCORSI = [
-  ["idea", "Ho un'idea e vorrei trovare le persone giuste con cui svilupparla", "Scrivi l'idea: Claude la sviluppa e ti propone i compagni di strada migliori."],
+  ["idea", "Ho un'idea e vorrei trovare delle persone insieme a cui svilupparla", "Scrivi l'idea: Claude la sviluppa e ti propone i compagni di strada migliori."],
   ["persone", "Ci sono persone con cui mi piacerebbe lavorare, ma non ho ancora un'idea", "Sceglile: Claude genera idee compatibili con i vostri profili."],
   ["profilo", "Vorrei una proposta sia di idee sia di compagni di squadra", "Claude parte dal tuo profilo e ti propone idee e squadre."],
 ];
@@ -918,8 +918,8 @@ function bacheca() {
   const lista = tutte.filter((i) => f === "tutte" || (f === "mie" ? i.autore === io : perMe(i)));
   const nomi = (ids) => (ids || []).map((id) => (profilo(id) || {}).nome || "?");
   box.innerHTML = `<div class="riga"><div><h2>Bacheca</h2>
-    <p class="sotto">Le idee del master: pubblica la tua, per tutti o solo per qualche compagno, e candidati a quelle degli altri.</p></div>
-    <span class="spazio"></span><button class="btn primario" data-tour="nuova" data-nuova-idea ${io ? "" : "disabled"}>+ Nuova idea</button></div>
+    <p class="sotto">Le idee del master, per tutti o solo per qualche compagno: candidati a quelle degli altri. Per pubblicarne una, parti qui sotto da «Ho un'idea».</p></div>
+    </div>
     <div class="riga" style="margin-bottom:12px">${[["tutte", "Tutte"], ["conme", "Condivise con me"], ["mie", "Le mie"]].map(([k, t]) =>
       `<button class="btn piccolo ${f === k ? "primario" : ""}" data-filtro-bacheca="${k}">${t}${k === "conme" && tutte.filter(perMe).length ? ` (${tutte.filter(perMe).length})` : ""}</button>`).join("")}</div>
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">${lista.map((i) => {
@@ -946,7 +946,7 @@ function bacheca() {
             ${(i.membri || []).filter((m) => m !== io).map((m) => `<a href="#" class="piccolo" data-membro="${i.id}|${m}|0">togli ${esc((profilo(m) || {}).nome)}</a>`).join(" ")}`
             : io ? `<button class="btn piccolo ${interessato ? "" : "primario"}" data-interesse="${i.id}|${interessato ? 0 : 1}" ${dentro ? "disabled" : ""}>${dentro ? "Sei nella squadra" : interessato ? "Ritira candidatura" : "Voglio partecipare"}</button>` : ""}
         </div></div>`;
-    }).join("") || `<p class="piccolo">${f === "tutte" ? "Ancora nessuna idea: pubblica la prima, oppure generane qualcuna qui sotto." : "Niente qui, per ora."}</p>`}</div>`;
+    }).join("") || `<p class="piccolo">${f === "tutte" ? "Ancora nessuna idea: parti qui sotto, anche da un'idea che hai già." : "Niente qui, per ora."}</p>`}</div>`;
 }
 document.addEventListener("click", async (ev) => {
   const t = ev.target.closest("[data-nuova-idea],[data-filtro-bacheca],[data-modifica],[data-elimina],[data-interesse],[data-membro]");
@@ -1650,7 +1650,6 @@ const TOUR = [
   { sel: '[data-tour="linkedin"] h3', testo: "Qui ci sono i tuoi <b>dati LinkedIn</b>, caricati da noi: dai un'occhiata che siano giusti. Se mancano, li prendi dal PDF del tuo profilo." },
   { sel: '#passioni', testo: "Poi aggiungi <b>passioni, settori e preferenze</b>: servono a Claude per proporti le idee giuste e i compagni adatti. Alla fine ricordati <b>Salva profilo</b>." },
   { sel: '[data-scheda="bacheca"]', azione: true, testo: "Ora andiamo alla home: <b>clicca «Bacheca»</b>." },
-  { sel: '[data-tour="nuova"]', testo: "Qui pubblichi un'idea, o un gruppo fino a 5. Decidi tu se la vede <b>tutto il master</b> o <b>solo i compagni che scegli</b>." },
   { sel: '[data-tour="percorsi"]', testo: "Sotto la bacheca generi le idee con Claude. Scegli da dove parti: <b>hai già un'idea</b> e cerchi le persone giuste, <b>hai già delle persone</b> e cercate un'idea, oppure vuoi <b>una proposta completa</b> basata sul tuo profilo. Le squadre sono di <b>7 o 8</b>." },
   { sel: '[data-scheda="spunti"]', testo: "Cerchi ispirazione? Nella scheda <b>Spunti</b> ci sono migliaia di startup di Y Combinator e le ultime notizie di TechCrunch: con <b>Usa come spunto</b> Claude parte da lì per le tue idee." },
   { sel: '[data-tour="crediti"]', testo: "Ogni generazione costa <b>1 credito</b>. Usali con calma: prima completa il profilo, le idee vengono meglio." },
