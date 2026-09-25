@@ -430,7 +430,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.37.11";
+const VERSION = "2.37.12";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -658,8 +658,7 @@ function pickerPersone(box, scelti, alCambio, segnaposto, massimo, conMe) {
   const inp = box.querySelector("input"), elenco = box.querySelector(".elenco-persone"), chip = box.querySelector(".picker-chip");
   const cambiato = () => { disegnaChip(); if (aperto) disegnaElenco(); alCambio && alCambio(); };
   const disegnaChip = () => {
-    const me = conMe && mio();
-    chip.innerHTML = (me ? `<span class="chip chip-io">${esc(me.nome)} (tu)</span>` : "") + [...scelti].map((id) => `<span class="chip">${esc((profilo(id) || {}).nome || "?")}<button type="button" data-via="${id}" aria-label="Togli">×</button></span>`).join("");
+    chip.innerHTML = [...scelti].map((id) => `<span class="chip">${esc((profilo(id) || {}).nome || "?")}<button type="button" data-via="${id}" aria-label="Togli">×</button></span>`).join("");
     chip.querySelectorAll("[data-via]").forEach((b) => { b.onclick = (e) => { e.stopPropagation(); scelti.delete(b.dataset.via); cambiato(); }; });
   };
   const disegnaElenco = () => {
@@ -949,7 +948,7 @@ function genera() {
   const selSet = document.getElementById("opzSettore");
   if (selSet) selSet.onchange = () => { S.opz.settore = selSet.value; };
   const pick = document.getElementById("pickGruppo");
-  if (pick) { pickerPersone(pick, S.scelti, contaGruppo, "Clicca per vedere tutti, o scrivi un nome…", 7, true); contaGruppo(); }
+  if (pick) { pickerPersone(pick, S.scelti, contaGruppo, "Seleziona i compagni con cui ti piacerebbe lavorare", 7, true); contaGruppo(); }
   const su = (id, k) => { const el = document.getElementById(id); if (el) el.addEventListener("input", (e) => { S[k] = e.target.value; }); };
   su("note", "note"); su("miaIdea", "miaIdea"); su("ideaTitolo", "ideaTitolo");
   // I campi si rileggono al clic: cosi' vale sempre quello che si vede.
