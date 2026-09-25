@@ -238,7 +238,9 @@
   .domanda-gen{min-width:0;border:2px solid var(--bordo);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
   .domanda-gen.aperta{border-color:var(--accento);background:var(--accento-chiaro)}
   .domanda-testa{flex-wrap:nowrap;align-items:center;width:100%;gap:10px}
-  .domanda-corpo{width:100%}
+  .domanda-corpo{width:100%;flex:1;display:flex;flex-direction:column;min-height:0}
+  .domanda-corpo #miaIdea{flex:1;resize:none}
+  @media (max-width:900px){.domanda-corpo #miaIdea{flex:none;min-height:120px}}
   .domanda-gen{aspect-ratio:1/1}
   .domanda-vuota{flex:1;width:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--grigio);font-size:14px;border:1px dashed var(--bordo);border-radius:10px;padding:14px}
   .domanda-corpo label:first-child{margin-top:0}
@@ -344,7 +346,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.26.3";
+const VERSION = "2.26.4";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -744,7 +746,7 @@ function genera() {
 `)}
       </div>
       <div class="riga pulsanti-gen">
-        <button class="btn primario grande" data-pubblica-idea>Pubblica l'idea in bacheca</button>
+        <button class="btn primario grande" data-pubblica-idea>Pubblica in bacheca</button>
         <button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} Sviluppa con l'AI</button></div>
     </div>
     <div id="msgGen"></div>
