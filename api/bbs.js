@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.9.1
+// VERSION: 1.10.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -195,6 +195,15 @@ async function dati(chi, res) {
     }
   }
   const io = u && u.profilo && profili[u.profilo] && profili[u.profilo].email === chi.email ? u.profilo : null;
+  // Per l'amministratore, una volta sola: un'idea di esempio "di un altro"
+  // visibile solo a lui, per vedere come appare e come ci si candida. Non e'
+  // attribuita a nessun compagno vero.
+  if (chi.adminVero && io && !u.esempioCreato) {
+    const e = esempioBacheca(io);
+    bacheca[e.id] = e;
+    u.esempioCreato = true;
+    await Promise.all([scrivi("bacheca", e.id, e), scrivi("utenti", chi.email, u)]);
+  }
   const crediti = chi.admin ? null : await creditiDi(chi.email, u);
   return res.status(200).json({
     io: { email: chi.email, nome: chi.nome, admin: chi.admin, adminVero: chi.adminVero, profilo: io, foto: u && u.foto, crediti },
@@ -212,6 +221,27 @@ async function dati(chi, res) {
     generazioni: generazioni.filter((g) => g.chi === chi.email).slice(0, 30)
       .map((g) => { if (chi.adminVero) return g; const { costo, ...resto } = g; return resto; }),
   });
+}
+
+function esempioBacheca(io) {
+  const ora = new Date().toISOString();
+  return {
+    id: "esempio-" + io, esempio: true, autore: "esempio", autoreNome: "Un compagno (esempio)", creata: ora, aggiornata: ora,
+    membri: ["esempio"], interessati: [], visibilita: "scelti", destinatari: [io], origine: "generata", posti: 8,
+    motivi: { [io]: "Esempio: qui leggeresti perche' l'AI ha proposto proprio te, per esempio le tue competenze di controllo di gestione e AI." },
+    titolo: "Manutenzione predittiva per le macchine delle PMI del packaging",
+    idee: [{
+      titolo: "Manutenzione predittiva per le macchine delle PMI del packaging", modello: "B2B", settore: "Industria e logistica", generata: true,
+      descrizione: "Un piccolo sensore da applicare alle macchine automatiche gia' installate e un software che avvisa prima che si guastino.\n\n" +
+        "Problema: le PMI del packaging dell'Emilia perdono giornate di produzione per fermi macchina imprevisti.\n" +
+        "Soluzione: sensori a basso costo e un modello di AI che impara dal comportamento di ogni macchina.\n" +
+        "Clienti: costruttori di macchine e piccoli stabilimenti di confezionamento.\n" +
+        "Tipo di startup: Software per aziende (SaaS)\n\n" +
+        "La squadra proposta:\n- Un ingegnere dell'automazione\n- Una persona di vendite B2B\n- Una persona di finanza",
+    }],
+    descrizione: "", modello: "B2B", settore: "Industria e logistica",
+    cerco: "Una persona di finanza e una di vendite B2B",
+  };
 }
 
 async function rivendica(chi, corpo, res) {
