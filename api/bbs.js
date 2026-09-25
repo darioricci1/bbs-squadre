@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.17.0
+// VERSION: 1.17.1
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -215,6 +215,10 @@ async function dati(chi, res) {
       // i testi dei ruoli per intero solo nel proprio profilo, che si modifica
       const lavori = lavoriPubblici(p, siti).map((l) => p.id === io || chi.admin || l.descrizioneRuolo.length <= 300 ? l : { ...l, descrizioneRuolo: l.descrizioneRuolo.slice(0, 300) + "…" });
       const out = { ...profiloPubblico(p, aziende, chi.admin), lavori };
+      // ruolo e azienda vuoti: si prendono dal lavoro attuale (o dal piu' recente)
+      const ora = lavori.find((l) => l.attuale) || lavori[0];
+      if (ora && !out.ruolo) { out.ruolo = ora.ruolo; out.ruoloDedotto = true; }
+      if (ora && !out.azienda) { out.azienda = ora.azienda; out.aziendaDedotta = true; }
       delete out.lavoriMiei;
       return out;
     })
@@ -720,8 +724,9 @@ async function statistiche(res) {
       const senzaRuolo = L.filter((l) => !l.descrizioneRuolo).length;
       if (senzaSito) manca.push(senzaSito === 1 ? "1 sito di azienda" : senzaSito + " siti di aziende");
       if (dubbi) manca.push(dubbi === 1 ? "1 azienda da controllare" : dubbi + " aziende da controllare");
-      if (senzaRuolo) manca.push(senzaRuolo === 1 ? "1 ruolo senza descrizione" : senzaRuolo + " ruoli senza descrizione");
-      return { id: p.id, nome: p.nome, email: p.email, manca };
+      // facoltativo: il titolo del ruolo dice gia' molto, la descrizione aiuta e basta
+      const facoltativo = senzaRuolo ? [senzaRuolo === 1 ? "1 ruolo senza «Cosa facevi tu»" : senzaRuolo + " ruoli senza «Cosa facevi tu»"] : [];
+      return { id: p.id, nome: p.nome, email: p.email, manca, facoltativo };
     }).filter((r) => r.manca.length).sort((a, b) => b.manca.length - a.manca.length || String(a.nome).localeCompare(String(b.nome))),
     coppie: ordina(coppie, 40).map(([k, n]) => { const [a, b] = k.split("|"); return { a: nomeDi(a), b: nomeDi(b), n }; }),
     cercati: ordina(cercati, 30).map(([id, n]) => ({ nome: nomeDi(id), n })),

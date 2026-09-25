@@ -420,7 +420,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.37.0";
+const VERSION = "2.37.2";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -528,7 +528,34 @@ function disegna() {
     <span class="spazio"></span><button class="btn piccolo" data-torna-admin>Torna amministratore</button></div>`);
   if (tour) setTimeout(tourMostra, 30);
   else tourSePrimaVolta();
+  registraStoria();
 }
+
+// ---------------------------------------------------------------- indietro
+// Ogni passaggio (scheda, profilo di un altro, Genera, linguetta della Regia)
+// entra nella cronologia del browser: il tasto Indietro torna al passo prima
+// invece di uscire dal sito.
+const statoPagina = () => ({ scheda: S.scheda, altrui: S.profiloAltrui || null, genera: !!S.generaAperta, tab: S.tabRegia || null });
+function registraStoria() {
+  if (S.daStoria || !S.dati) return;
+  const st = statoPagina();
+  if (!history.state || !history.state.scheda) return history.replaceState(st, "");
+  if (JSON.stringify(history.state) !== JSON.stringify(st)) history.pushState(st, "");
+}
+window.addEventListener("popstate", (ev) => {
+  const st = ev.state;
+  if (!st || !st.scheda || !S.dati) return;
+  S.daStoria = true;
+  try {
+    document.querySelectorAll(".velo:not(#veloGenera)").forEach((v) => v.remove());
+    document.getElementById("testata").classList.remove("menu-aperto");
+    S.scheda = st.scheda; S.profiloAltrui = st.altrui; S.tabRegia = st.tab; S.profAperto = null;
+    if (!st.genera && S.generaAperta) chiudiGenera();
+    disegna();
+    if (st.genera && !S.generaAperta) apriGenera();
+    window.scrollTo(0, 0);
+  } finally { S.daStoria = false; }
+});
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-scheda]");
   if (b) {
@@ -574,6 +601,7 @@ function apriGenera() {
   document.getElementById("testata").classList.remove("menu-aperto");
   genera();
   if (S.generando) mostraCucina();
+  registraStoria();
 }
 function chiudiGenera() {
   S.generaAperta = false;
@@ -582,6 +610,7 @@ function chiudiGenera() {
   if (v) v.remove();
   document.body.classList.remove("genera-pagina");
   if (!document.querySelector(".velo")) document.body.classList.remove("bloccato");
+  registraStoria();
   if (tour) setTimeout(tourMostra, 60);
 }
 document.addEventListener("click", (ev) => {
@@ -2415,6 +2444,7 @@ document.addEventListener("click", (ev) => {
   S.tabRegia = t.dataset.tabRegia;
   document.querySelectorAll("[data-tab-regia]").forEach((b) => b.classList.toggle("attiva", b === t));
   document.querySelectorAll(".sezione-regia").forEach((x) => { x.hidden = x.dataset.sez !== S.tabRegia; });
+  registraStoria();
 });
 // In cima alla Regia: chi e' entrato e come, e cosa manca ai profili.
 function sezioneAccessi(s) {
@@ -2422,7 +2452,7 @@ function sezioneAccessi(s) {
     <h3 style="margin-top:24px">Profili da completare <span class="etichetta ${(s.daCompletare || []).length ? "ambra" : "verde"}">${(s.daCompletare || []).length}</span></h3>
     <p class="piccolo" style="margin-top:0">Chi si è collegato e ha ancora qualcosa da sistemare. Con «Completa» apri il suo profilo e lo sistemi tu, campo per campo.</p>
     <div class="carta scorri"><table><tr><th>Persona</th><th>Cosa manca</th><th></th></tr>
-      ${(s.daCompletare || []).map((r) => `<tr><td><b>${esc(r.nome)}</b><div class="piccolo">${esc(r.email)}</div></td><td class="piccolo">${esc(r.manca.join(" · "))}</td>
+      ${(s.daCompletare || []).map((r) => `<tr><td><b>${esc(r.nome)}</b><div class="piccolo">${esc(r.email)}</div></td><td class="piccolo">${esc(r.manca.join(" · "))}${r.facoltativo && r.facoltativo.length ? `<div style="color:var(--grigio);opacity:.8">facoltativo: ${esc(r.facoltativo.join(" · "))}</div>` : ""}</td>
         <td><button class="btn piccolo" data-completa="${esc(r.id)}">Completa</button></td></tr>`).join("") || '<tr><td colspan="3" class="piccolo">Tutti i profili collegati sono completi.</td></tr>'}
     </table></div>
 `;
