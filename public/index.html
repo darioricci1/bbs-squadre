@@ -429,7 +429,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.37.7";
+const VERSION = "2.37.8";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -2450,9 +2450,9 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 // ---------------------------------------------------------------- statistiche (admin)
 // La Regia a linguette: ogni titolo e' una sezione, se ne vede una alla volta.
-const TAB_REGIA = [["accessi", "Controllo accessi"], ["completare", "Profili da completare"], ["costi", "Costi"], ["attivita", "Attività"],
+const TAB_REGIA = [["attivita", "Attività"], ["completare", "Profili da completare"], ["accessi", "Controllo accessi"], ["costi", "Costi"],
   ["statistiche", "Statistiche"], ["persone", "Persone entrate"], ["registro", "Registro"]];
-const tabRegia = () => (TAB_REGIA.some(([k]) => k === S.tabRegia) ? S.tabRegia : "accessi");
+const tabRegia = () => (TAB_REGIA.some(([k]) => k === S.tabRegia) ? S.tabRegia : "attivita");
 function linguetteRegia(s) {
   const conta = { completare: (s.daCompletare || []).length, persone: s.utenti.length, attivita: s.generazioni.length };
   return `<div class="linguette-regia">${TAB_REGIA.map(([k, t]) => `<button class="${tabRegia() === k ? "attiva" : ""}" data-tab-regia="${k}">${t}${conta[k] ? ` <span class="piccolo">${conta[k]}</span>` : ""}</button>`).join("")}</div>`;
