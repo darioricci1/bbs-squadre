@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.7.0
+// VERSION: 1.8.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -297,6 +297,9 @@ async function idea(chi, corpo, res) {
   Object.assign(i, {
     titolo: testo(corpo.titolo, 160) || (idee.length === 1 ? idee[0].titolo : idee.length + " idee di " + io.nome),
     idee, visibilita, destinatari,
+    // perche' ogni destinatario e' stato proposto (la riga di Claude, o
+    // dell'autore): la vede chi riceve la proposta
+    motivi: Object.fromEntries(destinatari.map((id) => [id, testo((corpo.motivi || {})[id], 240)]).filter(([, m]) => m)),
     descrizione: idee.length === 1 ? idee[0].descrizione : "",
     modello: idee.length === 1 ? idee[0].modello : "",
     settore: idee.length === 1 ? idee[0].settore : "",

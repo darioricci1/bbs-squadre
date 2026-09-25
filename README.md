@@ -19,9 +19,16 @@ Chi usa la piattaforma vede due schede.
     «Sfoglia tutte le persone») e Claude genera idee compatibili;
   - **proposta completa**: Claude parte dal mio profilo e propone idee e
     squadre.
-  Le squadre sono di 7 o 8: Claude completa quelle piu' piccole. Perche'
-  nessuno resti fuori, l'ultimo posto di ogni squadra va a una delle persone
-  proposte meno volte finora (la piu' compatibile fra loro).
+  Le squadre sono di 7 o 8: Claude completa quelle piu' piccole, con una
+  riga di motivo per ogni persona proposta. Perche' nessuno resti fuori,
+  l'ultimo posto di ogni squadra va a una delle persone coinvolte meno
+  finora (la piu' compatibile fra loro). Comparire in una proposta generata
+  vale 1 punto; essere fra i destinatari di una proposta pubblicata con i
+  nomi, o nella squadra di un post, vale 3.
+  Una proposta generata si pubblica in due modi: **solo alle persone della
+  proposta** (spuntate tutte, se ne tolgono o aggiungono quante si vuole,
+  senza obbligo di arrivare a 7 o 8; ognuna vede perche' e' stata proposta)
+  oppure **a tutto il master senza nomi** (si vede solo l'idea).
   Le istruzioni a Claude (`SISTEMA` in `api/genera.js`) seguono le linee
   guida del 24 settembre 2026: startup innovativa, scalabile, replicabile e
   sostenibile, requisito di startup innovativa, criteri della giuria, 3 idee

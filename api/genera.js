@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.8.0
+// VERSION: 1.9.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -170,7 +170,7 @@ PASSO 2, APPROFONDIMENTO. Ricevi una delle idee del passo 1 e scrivi i dettagli,
 - "rischi" e "primo_passo": una o due frasi ciascuno; il primo passo deve essere concreto e fattibile in poche settimane.
 
 ## La squadra: 7 o 8 persone
-I partecipanti sono circa 60 e i gruppi al massimo 8, quindi ogni squadra deve avere 7 o 8 persone. Nel messaggio trovi quante persone ha gia' il gruppo e quante ne devi proporre ("COMPAGNI DA PROPORRE"). In "compagni" metti esattamente quel numero di persone, scelte dall'elenco del master fra chi non e' nel gruppo, per completare la squadra a 7-8: scegli chi copre le competenze che mancano per quell'idea (finanza, tecnologia, vendite, marketing, operations, settore) e chi ha passioni o preferenze compatibili; per ognuno scrivi il motivo. Poi assegna un ruolo anche a loro in "ruoli". Usa solo id presenti nei dati.`;
+I partecipanti sono circa 60 e i gruppi al massimo 8, quindi ogni squadra deve avere 7 o 8 persone. Nel messaggio trovi quante persone ha gia' il gruppo e quante ne devi proporre ("COMPAGNI DA PROPORRE"). In "compagni" metti esattamente quel numero di persone, scelte dall'elenco del master fra chi non e' nel gruppo, per completare la squadra a 7-8: scegli chi copre le competenze che mancano per quell'idea (finanza, tecnologia, vendite, marketing, operations, settore) e chi ha passioni o preferenze compatibili. Per ognuno scrivi in "motivo" una riga breve (al massimo 15 parole) che dica cosa porta a quell'idea, con un fatto concreto del suo profilo (un'azienda, un ruolo, una passione): la leggera' anche la persona proposta. Poi assegna un ruolo anche a loro in "ruoli". Usa solo id presenti nei dati.`;
 
 // Una persona in poche righe. "lungo" per chi e' nel gruppo: presentazione,
 // ruoli con settore e attivita' di ogni azienda, formazione. Breve per
@@ -290,13 +290,21 @@ export default async function handler(req, res) {
   const gruppo = [io, ...scelti.map((id) => profili[id])];
   const idGruppo = new Set(gruppo.map((p) => p.id));
 
-  // Nessuno resta fuori: si conta quante volte ogni persona e' gia' stata
-  // proposta o scelta, e le meno proposte vanno a Claude come candidate per
-  // l'ultimo posto di ogni squadra. Meno una persona e' uscita, piu' sale.
+  // Nessuno resta fuori: si conta quanto ogni persona e' gia' stata
+  // coinvolta, e le meno coinvolte vanno a Claude come candidate per l'ultimo
+  // posto di ogni squadra. Comparire in una proposta generata e rimasta li'
+  // vale 1; essere scelti da qualcuno vale 1; essere fra i destinatari di una
+  // proposta pubblicata con i nomi, o nella squadra di un post, vale 3.
   const esposizione = Object.fromEntries(Object.keys(profili).map((id) => [id, 0]));
-  for (const x of await ultimi("generazioni", 1000).catch(() => [])) {
-    for (const id of x.persone || []) if (id in esposizione) esposizione[id]++;
-    for (const i of x.idee || []) for (const c of i.compagni || []) if (c.id in esposizione) esposizione[c.id]++;
+  const piu = (id, n) => { if (id in esposizione) esposizione[id] += n; };
+  const [storico, post] = await Promise.all([ultimi("generazioni", 1000).catch(() => []), tutti("bacheca").catch(() => ({}))]);
+  for (const x of storico) {
+    for (const id of x.persone || []) piu(id, 1);
+    for (const i of x.idee || []) for (const c of i.compagni || []) piu(c.id, 1);
+  }
+  for (const i of Object.values(post)) {
+    if (i.visibilita === "scelti") for (const id of i.destinatari || []) piu(id, 3);
+    for (const id of i.membri || []) if (id !== i.autore) piu(id, 3);
   }
   const pocoProposte = Object.keys(esposizione).filter((id) => !idGruppo.has(id))
     .sort((a, b) => esposizione[a] - esposizione[b] || Math.random() - 0.5).slice(0, 12);
@@ -311,7 +319,7 @@ export default async function handler(req, res) {
     "## Gruppo",
     ...gruppo.map((p) => riassunto(p, aziende, siti, true) + "\n"),
     "Gli altri partecipanti, fra cui scegliere i compagni da proporre, sono tutti quelli dell'elenco del master tranne le persone del gruppo.",
-    daMax > 0 ? `\n## Chi e' stato proposto poco finora\nPerche' nessuno resti fuori dalle squadre: in ogni idea l'ULTIMO compagno proposto deve essere una di queste persone, la piu' compatibile con quell'idea (anche se non e' perfetta, trova il ruolo in cui puo' essere utile e scrivilo nel motivo). Sono in ordine: le prime sono state proposte meno volte, a parita' di compatibilita' preferiscile. Varia la persona fra un'idea e l'altra.\n${pocoProposte.map((id) => `- ${id} ${profili[id].nome} (proposta ${esposizione[id]} volte)`).join("\n")}` : "",
+    daMax > 0 ? `\n## Chi e' stato proposto poco finora\nPerche' nessuno resti fuori dalle squadre: in ogni idea l'ULTIMO compagno proposto deve essere una di queste persone, la piu' compatibile con quell'idea (anche se non e' perfetta, trova il ruolo in cui puo' essere utile e scrivilo nel motivo). Sono in ordine: le prime sono state proposte meno volte, a parita' di compatibilita' preferiscile. Varia la persona fra un'idea e l'altra.\n${pocoProposte.map((id) => `- ${id} ${profili[id].nome} (coinvolta finora: ${esposizione[id]} punti)`).join("\n")}` : "",
     note ? `## Indicazioni di chi chiede\n${note}` : "",
     miaIdea ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona ha gia' un'idea e cerca i compagni di strada migliori per realizzarla. Le 3 idee top sono questa idea sviluppata al meglio e due sue varianti vicine (un altro cliente, un altro modello di ricavo, un altro mercato); le 2 di riserva possono essere alternative diverse. Valutala con la stessa severita' sui quattro criteri: se ha un punto debole, dillo in "punto_debole" e proponi come rafforzarla. Per ogni idea scegli i compagni che servono davvero a realizzarla.` : "",
   ].join("\n");

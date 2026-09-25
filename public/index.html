@@ -177,6 +177,11 @@
   .stato-az.ignorata{background:var(--sfondo);color:var(--grigio);border:1px solid var(--bordo)}
   .persona-lavoro{margin:6px 0 0;padding-left:10px;border-left:3px solid var(--bordo)}
   .approfondisci{margin-top:10px;width:100%}
+  .proposta-persone{border:1px solid var(--bordo);border-radius:10px;padding:8px 12px;margin:6px 0 10px;max-height:320px;overflow:auto}
+  .voce-proposta{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--bordo)}
+  .voce-proposta:first-child{border-top:0}
+  .voce-proposta input{margin-top:4px}
+  .perche-te{background:var(--accento-chiaro);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
   .motore h3{font-size:18px}
   .percorsi{display:grid;grid-template-columns:repeat(3,1fr);gap:22px 12px;margin:22px 0 12px}
   @media (max-width:760px){.percorsi{grid-template-columns:1fr}}
@@ -214,7 +219,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.6.0";
+const VERSION = "2.7.0";
 const $main = document.getElementById("main");
 const S = { aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -706,10 +711,16 @@ function ideaGenerata(k) {
       i.punto_debole && "Punto debole: " + i.punto_debole,
       i.domande_di_partenza && ["", "Fra 5-10 anni: " + i.domande_di_partenza.fra_5_10_anni, "Cosa manca: " + i.domande_di_partenza.cosa_manca,
         "Bisogno latente: " + i.domande_di_partenza.bisogno_latente, "Chi lo fa già: " + i.domande_di_partenza.chi_lo_fa_gia, ""].join("\n"),
-      "Perché noi: " + i.perche_noi, i.primo_passo && "Primo passo: " + i.primo_passo,
+      i.primo_passo && "Primo passo: " + i.primo_passo,
       i.slide && i.slide.length ? "\nBozza slide:\n" + i.slide.map((sl, k) => `${k + 1}. ${sl.titolo}\n` + (sl.punti || []).map((x) => "   - " + x).join("\n")).join("\n") : ""]
       .filter((x) => x !== undefined && x !== null && x !== false).join("\n"),
     compagni: (i.compagni || []).map((c) => c.id),
+    // con i nomi: si aggiunge solo se la proposta va alle persone che contiene
+    perche: i.perche_noi || "",
+    proposta: [
+      ...(g.persone || []).filter((id) => profilo(id)).map((id) => ({ id, motivo: ((i.ruoli || []).find((r) => r.id === id) || {}).ruolo || "Scelto da te per lavorare insieme", scelto: true })),
+      ...(i.compagni || []).filter((c) => profilo(c.id)).map((c) => ({ id: c.id, motivo: c.motivo || "" })),
+    ],
   };
 }
 function barraSelezione() {
@@ -735,12 +746,14 @@ document.addEventListener("click", (ev) => {
   const una = ev.target.closest("[data-condividi-una]");
   if (una) {
     const i = ideaGenerata(una.dataset.condividiUna);
-    if (i) apriEditor({ idee: [i], suggeriti: i.compagni });
+    if (i) apriEditor({ idee: [i], suggeriti: i.compagni, proposta: i.proposta });
     return;
   }
   if (ev.target.closest("[data-condividi-sel]")) {
     const idee = [...S.selezione].map(ideaGenerata).filter(Boolean);
-    apriEditor({ idee, suggeriti: [...new Set(idee.flatMap((i) => i.compagni || []))], daSelezione: true });
+    const proposta = [];
+    idee.forEach((i) => i.proposta.forEach((x) => { if (!proposta.some((y) => y.id === x.id)) proposta.push(x); }));
+    apriEditor({ idee, suggeriti: [...new Set(idee.flatMap((i) => i.compagni || []))], proposta, daSelezione: true });
     return;
   }
   if (ev.target.closest("[data-svuota-sel]")) { S.selezione.clear(); genera(); }
@@ -751,8 +764,13 @@ document.addEventListener("click", (ev) => {
 // selezionate, modifica di un post. Da 1 a 5 idee, per tutti o per pochi.
 function apriEditor(post) {
   const idee = (post.idee && post.idee.length ? post.idee : [{}]).map((x) => ({ ...x }));
-  const destinatari = new Set(post.destinatari || []);
-  let visibilita = post.visibilita || "tutti";
+  // Le persone di una proposta generata (o, modificando un post, quelle con
+  // un motivo): si pubblica solo a loro, spuntando chi si vuole, oppure a
+  // tutto il master senza nomi.
+  const proposta = post.proposta || Object.entries(post.motivi || {}).map(([id, motivo]) => ({ id, motivo }));
+  const conProposta = proposta.length > 0;
+  const destinatari = new Set(post.destinatari || (post.id ? [] : proposta.map((x) => x.id)));
+  let visibilita = post.visibilita || (conProposta ? "scelti" : "tutti");
   const velo = document.createElement("div");
   velo.className = "velo";
   document.body.appendChild(velo);
@@ -780,17 +798,25 @@ function apriEditor(post) {
       </div>`).join("")}
       ${idee.length < 5 ? `<button class="btn" data-aggiungi-idea style="margin-top:10px">+ Aggiungi un'altra idea (${idee.length}/5)</button>` : '<p class="piccolo">Hai raggiunto 5 idee, il massimo per un post.</p>'}
       <h3 style="margin-bottom:4px">Chi la vede</h3>
-      <label class="spunta"><input type="radio" name="vis" value="tutti" ${visibilita === "tutti" ? "checked" : ""}> Tutto il master</label>
-      <label class="spunta"><input type="radio" name="vis" value="scelti" ${visibilita === "scelti" ? "checked" : ""}> Solo le persone che scelgo</label>
+      ${conProposta ? `<label class="spunta"><input type="radio" name="vis" value="scelti" ${visibilita === "scelti" ? "checked" : ""}> Solo le persone della proposta <small>(togli chi vuoi, o aggiungi altri)</small></label>
+        <label class="spunta"><input type="radio" name="vis" value="tutti" ${visibilita === "tutti" ? "checked" : ""}> Tutto il master, senza nomi <small>(si vede solo l'idea)</small></label>`
+      : `<label class="spunta"><input type="radio" name="vis" value="tutti" ${visibilita === "tutti" ? "checked" : ""}> Tutto il master</label>
+        <label class="spunta"><input type="radio" name="vis" value="scelti" ${visibilita === "scelti" ? "checked" : ""}> Solo le persone che scelgo</label>`}
+      ${conProposta && visibilita === "scelti" ? `<div class="proposta-persone">${proposta.map((x) => `<label class="spunta voce-proposta">
+          <input type="checkbox" data-dest="${x.id}" ${destinatari.has(x.id) ? "checked" : ""}>
+          <span><b>${esc((profilo(x.id) || {}).nome || "?")}</b>${x.scelto ? ' <span class="etichetta grigia">scelto da te</span>' : ""}${x.motivo ? `<br><span class="piccolo">${esc(x.motivo)}</span>` : ""}</span></label>`).join("")}
+        <p class="piccolo" style="margin:6px 0 0">Non serve arrivare a 7 o 8: puoi condividerla anche solo con alcune di queste persone. Ognuna vedrà la riga sul perché è stata proposta.</p></div>` : ""}
       <div id="ePick" style="${visibilita === "scelti" ? "" : "display:none"}"></div>
-      ${visibilita === "scelti" && (post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).length ? `<p class="piccolo">Suggeriti da Claude: ${(post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).map((id) => `<a href="#" data-sugg-dest="${id}">+ ${esc(profilo(id).nome)}</a>`).join(" · ")}</p>` : ""}
+      ${!conProposta && visibilita === "scelti" && (post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).length ? `<p class="piccolo">Suggeriti da Claude: ${(post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).map((id) => `<a href="#" data-sugg-dest="${id}">+ ${esc(profilo(id).nome)}</a>`).join(" · ")}</p>` : ""}
       <div class="due"><div><label>Cosa cerchi <small>(competenze, ruoli, un messaggio)</small></label><input type="text" id="eCerco" value="${esc(post.cerco || "")}"></div>
       <div><label>Persone nella squadra, te compreso</label><select id="ePosti">${[8, 7].map((n) => `<option value="${n}" ${Number(post.posti) === n ? "selected" : ""}>${n} persone</option>`).join("")}</select></div></div>
       <div id="msgEd"></div>
       <div class="riga" style="margin-top:14px"><span class="spazio"></span><button class="btn" data-chiudi>Annulla</button>
         <button class="btn primario" id="ePubblica">${post.id ? "Salva" : "Pubblica"}</button></div>
     </div>`;
-    if (visibilita === "scelti") pickerPersone(velo.querySelector("#ePick"), destinatari, null, "Con chi la condividi? Clicca o scrivi un nome…");
+    if (visibilita === "scelti") pickerPersone(velo.querySelector("#ePick"), destinatari, () => {
+      velo.querySelectorAll("[data-dest]").forEach((c) => { c.checked = destinatari.has(c.dataset.dest); });
+    }, conProposta ? "Aggiungi qualcun altro: clicca o scrivi un nome…" : "Con chi la condividi? Clicca o scrivi un nome…");
   };
   velo.addEventListener("click", async (ev) => {
     if (ev.target === velo || ev.target.closest("[data-chiudi]")) return chiudi();
@@ -803,8 +829,11 @@ function apriEditor(post) {
       leggiBlocchi();
       const b = ev.target; b.disabled = true;
       try {
+        // "Perche' voi" (con i nomi) solo se la vedono le persone della proposta
+        const daPubblicare = idee.map((i) => ({ ...i, descrizione: visibilita === "scelti" && i.perche && !i.descrizione.includes(i.perche) ? i.descrizione + "\n\nPerché voi: " + i.perche : i.descrizione }));
+        const motivi = Object.fromEntries(proposta.filter((x) => destinatari.has(x.id) && x.motivo).map((x) => [x.id, x.motivo]));
         await api("idea", {
-          id: post.id, titolo: velo.querySelector("#eTitolo").value, idee, visibilita, destinatari: [...destinatari],
+          id: post.id, titolo: velo.querySelector("#eTitolo").value, idee: daPubblicare, visibilita, destinatari: [...destinatari], motivi,
           cerco: velo.querySelector("#eCerco").value, posti: velo.querySelector("#ePosti").value,
           generazione: (idee.find((i) => i.generazione) || {}).generazione,
         });
@@ -815,6 +844,13 @@ function apriEditor(post) {
     }
   });
   velo.addEventListener("change", (ev) => {
+    const d = ev.target.closest("[data-dest]");
+    if (d) {
+      if (d.checked) destinatari.add(d.dataset.dest); else destinatari.delete(d.dataset.dest);
+      leggiBlocchi(); post.titolo = velo.querySelector("#eTitolo").value;
+      post.cerco = velo.querySelector("#eCerco").value; post.posti = velo.querySelector("#ePosti").value;
+      disegnaE(); return;
+    }
     if (ev.target.name === "vis") {
       leggiBlocchi(); post.titolo = velo.querySelector("#eTitolo").value;
       post.cerco = velo.querySelector("#eCerco").value; post.posti = velo.querySelector("#ePosti").value;
@@ -854,12 +890,14 @@ function bacheca() {
         <div class="riga"><span class="piccolo">di <b>${esc((profilo(i.autore) || {}).nome || i.autoreNome)}</b> · ${quando(i.creata)}</span><span class="spazio"></span>
           <span class="piccolo">${(i.membri || []).length}/${i.posti || 5}</span></div>
         ${riservata ? `<div class="riservata-nota">🔒 ${mia || S.dati.io.admin ? "Visibile solo a: " + esc(nomi(i.destinatari).join(", ")) : "Condivisa con te"}</div>` : ""}
+        ${riservata && !mia && i.motivi && i.motivi[io] ? `<div class="perche-te"><b>Perché sei stato proposto:</b> ${esc(i.motivi[io])}</div>` : ""}
+        ${riservata && (mia || S.dati.io.admin) && i.motivi && Object.keys(i.motivi).length ? `<details class="piccolo"><summary>Perché queste persone</summary>${(i.destinatari || []).filter((id) => i.motivi[id]).map((id) => `<div><b>${esc((profilo(id) || {}).nome || "?")}</b>: ${esc(i.motivi[id])}</div>`).join("")}</details>` : ""}
         <h3 style="margin-top:8px">${esc(i.titolo)}</h3>
         ${idee.length === 1 ? `<div class="riga">${idee[0].modello ? `<span class="etichetta">${esc(idee[0].modello)}</span>` : ""}${idee[0].settore ? `<span class="etichetta grigia">${esc(idee[0].settore)}</span>` : ""}${i.origine === "generata" ? '<span class="etichetta grigia">generata</span>' : ""}</div>
           <p class="descr">${esc(idee[0].descrizione)}</p>`
         : `<p class="piccolo">${idee.length} idee:</p>${idee.map((x, n) => `<details class="sotto-idea"><summary><b>${n + 1}. ${esc(x.titolo)}</b> ${x.modello ? `<span class="etichetta">${esc(x.modello)}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}</summary><p class="descr">${esc(x.descrizione)}</p></details>`).join("")}`}
         ${i.cerco ? `<p class="piccolo"><b>Cerca:</b> ${esc(i.cerco)}</p>` : ""}
-        <div class="piccolo"><b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}${(i.membri || []).length < 7 ? ` <span class="etichetta ambra">ne ${7 - (i.membri || []).length === 1 ? "manca 1" : "mancano " + (7 - (i.membri || []).length)} per arrivare a 7</span>` : ""}</div>
+        <div class="piccolo"><b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}</div>
         ${(i.interessati || []).length ? `<div class="piccolo" style="margin-top:4px"><b>Interessati:</b> ${(i.interessati || []).map((id) => `${esc((profilo(id) || {}).nome || "?")}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</div>` : ""}
         <div class="riga" style="margin-top:10px">
           ${mia ? `<button class="btn piccolo" data-modifica="${i.id}">Modifica</button><button class="btn piccolo pericolo" data-elimina="${i.id}">Elimina</button>
