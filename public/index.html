@@ -398,7 +398,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.31.5";
+const VERSION = "2.31.6";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -772,18 +772,7 @@ document.addEventListener("click", (ev) => {
 });
 
 // Mentre l'AI lavora: una sovrimpressione con la padella e frasi che cambiano.
-const FRASI_CUCINA = [
-  "What's cooking, good looking? 👀",
-  "L'AI sta sbirciando i LinkedIn di tutti. Tranquilli, non giudica (troppo).",
-  "Soffritto di competenze in corso…",
-  "Aggiungo un pizzico di B2B, quanto basta.",
-  "Sto cercando chi sa fare i conti e chi sa vendere il ghiaccio agli eschimesi.",
-  "Mescolo ingegneri e commerciali: a fuoco lento, sennò litigano.",
-  "Assaggio le idee: questa è sciapa, la butto.",
-  "Impiatto cinque idee con la squadra di contorno.",
-  "Il pitch deck lo lascio a voi, io faccio solo la spesa.",
-  "Quasi pronto: apparecchiate la tavola.",
-];
+const FRASI_CUCINA = ["What's cooking, good looking? 👀"];
 function mostraCucina() {
   const f = document.querySelector(".finestra-genera");
   if (!f || document.getElementById("cucina")) return;
@@ -793,7 +782,7 @@ function mostraCucina() {
     <div class="barra-cucina"><span></span></div>
     <div class="piccolo">Di solito ci vuole meno di un minuto.</div></div>`);
   let k = 0;
-  S.timerCucina = setInterval(() => {
+  if (FRASI_CUCINA.length > 1) S.timerCucina = setInterval(() => {
     const el = document.getElementById("fraseCucina");
     if (!el) return clearInterval(S.timerCucina);
     k = (k + 1) % FRASI_CUCINA.length;
