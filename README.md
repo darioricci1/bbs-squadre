@@ -10,8 +10,12 @@ Chi usa la piattaforma vede due schede.
 
 - **Bacheca** (la home). In alto i post del master: ognuno contiene da 1 a 5
   idee, scritte a mano o generate, ed e' visibile a tutti oppure solo alle
-  persone scelte da chi lo pubblica. Ci si candida con «Voglio partecipare» e
-  l'autore accoglie chi vuole nella squadra. Le mie sono in blu, le altre in
+  persone scelte da chi lo pubblica. Se un post ha piu' idee si passa
+  dall'una all'altra con le linguette; in vista c'e' solo la frase che spiega
+  l'idea, il resto nei Dettagli. Con «Mi interessa» ci si candida: lo vede
+  solo chi ha pubblicato l'idea (e l'amministratore), che accoglie chi vuole
+  nella squadra. L'amministratore vede due esempi (una proposta a un gruppo e
+  un'idea per tutti) che nessun altro vede. Le mie sono in blu, le altre in
   grigio. Sotto si generano le idee con tre domande: **hai un'idea?** (se si'
   si scrive, e si puo' anche pubblicare cosi' com'e'), **hai compagni?** (si
   scelgono), **vuoi dare piu' indicazioni all'AI?** (cursori, settore a pillole,

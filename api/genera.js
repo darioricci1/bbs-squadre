@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.12.1
+// VERSION: 1.12.2
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -317,6 +317,7 @@ export default async function handler(req, res) {
     for (const i of x.idee || []) for (const c of i.compagni || []) piu(c.id, 1);
   }
   for (const i of Object.values(post)) {
+    if (i.esempio) continue;
     if (i.visibilita === "scelti") for (const id of i.destinatari || []) piu(id, 3);
     for (const id of i.membri || []) if (id !== i.autore) piu(id, 3);
   }

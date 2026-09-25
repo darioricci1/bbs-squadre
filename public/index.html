@@ -259,6 +259,9 @@
   .gettone:hover{border-color:var(--accento)}
   .conta-gettone{opacity:.6;font-size:11px}
   .gettone.attivo{background:var(--accento);border-color:var(--accento);color:#fff}
+  .linguette{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 0}
+  .linguette button{border:1px solid var(--bordo);background:#fff;border-radius:99px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--grigio)}
+  .linguette button.attiva{background:var(--accento);border-color:var(--accento);color:#fff}
   .perche-te{background:var(--accento-chiaro);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
   .motore h3{font-size:18px}
   .percorsi{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 12px;margin:30px 0 12px}
@@ -299,9 +302,9 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.17.2";
+const VERSION = "2.18.0";
 const $main = document.getElementById("main");
-const S = { tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
+const S = { linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
 
 // ---------------------------------------------------------------- utilita'
@@ -1103,27 +1106,39 @@ function bacheca() {
       const interessato = (i.interessati || []).includes(io);
       const idee = ideeDelPost(i);
       const riservata = i.visibilita === "scelti";
+      // Piu' idee nello stesso post: linguette per passare dall'una all'altra.
+      const n = Math.min(S.linguette[i.id] || 0, idee.length - 1), x = idee[n];
+      // In vista solo la frase che spiega l'idea; il resto nei dettagli.
+      const [frase, ...resto] = String(x.descrizione || "").split(/\n\s*\n/);
       return `<div class="carta idea ${mia ? "mia" : "altrui"} ${riservata ? "riservata" : ""}">
         <div class="riga"><span class="piccolo">di <b>${esc((profilo(i.autore) || {}).nome || i.autoreNome)}</b> · ${quando(i.creata)}</span><span class="spazio"></span>
-          <span class="piccolo">${(i.membri || []).length}/${i.posti || 5}</span></div>
-        ${riservata ? `<div class="riservata-nota">🔒 ${mia || S.dati.io.admin ? "Visibile solo a: " + esc(nomi(i.destinatari).join(", ")) : "Condivisa con te"}</div>` : ""}
-        ${riservata && !mia && i.motivi && i.motivi[io] ? `<div class="perche-te"><b>Perché sei stato proposto:</b> ${esc(i.motivi[io])}</div>` : ""}
-        ${riservata && (mia || S.dati.io.admin) && i.motivi && Object.keys(i.motivi).length ? `<details class="piccolo"><summary>Perché queste persone</summary>${(i.destinatari || []).filter((id) => i.motivi[id]).map((id) => `<div><b>${esc((profilo(id) || {}).nome || "?")}</b>: ${esc(i.motivi[id])}</div>`).join("")}</details>` : ""}
-        ${i.esempio ? `<div class="avviso info" style="margin:6px 0">È un <b>esempio</b>: lo vedi solo tu, per capire come appare l'idea di un compagno e come ci si candida. ${S.dati.io.admin ? `<button class="btn piccolo" data-elimina="${i.id}">Elimina l'esempio</button>` : ""}</div>` : ""}
-        <h3 style="margin-top:8px">${esc(i.titolo)}</h3>
-        ${idee.length === 1 ? `<div class="riga">${idee[0].modello ? `<span class="etichetta">${esc(idee[0].modello)}</span>` : ""}${idee[0].settore ? `<span class="etichetta grigia">${esc(idee[0].settore)}</span>` : ""}${i.origine === "generata" ? '<span class="etichetta grigia">generata</span>' : ""}</div>
-          <p class="descr">${esc(idee[0].descrizione)}</p>`
-        : `<p class="piccolo">${idee.length} idee:</p>${idee.map((x, n) => `<details class="sotto-idea"><summary><b>${n + 1}. ${esc(x.titolo)}</b> ${x.modello ? `<span class="etichetta">${esc(x.modello)}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}</summary><p class="descr">${esc(x.descrizione)}</p></details>`).join("")}`}
-        ${i.cerco ? `<p class="piccolo"><b>Cerca:</b> ${esc(i.cerco)}</p>` : ""}
-        <div class="piccolo"><b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}</div>
-        ${(i.interessati || []).length ? `<div class="piccolo" style="margin-top:4px"><b>Interessati:</b> ${(i.interessati || []).map((id) => `${esc((profilo(id) || {}).nome || "?")}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</div>` : ""}
+          ${riservata ? `<span class="piccolo" title="${mia || S.dati.io.admin ? "Visibile solo a: " + esc(nomi(i.destinatari).join(", ")) : "Condivisa con te"}">🔒</span>` : ""}</div>
+        ${idee.length > 1 ? `<div class="piccolo" style="margin-top:6px">${esc(i.titolo)}</div>
+          <div class="linguette">${idee.map((y, k) => `<button class="${k === n ? "attiva" : ""}" data-linguetta="${i.id}|${k}">Idea ${k + 1}</button>`).join("")}</div>` : ""}
+        <h3 style="margin:8px 0 4px">${esc(x.titolo)}</h3>
+        <p class="descr" style="margin:0 0 6px">${esc(frase)}</p>
+        <div class="riga">${x.modello ? `<span class="etichetta">${esc(x.modello)}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}</div>
+        ${resto.length ? `<details class="dettagli-idea"><summary>Dettagli</summary><p class="descr">${esc(resto.join("\n\n"))}</p></details>` : ""}
+        <div class="piccolo" style="margin-top:6px"><b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}${i.cerco ? ` · <b>cerca:</b> ${esc(i.cerco)}` : ""}</div>
+        ${(mia || S.dati.io.admin) && (i.interessati || []).length ? `<div class="piccolo" style="margin-top:4px"><b>Interessati:</b> ${(i.interessati || []).map((id) => `${esc((profilo(id) || {}).nome || "?")}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</div>` : ""}
         <div class="riga" style="margin-top:10px">
           ${mia ? `<button class="btn piccolo" data-modifica="${i.id}">Modifica</button><button class="btn piccolo pericolo" data-elimina="${i.id}">Elimina</button>
             ${(i.membri || []).filter((m) => m !== io).map((m) => `<a href="#" class="piccolo" data-membro="${i.id}|${m}|0">togli ${esc((profilo(m) || {}).nome)}</a>`).join(" ")}`
-            : io ? `<button class="btn piccolo ${interessato ? "" : "primario"}" data-interesse="${i.id}|${interessato ? 0 : 1}" ${dentro ? "disabled" : ""}>${dentro ? "Sei nella squadra" : interessato ? "Ritira candidatura" : "Voglio partecipare"}</button>` : ""}
-        </div></div>`;
+            : io ? `<button class="btn piccolo ${interessato ? "" : "primario"}" data-interesse="${i.id}|${interessato ? 0 : 1}" ${dentro ? "disabled" : ""}>${dentro ? "Sei nella squadra" : interessato ? "Ti interessa ✓ (togli)" : "Mi interessa"}</button>
+              <span class="piccolo">${dentro ? "" : "lo vede solo chi l'ha pubblicata"}</span>` : ""}
+        </div>
+        ${riservata && !mia && i.motivi && i.motivi[io] ? `<div class="perche-te"><b>Perché sei stato proposto:</b> ${esc(i.motivi[io])}</div>` : ""}
+        ${riservata && (mia || S.dati.io.admin) ? `<details class="piccolo"><summary>Chi la vede${i.motivi && Object.keys(i.motivi).length ? " e perché" : ""}</summary>${(i.destinatari || []).map((id) => `<div><b>${esc((profilo(id) || {}).nome || "?")}</b>${i.motivi && i.motivi[id] ? ": " + esc(i.motivi[id]) : ""}</div>`).join("")}</details>` : ""}
+        ${i.esempio ? `<div class="avviso info" style="margin:8px 0 0">È un <b>esempio</b>: lo vedi solo tu, per capire come appare l'idea di un compagno. ${S.dati.io.admin ? `<button class="btn piccolo" data-elimina="${i.id}">Elimina l'esempio</button>` : ""}</div>` : ""}
+      </div>`;
     }).join("") || `<p class="piccolo">Ancora nessuna idea: parti qui sotto, anche da un'idea che hai già.</p>`}</div>`;
 }
+document.addEventListener("click", (ev) => {
+  const l = ev.target.closest("[data-linguetta]");
+  if (!l) return;
+  const [id, k] = l.dataset.linguetta.split("|");
+  S.linguette[id] = Number(k); bacheca();
+});
 document.addEventListener("click", async (ev) => {
   const t = ev.target.closest("[data-nuova-idea],[data-filtro-bacheca],[data-modifica],[data-elimina],[data-interesse],[data-membro]");
   if (!t) return;

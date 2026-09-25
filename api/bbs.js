@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.10.0
+// VERSION: 1.12.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -198,11 +198,12 @@ async function dati(chi, res) {
   // Per l'amministratore, una volta sola: un'idea di esempio "di un altro"
   // visibile solo a lui, per vedere come appare e come ci si candida. Non e'
   // attribuita a nessun compagno vero.
-  if (chi.adminVero && io && !u.esempioCreato) {
-    const e = esempioBacheca(io);
-    bacheca[e.id] = e;
-    u.esempioCreato = true;
-    await Promise.all([scrivi("bacheca", e.id, e), scrivi("utenti", chi.email, u)]);
+  if (chi.adminVero && io && u.esempioVersione !== 3) {
+    const esempi = esempiBacheca(io, profili);
+    for (const e of esempi) bacheca[e.id] = e;
+    delete bacheca["esempio-" + io];
+    u.esempioVersione = 3;
+    await Promise.all([...esempi.map((e) => scrivi("bacheca", e.id, e)), togli("bacheca", "esempio-" + io), scrivi("utenti", chi.email, u)]);
   }
   const crediti = chi.admin ? null : await creditiDi(chi.email, u);
   return res.status(200).json({
@@ -215,7 +216,9 @@ async function dati(chi, res) {
       return out;
     })
       .sort((x, y) => String(x.nome).localeCompare(String(y.nome))),
+    // chi ha detto "mi interessa" lo vede solo l'autore (e l'amministratore)
     bacheca: Object.values(bacheca).filter((i) => vedeIdea(i, io, chi.admin))
+      .map((i) => chi.admin || i.autore === io ? i : { ...i, interessati: (i.interessati || []).filter((x) => x === io) })
       .sort((x, y) => String(y.creata).localeCompare(String(x.creata))),
     scelte: { settori: SETTORI, tipi: TIPI, fonti: FONTI },
     generazioni: generazioni.filter((g) => g.chi === chi.email).slice(0, 30)
@@ -223,25 +226,67 @@ async function dati(chi, res) {
   });
 }
 
-function esempioBacheca(io) {
-  const ora = new Date().toISOString();
-  return {
-    id: "esempio-" + io, esempio: true, autore: "esempio", autoreNome: "Un compagno (esempio)", creata: ora, aggiornata: ora,
-    membri: ["esempio"], interessati: [], visibilita: "scelti", destinatari: [io], origine: "generata", posti: 8,
-    motivi: { [io]: "Esempio: qui leggeresti perche' l'AI ha proposto proprio te, per esempio le tue competenze di controllo di gestione e AI." },
-    titolo: "Manutenzione predittiva per le macchine delle PMI del packaging",
-    idee: [{
-      titolo: "Manutenzione predittiva per le macchine delle PMI del packaging", modello: "B2B", settore: "Industria e logistica", generata: true,
-      descrizione: "Un piccolo sensore da applicare alle macchine automatiche gia' installate e un software che avvisa prima che si guastino.\n\n" +
-        "Problema: le PMI del packaging dell'Emilia perdono giornate di produzione per fermi macchina imprevisti.\n" +
-        "Soluzione: sensori a basso costo e un modello di AI che impara dal comportamento di ogni macchina.\n" +
-        "Clienti: costruttori di macchine e piccoli stabilimenti di confezionamento.\n" +
-        "Tipo di startup: Software per aziende (SaaS)\n\n" +
-        "La squadra proposta:\n- Un ingegnere dell'automazione\n- Una persona di vendite B2B\n- Una persona di finanza",
-    }],
-    descrizione: "", modello: "B2B", settore: "Industria e logistica",
-    cerco: "Una persona di finanza e una di vendite B2B",
+// Due esempi fatti con persone vere del master (cercate per nome, se no le
+// prime disponibili), che vede solo l'amministratore (soloPer, vedi vedeIdea):
+// una proposta generata da un compagno e condivisa col suo gruppo, e un'idea
+// pubblicata per tutti.
+function esempiBacheca(io, profili) {
+  const tutti = Object.values(profili).filter((p) => p.id !== io);
+  const presi = [];
+  const trova = (nome) => {
+    const p = tutti.find((x) => !presi.includes(x.id) && String(x.nome).toLowerCase().includes(nome)) || tutti.find((x) => !presi.includes(x.id));
+    if (p) presi.push(p.id);
+    return p || null;
   };
+  const [autore, cfo, vendite, ingegnere, autrice2] = ["alessio sisi", "leming", "matteo magri", "andrea allegro", "sara saltini"].map(trova);
+  const nome = (p, r) => (p ? p.nome : r);
+  const ora = new Date().toISOString();
+  const squadra = (ruoloMio) => `La squadra proposta:\n- ${nome(autore, "Chi l'ha generata")}: prodotto e ingegneria\n- ${nome(ingegnere, "Un ingegnere")}: processi e automazione\n- ${nome(cfo, "Una persona di finanza")}: finanza e modello di ricavo\n- ${nome(vendite, "Una persona di vendite")}: vendite B2B\n- ${profili[io] ? profili[io].nome : "Tu"}: ${ruoloMio}`;
+  const gruppo = [cfo, vendite, ingegnere].filter(Boolean).map((p) => p.id);
+  const idea = (titolo, settore, frase, problema, soluzione, clienti, tipo, conNomi) => ({
+    titolo, modello: "B2B", settore, generata: true,
+    descrizione: `${frase}\n\nProblema: ${problema}\nSoluzione: ${soluzione}\nClienti: ${clienti}\nTipo di startup: ${tipo}` + (conNomi ? "\n\n" + squadra("controllo di gestione e AI") : ""),
+  });
+  return [
+    {
+      id: "esempio-gruppo-" + io, esempio: true, soloPer: io, autore: autore ? autore.id : "esempio", autoreNome: nome(autore, "Un compagno"),
+      creata: ora, aggiornata: ora, membri: [autore && autore.id, ingegnere && ingegnere.id].filter(Boolean), interessati: [],
+      visibilita: "scelti", destinatari: [io, ...gruppo], origine: "generata", posti: 8,
+      motivi: {
+        [io]: "Porti controllo di gestione e AI: servono per misurare quanto la soluzione fa risparmiare ai clienti e per costruire il prodotto.",
+        ...(cfo ? { [cfo.id]: "CFO in un gruppo industriale: costruisce il modello di ricavo e parla la lingua dei titolari." } : {}),
+        ...(vendite ? { [vendite.id]: "Vende automazione di magazzino in Europa: conosce clienti e canali B2B." } : {}),
+        ...(ingegnere ? { [ingegnere.id]: "Ingegnere di processo: sa dove si fermano le linee e perche'." } : {}),
+      },
+      titolo: "Tre idee per le fabbriche delle PMI",
+      idee: [
+        idea("Manutenzione predittiva per le macchine del packaging", "Industria e logistica",
+          "Un sensore da applicare alle macchine gia' installate e un software che avvisa prima che si guastino.",
+          "le PMI del packaging perdono giornate di produzione per fermi macchina imprevisti.", "sensori a basso costo e un'AI che impara dal comportamento di ogni macchina.",
+          "costruttori di macchine e piccoli stabilimenti di confezionamento.", "Software per aziende (SaaS)", true),
+        idea("Ricambi in giornata per le officine di moto e scooter", "Mobilità e automotive",
+          "Una piattaforma che collega le officine ai magazzini ricambi della zona e prevede quali pezzi serviranno.",
+          "le officine aspettano giorni i ricambi e perdono clienti.", "un marketplace dei ricambi con consegna in giornata.",
+          "officine indipendenti e concessionari.", "Piattaforma o marketplace", true),
+        idea("Controllo di gestione automatico per le PMI", "AI e software",
+          "Un software che legge i dati del gestionale e ogni settimana manda al titolare margini, costi e allarmi.",
+          "nelle PMI i numeri arrivano tardi, quando non si possono piu' correggere.", "collegamento ai dati esistenti e un'AI che scrive un rapporto chiaro.",
+          "PMI manifatturiere dai 20 ai 200 dipendenti.", "Software per aziende (SaaS)", true),
+      ],
+      descrizione: "", modello: "B2B", settore: "Industria e logistica", cerco: "",
+    },
+    {
+      id: "esempio-pubblica-" + io, esempio: true, soloPer: io, autore: autrice2 ? autrice2.id : "esempio", autoreNome: nome(autrice2, "Una compagna"),
+      creata: ora, aggiornata: ora, membri: [autrice2 && autrice2.id].filter(Boolean), interessati: [],
+      visibilita: "tutti", destinatari: [], origine: "generata", posti: 8, motivi: {},
+      titolo: "Caldaie che si prenotano da sole la manutenzione",
+      idee: [idea("Caldaie che si prenotano da sole la manutenzione", "Casa ed edilizia",
+        "Un piccolo modulo che segnala quando la caldaia ha bisogno di assistenza e prenota il tecnico, prima che si guasti.",
+        "le famiglie scoprono il guasto quando resta senza acqua calda, e i tecnici lavorano sempre in emergenza.", "un modulo connesso e un servizio che organizza gli interventi della zona.",
+        "installatori e centri assistenza, e tramite loro le famiglie.", "Servizio tradizionale reso scalabile", false)],
+      descrizione: "", modello: "B2B", settore: "Casa ed edilizia", cerco: "Chi conosce la vendita tramite installatori e chi sa di prodotti connessi",
+    },
+  ];
 }
 
 async function rivendica(chi, corpo, res) {
@@ -568,11 +613,12 @@ async function salvaImpostazioni(chi, corpo, res) {
 }
 
 async function statistiche(res) {
-  const [profili, utenti, bacheca, generazioni, registro, aziende] = await Promise.all([
+  const [profili, utenti, bachecaTutta, generazioni, registro, aziende] = await Promise.all([
     tutti("profili"), tutti("utenti"), tutti("bacheca"),
     ultimi("generazioni", 1000), eventi(1000), tutti("aziende"),
   ]);
   const nomeDi = (id) => (profili[id] && profili[id].nome) || id;
+  const bacheca = Object.fromEntries(Object.entries(bachecaTutta).filter(([, i]) => !i.esempio));   // gli esempi non contano
 
   // Chi viene messo insieme a chi: selezioni nella generazione, squadre e
   // interessi in bacheca. Ogni coppia pesa quante volte compare.
