@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.19.0
+// VERSION: 1.19.1
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -42,7 +42,7 @@ import {
 } from "../lib/bbs.js";
 import { lavoriDi, lavoriPubblici, infoAzienda, chiaveAziendaNome, idLavoro } from "../lib/lavori.js";
 import { descriviAzienda, leggiPagina } from "../lib/leggi-sito.js";
-import { generazioniDi } from "../lib/db.js";
+import { generazioniDi, contatoriCon } from "../lib/db.js";
 import { lavoriDa } from "../lib/esperienze.js";
 import { SETTORI, TIPI, FONTI } from "../lib/scelte.js";
 import { MODELLI, EFFORT, impostazioniGenera } from "./genera.js";
@@ -227,6 +227,9 @@ async function dati(chi, res) {
       if (!out.ruolo && (dalTitolo || ora)) { out.ruolo = dalTitolo ? dalTitolo[1].trim() : ora.ruolo; out.ruoloDedotto = true; }
       if (!out.azienda && (dalTitolo || ora)) { out.azienda = dalTitolo ? dalTitolo[2].trim() : ora.azienda; out.aziendaDedotta = true; }
       delete out.lavoriMiei;
+      // i testi lunghi (PDF di LinkedIn) servono solo a chi modifica il profilo:
+      // agli altri bastano i lavori gia' ricavati, e la pagina pesa molto meno
+      if (!chi.admin && p.id !== io) { delete out.linkedinTesto; delete out.esperienze; }
       return out;
     })
       .sort((x, y) => String(x.nome).localeCompare(String(y.nome))),
@@ -797,8 +800,11 @@ async function statistiche(res) {
     coppie: ordina(coppie, 40).map(([k, n]) => { const [a, b] = k.split("|"); return { a: nomeDi(a), b: nomeDi(b), n }; }),
     cercati: ordina(cercati, 30).map(([id, n]) => ({ nome: nomeDi(id), n })),
     settori: ordina(settori), modelli: ordina(modelli),
-    utenti: await Promise.all(Object.values(utenti).sort((a, b) => String(b.ultimo).localeCompare(String(a.ultimo)))
-      .map(async (u) => ({ ...u, profiloNome: u.profilo ? nomeDi(u.profilo) : null, crediti: await creditiDi(u.email, u) }))),
+    utenti: await (async () => {
+      const usati = await contatoriCon("crediti:");
+      return Promise.all(Object.values(utenti).sort((a, b) => String(b.ultimo).localeCompare(String(a.ultimo)))
+        .map(async (u) => ({ ...u, profiloNome: u.profilo ? nomeDi(u.profilo) : null, crediti: await creditiDi(u.email, u, usati) })));
+    })(),
     generazioni: generazioni.map((g) => ({ ...g, personeNomi: (g.persone || []).map(nomeDi) })),
     spesa: (() => {
       const conCosto = generazioni.filter((g) => g.costo);

@@ -40,9 +40,7 @@
     nav::-webkit-scrollbar{display:none}
     nav button{white-space:nowrap;padding:6px 10px}
     main table{display:block;overflow-x:auto;max-width:100%}
-    .gen-persone,.proposta-riga{padding:8px 10px}
-    .proposta-riga summary{gap:6px}
-    .titolo-proposta{font-size:15px;flex:1 1 60%}
+    
     .azioni-gen .btn{flex:1 1 100%}
     .pulsanti-gen{flex-wrap:nowrap}
     .pulsanti-gen{gap:8px}
@@ -102,24 +100,17 @@
   .avviso.info{background:var(--accento-chiaro);color:var(--accento)}
   .porta{max-width:440px;margin:60px auto;text-align:center}
   #pulsante{display:flex;justify-content:center;min-height:44px;margin:18px 0}
-  .lista-persone{background:var(--carta);border:1px solid var(--bordo);border-radius:14px;overflow:hidden;box-shadow:var(--ombra)}
-  .riga-persona{border-bottom:1px solid var(--bordo);cursor:pointer}
-  .riga-persona:last-child{border-bottom:0}
-  .riga-persona:hover{background:var(--sfondo)}
-  .riga-persona.scelta{box-shadow:inset 3px 0 0 var(--accento)}
-  .rp-testa{display:flex;align-items:center;gap:12px;padding:9px 14px}
+  
+  
+  
   .piccolo-av{width:34px;height:34px;font-size:13px}
-  .rp-nome{flex:1;min-width:0}
-  .rp-lavoro{font-size:13px;color:var(--grigio);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .rp-trovato{font-size:12.5px;color:var(--grigio);margin-top:2px}
-  .rp-trovato mark{background:var(--ambra-chiaro);color:var(--testo);padding:0 2px;border-radius:3px}
-  .rp-etichette{flex:none;max-width:34%;text-align:right}
-  .rp-azioni{flex:none;display:flex;align-items:center;gap:10px}
-  .rp-freccia{color:var(--grigio);width:12px}
+  
+  
+  
   .rp-dettagli{margin:0;padding:4px 14px 14px 60px;display:grid;grid-template-columns:130px 1fr;gap:4px 12px;font-size:13.5px;cursor:default}
   .rp-dettagli dt{color:var(--grigio)}
   .rp-dettagli dd{margin:0;white-space:pre-line}
-  @media (max-width:760px){.rp-etichette{display:none}.rp-dettagli{padding-left:14px;grid-template-columns:1fr}.rp-dettagli dt{margin-top:6px}}
+  @media (max-width:760px){.rp-dettagli{padding-left:14px;grid-template-columns:1fr}.rp-dettagli dt{margin-top:6px}}
   .chi-sei{max-width:560px;margin:30px auto}
   .completa{position:relative}
   .completa input{font-size:17px;padding:12px 14px}
@@ -132,9 +123,7 @@
   @media (max-width:760px){.solo-largo{display:none}}
   .sezione-genera{margin-top:0;padding-top:0}
   .finestra-genera .sezione-genera h2{margin-top:0}
-  .motore{position:relative;padding-top:20px}
-  .motore h3{margin:0 0 4px}
-  .motore-n{position:absolute;top:-14px;left:16px;width:28px;height:28px;border-radius:50%;background:var(--accento);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center}
+  
   .picker{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--bordo);border-radius:10px;padding:6px;background:var(--carta)}
   .picker-campo{flex:1;min-width:160px}
   .picker-campo input{border:0;padding:6px;font-size:15px}
@@ -144,10 +133,8 @@
   .spunta{display:inline-flex;align-items:center;gap:6px;font-weight:500;margin:6px 16px 0 0;cursor:pointer}
   .idea.selezionata{outline:2px solid var(--accento)}
   .idea.riservata{border-color:var(--ambra)}
-  .riservata-nota{font-size:12.5px;color:var(--ambra);background:var(--ambra-chiaro);border-radius:8px;padding:4px 8px;margin-top:8px}
   .descr{white-space:pre-wrap}
-  .sotto-idea{border-top:1px solid var(--bordo);padding:6px 0}
-  .sotto-idea summary{cursor:pointer}
+  
   .finestra.finestra-genera{width:min(1180px,100%,calc((100vh - 300px) * 3 + 110px));position:relative;padding-top:14px}
   .finestra-genera .sotto{margin:2px 0 0;font-size:14px}
   .finestra-genera .percorso-gen{margin-top:8px;padding:14px}
@@ -250,11 +237,9 @@
   .picker-scatola{position:relative}
   .picker-chip{display:contents}
   .picker-freccia{border:0;background:none;color:var(--grigio);cursor:pointer;font-size:16px;padding:0 6px}
-  .chip-io{background:var(--accento);color:#fff;padding-right:10px}
   .voce-io{background:var(--accento-chiaro);cursor:default}
   .elenco-persone{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:6;background:var(--carta);border:1px solid var(--bordo);border-radius:10px;box-shadow:var(--ombra);max-height:300px;overflow-y:auto}
   @media (max-width:760px){.elenco-persone{max-height:45vh}body.picker-aperto{padding-bottom:100vh}}
-  .elenco-testa{position:sticky;top:0;background:var(--carta);display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--bordo)}
   .voce-persona{display:flex;align-items:flex-start;gap:10px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--bordo);font-weight:400;margin:0}
   .voce-persona:last-child{border-bottom:0}
   .voce-persona.attivo,.voce-persona:hover{background:var(--accento-chiaro)}
@@ -286,38 +271,27 @@
   .stato-az.trovata,.stato-az.verificata{background:var(--verde-chiaro);color:var(--verde)}
   .stato-az.ignorata{background:var(--sfondo);color:var(--grigio);border:1px solid var(--bordo)}
   .persona-lavoro{margin:6px 0 0;padding-left:10px;border-left:3px solid var(--bordo)}
-  .approfondisci{margin-top:10px;width:100%}
   #secBacheca .idea.mia{background:var(--accento-chiaro);border:2px solid var(--accento)}
   #secBacheca .idea.altrui{background:#f4f5f7;border:1px solid var(--bordo)}
   #secBacheca .idea.altrui.riservata{background:#fff8e6;border:1px solid #f0c36d}
   #secBacheca .idea.mia.riservata{border-style:dashed}
   .idea.generata{display:flex;flex-direction:column;gap:6px}
   .gen-blocco{margin-bottom:10px}
-  .gen-persone{background:#fff;border:1px solid var(--bordo);border-radius:12px;padding:10px 14px}
-  .persona-gen{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--bordo);font-weight:normal;margin:0}
-  .persona-gen:nth-child(2){border-top:0}
-  .persona-gen input{margin-top:4px}
-  .persona-gen.tolta{opacity:.45}
-  .proposta-riga{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--bordo);border-radius:12px;padding:10px 14px;margin:6px 0}
-  .proposta-riga.selezionata{border:2px solid var(--accento);background:var(--accento-chiaro)}
-  .proposta-riga > input{margin-top:6px;width:18px;height:18px;flex:none}
-  .proposta-riga details{flex:1;min-width:0}
-  .proposta-riga summary{display:flex;gap:8px;align-items:center;flex-wrap:wrap;cursor:pointer;list-style:none}
-  .proposta-riga summary::-webkit-details-marker{display:none}
-  .proposta-riga summary::after{content:"▾";color:var(--grigio)}
-  .proposta-riga details[open] summary::after{content:"▴"}
-  .titolo-proposta{font-size:16px}
-  .corpo-proposta{margin-top:8px}
+  
+  
+  
+  
+  
+  
+  
   .azioni-gen{margin-top:10px;gap:8px}
-  .idea.generata .azioni-idea-gen{margin-top:auto;padding-top:10px;border-top:1px solid var(--bordo)}
-  .dettagli-idea summary{cursor:pointer;color:var(--accento);font-size:14px;margin:4px 0}
+  
   .idea .btn{white-space:normal;text-align:center;max-width:100%}
   .idea .riga{flex-wrap:wrap}
   .proposta-persone{border:1px solid var(--bordo);border-radius:10px;padding:8px 12px;margin:6px 0 10px;max-height:320px;overflow:auto}
   .voce-proposta{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--bordo)}
   .voce-proposta:first-child{border-top:0}
   .voce-proposta input{margin-top:4px}
-  .scelte-gen{margin-top:12px}
   .percorso-gen{padding:6px 18px 18px}
   .domande-riga{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px;align-items:stretch}
   @media (max-width:900px){.domande-riga{grid-template-columns:minmax(0,1fr)}}
@@ -328,27 +302,20 @@
   .domanda-corpo #miaIdea,.domanda-corpo #ideaProblema{flex:1;resize:none;min-height:56px}
   @media (max-width:900px){.domanda-corpo #miaIdea,.domanda-corpo #ideaProblema{flex:none;min-height:96px}}
   .domanda-gen{aspect-ratio:1/1}
-  .domanda-vuota{flex:1;width:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--grigio);font-size:14px;border:1px dashed var(--bordo);border-radius:10px;padding:14px}
   .domanda-corpo label:first-child{margin-top:0}
   .domanda-corpo .cursore{margin-top:4px;margin-bottom:2px}
-  .domanda-corpo textarea.note-corta{min-height:44px;height:44px}
   .domanda-corpo label{margin-top:8px}
   .domanda-corpo .cursore-voci{font-size:11px}
-  @media (max-width:900px){.domanda-gen{aspect-ratio:auto}.domanda-vuota{display:none}}
+  @media (max-width:900px){.domanda-gen{aspect-ratio:auto}}
   .domanda-corpo .scelte-griglia{grid-template-columns:1fr;gap:6px}
   .domanda-corpo textarea{min-height:90px}
   .domanda-gen .gettone{font-size:12px;padding:4px 9px}
-  .risposta-gen{border-top:1px solid var(--bordo);margin-top:14px;padding-top:12px}
   .pulsanti-gen{margin-top:16px;gap:10px;align-items:center}
   .domanda-icona{width:40px;height:40px;border-radius:50%;background:var(--accento-chiaro);color:var(--accento);display:flex;align-items:center;justify-content:center;flex:none}
   .domanda-gen.aperta .domanda-icona{background:var(--accento);color:#fff}
-  .si-no{display:flex;gap:4px;flex:none}
   .btn.grande{font-size:16px;padding:10px 18px;display:inline-flex;align-items:center;gap:8px}
-  .azioni-idea{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:12px;margin-top:12px}
-  @media (max-width:900px){.azioni-idea{grid-template-columns:1fr}}
-  .azione-idea{border:1px solid var(--bordo);border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:flex-start}
-  .azione-idea p{margin:4px 0 8px}
-  .azione-idea #pickIdea{width:100%}
+  
+  
   .spesa{border:2px solid var(--accento)}
   .scelte-griglia{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:4px}
   @media (max-width:760px){.scelte-griglia{grid-template-columns:1fr}}
@@ -406,13 +373,11 @@
   .piede-post{margin-top:auto;padding-top:8px}
   .squadra-post{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .perche-te{background:var(--accento-chiaro);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
-  .motore h3{font-size:18px}
   .percorsi{display:grid;grid-template-columns:repeat(3,1fr);gap:30px 12px;margin:30px 0 12px}
   @media (max-width:760px){.percorsi{grid-template-columns:1fr}}
   .percorso{position:relative;text-align:left;background:var(--carta,#fff);border:2px solid var(--bordo);border-radius:14px;padding:30px 16px 14px;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px}
   .percorso:hover{border-color:var(--accento)}
-  .percorso-icona{position:absolute;top:-22px;left:16px;width:44px;height:44px;border-radius:50%;background:var(--accento);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.15)}
-  .percorso.scelto .percorso-icona{background:#fff;color:var(--accento);border:2px solid var(--accento)}
+  
   .percorso.scelto{border-color:var(--accento);background:var(--accento-chiaro)}
   .fonti{display:inline-flex;border:1px solid var(--bordo);border-radius:99px;padding:3px;margin:0 0 12px;background:var(--sfondo)}
   .fonti button{border:0;background:none;padding:6px 14px;border-radius:99px;cursor:pointer;font:inherit;color:var(--grigio)}
@@ -446,7 +411,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.44.0";
+const VERSION = "2.45.0";
 const $main = document.getElementById("main");
 // Lo stato della pagina. Si ricrea da zero a ogni uscita, cosi' chi entra
 // dopo non ritrova niente di chi c'era prima.
@@ -501,9 +466,9 @@ function porta() {
   chiudiBenvenuto();
   // via tutto quello che era di chi stava usando il sito (il tasto Indietro
   // non deve rimostrarlo); restano solo gli spunti, che sono di tutti
-  const { yc, tc } = S;
+  const { yc, tc, contiYc } = S;
   for (const k of Object.keys(S)) delete S[k];
-  Object.assign(S, statoIniziale(), { yc, tc });
+  Object.assign(S, statoIniziale(), { yc, tc, contiYc });
   tour = null;
   // Sessione assente o scaduta: via la pagina Genera (sul telefono coprirebbe
   // l'accesso) e via il menu, che senza accesso resterebbe vuoto.
@@ -547,7 +512,7 @@ function disegna() {
   if (!d.io.admin && SOLO_ADMIN.includes(S.scheda)) S.scheda = "bacheca";
   if (!d.io.profilo && !(d.io.admin && SOLO_ADMIN.includes(S.scheda))) S.scheda = "profilo";
   const schede = SCHEDE.concat(d.io.admin ? SCHEDE_ADMIN : []);
-  const attiva = (k) => S.scheda === k || (k === "bacheca" && ["genera", "persone"].includes(S.scheda));
+  const attiva = (k) => S.scheda === k || (k === "bacheca" && S.scheda === "genera");
   document.getElementById("burger").style.display = "";
   document.getElementById("nav").innerHTML = `<button data-apri-genera class="solo-stretto ${S.generaAperta ? "attivo" : ""}">Genera idee</button>` + schede.map(([k, t]) =>
     `<button data-scheda="${k}" class="${attiva(k) && !S.generaAperta ? "attivo" : ""}">${t}</button>`).join("") +
@@ -560,13 +525,12 @@ function disegna() {
     ${d.io.adminVero ? `<button class="btn piccolo" id="modoUtente" title="Usa la piattaforma come un collega qualsiasi">${d.io.admin ? `<span class="solo-largo">Vedi come </span>utente` : `<span class="solo-largo">Torna </span>admin`}</button>` : ""}
     <button class="btn piccolo" id="aiuto" title="Il tutorial">Come funziona</button>
     <span class="solo-largo">${esc(d.io.email)}</span><button class="btn piccolo" id="esci">Esci</button>`;
-  const viste = { bacheca: () => home(false), genera: () => home(true), persone, spunti, profilo: schedaProfilo, regia, aziende, statistiche: regia, importa };
+  const viste = { bacheca: () => home(false), genera: () => home(true), spunti, profilo: schedaProfilo, regia, aziende, statistiche: regia, importa };
   (viste[S.scheda] || viste.bacheca)();
   if (S.comeUtente && S.dati.io.adminVero) $main.insertAdjacentHTML("afterbegin", `<div class="avviso info riga" style="margin-top:0">
     <span>Stai usando la piattaforma <b>come un utente qualsiasi</b>: niente Regia, bacheca e crediti come li vedono i colleghi.</span>
     <span class="spazio"></span><button class="btn piccolo" data-torna-admin>Torna amministratore</button></div>`);
   if (tour) setTimeout(tourMostra, 30);
-  else tourSePrimaVolta();
   registraStoria();
 }
 
@@ -666,7 +630,7 @@ function chiudiBenvenuto() {
 }
 function apriGenera() {
   if (!S.dati) return;
-  S.generaAperta = true; S.generaVista = true; S.vistaRisultati = false;
+  S.generaAperta = true; S.vistaRisultati = false;
   if (!document.getElementById("veloGenera")) {
     document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloGenera"><div class="finestra finestra-genera" role="dialog" aria-modal="true">
       <button class="btn piccolo chiudi-genera" data-chiudi-genera title="Chiudi (Esc)">×</button>
@@ -797,110 +761,7 @@ function pickerPersone(box, scelti, alCambio, segnaposto, massimo, conMe) {
   disegnaChip();
 }
 
-// ---------------------------------------------------------------- persone
-// Una persona per riga: nome, lavoro e i pulsanti sempre visibili; il resto
-// si apre cliccando sulla riga. Quando si cerca, sotto il nome compare il
-// pezzo di profilo che ha fatto trovare la persona.
-function rigaPersona(p) {
-  const x = p.extra || {}, az = p.aziendaInfo;
-  const scelto = S.scelti.has(p.id), sonoIo = p.id === S.dati.io.profilo, aperta = S.aperti.has(p.id);
-  const lavoro = [p.ruolo, p.azienda].filter(Boolean).join(" · ") || p.titolo || "";
-  const trovato = S.filtro.trim() ? dovePersona(p, S.filtro) : "";
-  const etichette = (x.preferenza ? `<span class="etichetta">${esc(x.preferenza)}</span>` : "") +
-    (x.settori || "").split(/[,;]/).filter((t) => t.trim()).slice(0, 2).map((t) => `<span class="etichetta grigia">${esc(t.trim())}</span>`).join("") +
-    (!p.rivendicato ? '<span class="etichetta grigia">non ancora entrato</span>' : "");
-  const dett = (et, v) => v ? `<dt>${et}</dt><dd>${esc(v)}</dd>` : "";
-  return `<div class="riga-persona ${scelto ? "scelta" : ""}" data-apri="${p.id}">
-    <div class="rp-testa">
-      <div class="avatar piccolo-av">${p.foto ? `<img src="${esc(p.foto)}" alt="" referrerpolicy="no-referrer">` : esc(iniziali(p.nome))}</div>
-      <div class="rp-nome"><div><b>${esc(p.nome)}</b> ${sonoIo ? '<span class="etichetta verde">tu</span>' : ""}</div>
-        <div class="rp-lavoro">${esc(lavoro)}</div>
-        ${trovato ? `<div class="rp-trovato">…${trovato}…</div>` : ""}</div>
-      <div class="rp-etichette">${etichette}</div>
-      <div class="rp-azioni">
-        ${p.linkedin ? `<a class="piccolo" href="${esc(urlSicuro(p.linkedin))}" target="_blank" rel="noopener">LinkedIn</a>` : ""}
-        ${!sonoIo ? `<button class="btn piccolo ${scelto ? "primario" : ""}" data-scegli="${p.id}">${scelto ? "Nel gruppo ✓" : "+ Gruppo"}</button>` : ""}
-        <span class="rp-freccia">${aperta ? "▴" : "▾"}</span>
-      </div>
-    </div>
-    ${aperta ? `<dl class="rp-dettagli">
-      ${dett("Headline", p.titolo)}${dett("Città", p.citta)}
-      ${az ? dett("Azienda (AIDA)", [az.settore || az.ateco, az.fatturato && "fatturato " + az.fatturato, az.dipendenti && az.dipendenti + " dipendenti"].filter(Boolean).join(" · ")) : ""}
-      ${dett("Competenze", p.competenze)}${dett("Passioni", x.passioni)}${dett("Settori", x.settori)}
-      ${dett("Ruolo nel team", x.ruoloNelTeam)}${dett("Cosa cerca", x.cosaCerco)}${dett("Idee", x.ideeMie)}
-      ${p.lavori && p.lavori.length ? `<dt>Esperienze</dt><dd>${p.lavori.slice(0, 8).map((l) => `<div class="persona-lavoro"><b>${esc(l.ruolo)}</b> @ ${l.sito ? `<a href="${esc(urlSicuro(l.sito))}" target="_blank" rel="noopener">${esc(l.azienda)}</a>` : esc(l.azienda)}
-          <span class="piccolo">${esc(l.periodo.replace(/\s*\(.*\)$/, ""))}${l.settore ? " · " + esc(l.settore) : ""}</span>
-          ${l.descrizioneAzienda ? `<div class="piccolo">${esc(l.descrizioneAzienda)}</div>` : ""}
-          ${l.descrizioneRuolo ? `<div class="piccolo">${esc(l.descrizioneRuolo.slice(0, 280))}${l.descrizioneRuolo.length > 280 ? "…" : ""}</div>` : ""}</div>`).join("")}</dd>`
-        : dett("Esperienze", (p.esperienze || "").slice(0, 600) + ((p.esperienze || "").length > 600 ? "…" : ""))}
-      ${dett("Formazione", p.formazione)}
-    </dl>` : ""}
-  </div>`;
-}
-
-// Il pezzetto di testo dove compare la prima parola cercata, con la parola
-// evidenziata: serve a capire perche' una persona e' nei risultati.
-function dovePersona(p, filtro) {
-  const w = senzaAccenti(filtro).split(/\s+/).filter(Boolean)[0];
-  if (!w) return "";
-  const re = new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  const x = p.extra || {};
-  for (const campo of [p.nome, p.ruolo, p.azienda, p.titolo, p.competenze, x.passioni, x.settori, x.cosaCerco, p.esperienze, p.formazione, p.linkedinTesto]) {
-    const t = String(campo || "").replace(/\s+/g, " ");
-    const m = re.exec(senzaAccenti(t));
-    if (!m) continue;
-    const i = m.index + m[1].length;
-    const da = Math.max(0, i - 50), a = Math.min(t.length, i + w.length + 60);
-    return esc(t.slice(da, i)) + "<mark>" + esc(t.slice(i, i + w.length)) + "</mark>" + esc(t.slice(i + w.length, a));
-  }
-  return "";
-}
-
-// La ricerca vuole parole che INIZIANO come quelle scritte: "ducati" trova
-// Ducati ma non "education". Con piu' parole, devono esserci tutte.
 const senzaAccenti = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-function trovaPersona(filtro) {
-  const parole = senzaAccenti(filtro).split(/\s+/).filter(Boolean)
-    .map((w) => new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  if (!parole.length) return () => true;
-  return (p) => {
-    const x = p.extra || {}, a = p.aziendaInfo || {};
-    const testo = senzaAccenti([p.nome, p.titolo, p.ruolo, p.azienda, p.citta, p.competenze, p.esperienze, p.formazione,
-      p.linkedinTesto, x.passioni, x.preferenza, x.settori, x.ruoloNelTeam, x.cosaCerco, x.ideeMie, a.settore, a.ateco].join(" \n "));
-    return parole.every((re) => re.test(testo));
-  };
-}
-
-function persone() {
-  const lista = S.dati.profili.filter(trovaPersona(S.filtro));
-  $main.innerHTML = `<p style="margin:0 0 8px"><a href="#" data-scheda="genera">← Torna a Genera idee</a></p><h2>Persone del master</h2>
-    <p class="sotto">${S.dati.profili.length} profili. Cerca per nome, azienda, settore o passione, e aggiungi al gruppo chi vuoi coinvolgere.</p>
-    <input type="search" id="cerca" placeholder="Cerca: calcio, fintech, B2B, Ducati…" value="${esc(S.filtro)}">
-    <p class="piccolo" style="margin:10px 0 6px">${S.filtro.trim() ? lista.length + " su " + S.dati.profili.length + " · " : ""}Clicca su una riga per vedere il profilo.</p>
-    <div class="lista-persone">${lista.map(rigaPersona).join("") || '<p class="piccolo" style="padding:14px">Nessun profilo.</p>'}</div>
-    ${barraScelti()}`;
-  const c = document.getElementById("cerca");
-  c.addEventListener("input", () => { S.filtro = c.value; const pos = c.selectionStart; persone(); const n = document.getElementById("cerca"); n.focus(); n.setSelectionRange(pos, pos); });
-}
-function barraScelti() {
-  if (!S.scelti.size) return "";
-  return `<div class="carta scelti riga"><b>Gruppo:</b> ${[...S.scelti].map((id) => `<span class="etichetta">${esc((profilo(id) || {}).nome)}</span>`).join("")}
-    <span class="spazio"></span><button class="btn primario" data-scheda="genera">Genera idee con loro →</button></div>`;
-}
-document.addEventListener("click", (ev) => {
-  const r = ev.target.closest("[data-apri]");
-  if (!r || ev.target.closest("a, button")) return;
-  const id = r.dataset.apri;
-  if (S.aperti.has(id)) S.aperti.delete(id); else S.aperti.add(id);
-  persone();
-});
-document.addEventListener("click", (ev) => {
-  const b = ev.target.closest("[data-scegli]");
-  if (!b) return;
-  const id = b.dataset.scegli;
-  if (S.scelti.has(id)) S.scelti.delete(id); else if (S.scelti.size < 7) S.scelti.add(id);
-  disegna();
-});
 
 // ---------------------------------------------------------------- genera
 // I due motori. Ogni generazione costa un credito (l'amministratore non ne
@@ -1239,27 +1100,6 @@ function barreCriteri(titolo, voci) {
   }).join("")}</div>`;
 }
 
-// Passo 2: i dettagli di una sola idea, scritti da Claude quando servono.
-// Spento per ora: costa token. Si riaccende mettendo true.
-const APPROFONDISCI = false;
-document.addEventListener("click", async (ev) => {
-  const b = ev.target.closest("[data-approfondisci]");
-  if (!b) return;
-  const [gid, n] = b.dataset.approfondisci.split("|");
-  b.disabled = true; b.textContent = "L'AI sta approfondendo l'idea: una ventina di secondi…";
-  try {
-    const g = await api("", { modo: "approfondisci", generazione: gid, indice: Number(n) }, "/api/genera");
-    const k = S.dati.generazioni.findIndex((x) => x.id === gid);
-    if (k >= 0) S.dati.generazioni[k] = g;
-    if (S.ultima && S.ultima.id === gid) S.ultima = g;
-    const y = window.scrollY;
-    genera();
-    const d = document.querySelector(`details[data-gen="${gid}"]`);
-    if (d) { d.open = true; d.querySelector("div").innerHTML = risultati(g, true); }
-    window.scrollTo(0, y);
-  } catch (e) { b.disabled = false; b.textContent = "Non è andata: " + e.message + " Riprova"; }
-});
-
 function ideaGenerata(k) {
   const [gid, n] = k.split("|");
   const g = S.dati.generazioni.find((x) => x.id === gid) || (S.ultima && S.ultima.id === gid ? S.ultima : null);
@@ -1365,7 +1205,6 @@ function chiudiCampo(box, st) {
   if (c === "criteri") st.criteri = Object.fromEntries([...e.querySelectorAll("[data-crit]")].map((r) => [r.dataset.crit, Number(r.value)]));
   else st[c] = e.querySelector("[data-val]").value.trim();
 }
-function barraSelezione() { return ""; }
 // Il testo delle idee da pubblicare. Con i nomi solo se la vedono le persone
 // della proposta, e solo i loro: chi e' stato tolto non compare e non la vede.
 function ideeDaPubblicare(idee, visibilita, proposta, destinatari) {
@@ -1394,24 +1233,6 @@ function aggiornaBlocco(gid) {
   blocco.querySelector("[data-conta-sel]").textContent = n ? `${n} ${n === 1 ? "proposta selezionata" : "proposte selezionate"}` : "Seleziona almeno una proposta";
   blocco.querySelectorAll("[data-condividi-gen]").forEach((b) => { b.disabled = !n; });
 }
-document.addEventListener("change", (ev) => {
-  const c = ev.target.closest("[data-seleziona]");
-  if (c) {
-    const k = c.dataset.seleziona;
-    if (c.checked) {
-      if (selezionateDi(k) >= 5) { c.checked = false; alert("Puoi condividere al massimo 5 idee insieme."); return; }
-      S.selezione.add(k);
-    } else S.selezione.delete(k);
-    c.closest(".proposta-riga").classList.toggle("selezionata", c.checked);
-    return aggiornaBlocco(k.split("|")[0]);
-  }
-  const p = ev.target.closest("[data-persona-gen]");
-  if (p) {
-    const [gid, id] = p.dataset.personaGen.split("|");
-    if (p.checked) toltiDa(gid).delete(id); else toltiDa(gid).add(id);
-    p.closest(".persona-gen").classList.toggle("tolta", !p.checked);
-  }
-});
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-condividi-gen]");
   if (!b) return;
@@ -1442,25 +1263,6 @@ document.addEventListener("click", async (ev) => {
     document.getElementById("secBacheca").scrollIntoView({ behavior: "smooth" });
   } catch (e) { b.disabled = false; alert(e.message); }
 });
-document.addEventListener("click", (ev) => {
-  const una = ev.target.closest("[data-condividi-una]");
-  if (una) {
-    const v = una.dataset.condividiUna, taglio = v.lastIndexOf("|");   // la chiave dell'idea ha gia' un "|"
-    const k = v.slice(0, taglio), modo = v.slice(taglio + 1);
-    const i = ideaGenerata(k);
-    if (i) apriEditor({ idee: [i], suggeriti: i.compagni, proposta: i.proposta, visibilita: modo === "tutti" ? "tutti" : "scelti" });
-    return;
-  }
-  if (ev.target.closest("[data-condividi-sel]")) {
-    const idee = [...S.selezione].map(ideaGenerata).filter(Boolean);
-    const proposta = [];
-    idee.forEach((i) => i.proposta.forEach((x) => { if (!proposta.some((y) => y.id === x.id)) proposta.push(x); }));
-    apriEditor({ idee, suggeriti: [...new Set(idee.flatMap((i) => i.compagni || []))], proposta, daSelezione: true });
-    return;
-  }
-  if (ev.target.closest("[data-svuota-sel]")) { S.selezione.clear(); genera(); }
-});
-
 // ---------------------------------------------------------------- editor
 // Un solo editor per tutto: idea scritta a mano, idea generata, set di idee
 // selezionate, modifica di un post. Da 1 a 5 idee, per tutti o per pochi.
@@ -1641,9 +1443,7 @@ function bacheca() {
   if (!S.dati) return;
   const box = sezione("secBacheca");
   const io = S.dati.io.profilo;
-  const f = S.filtroBacheca || "tutte";
   const tutte = S.dati.bacheca;
-  const perMe = (i) => i.visibilita === "scelti" && i.autore !== io && ((i.destinatari || []).includes(io) || (i.membri || []).includes(io));
   // Tutte insieme: le mie in blu, quelle degli altri in grigio chiaro.
   const lista = tutte;
   const nomi = (ids) => (ids || []).map((id) => (profilo(id) || {}).nome || (id === "esempio" ? "Un compagno (esempio)" : "?"));
@@ -1739,10 +1539,8 @@ document.addEventListener("click", (ev) => {
   document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloDettagli"><div class="finestra" data-dettagli-bacheca><div class="riga"><h3 style="margin:0">${esc(x.titolo)}</h3><span class="spazio"></span><button class="btn piccolo" data-chiudi-dettagli>×</button></div>${corpo}</div></div>`);
 });
 document.addEventListener("click", async (ev) => {
-  const t = ev.target.closest("[data-nuova-idea],[data-filtro-bacheca],[data-modifica],[data-elimina],[data-interesse],[data-membro]");
+  const t = ev.target.closest("[data-modifica],[data-elimina],[data-interesse],[data-membro]");
   if (!t) return;
-  if (t.dataset.nuovaIdea !== undefined) return apriEditor({ idee: [{}] });
-  if (t.dataset.filtroBacheca) { S.filtroBacheca = t.dataset.filtroBacheca; return bacheca(); }
   if (t.dataset.modifica) {
     const i = S.dati.bacheca.find((x) => x.id === t.dataset.modifica);
     if (i) apriEditor({ ...i, idee: ideeDelPost(i) });
@@ -2084,31 +1882,53 @@ function testaSpunti() {
   return `<h2>Spunti</h2>
     <p class="sotto">Per trovare idee Claudio Venezia consiglia di guardare cosa fanno le startup della Silicon Valley. Qui ci sono le aziende di <b>Y Combinator</b> e le ultime notizie di <b>TechCrunch</b>: premi <b>Usa come spunto</b> e diventa la tua idea di partenza, da sviluppare con l'AI.</p>`;
 }
+// Aziende e notizie si caricano una volta; per ognuna si prepara subito il
+// testo in cui cercare (senza accenti) e i conteggi per settore, cosi' ogni
+// lettera digitata non rifa' il lavoro su 3.500 aziende.
+async function caricaSpunti() {
+  const yc = await (await fetch("/spunti-yc.json")).json();
+  let tc = null;
+  // le notizie sono un di piu': se TechCrunch non risponde, si va avanti senza
+  try { const r = await fetch("/api/spunti-tc"); if (r.ok) tc = await r.json(); } catch {}
+  const conti = {};
+  yc.aziende.forEach((x, k) => {
+    x._k = k;
+    x._ai = x.t.some((t) => /^(AI|Artificial Intelligence|Generative AI|Machine Learning|AI Assistant)$/.test(t));
+    x._q = senzaAccenti([x.n, x.it, x.o, x.d, x.i, x.si, SETTORI_YC[x.i], SOTTO_YC[x.si], x.t.join(" ")].join(" "));
+    conti[x.i] = (conti[x.i] || 0) + 1;
+    if (x._ai) conti.ai = (conti.ai || 0) + 1;
+  });
+  ((tc && tc.articoli) || []).forEach((a, k) => { a._k = k; a._q = senzaAccenti([a.titolo, a.sintesi, (a.categorie || []).join(" ")].join(" ")); });
+  S.yc = yc; S.tc = tc; S.contiYc = conti;
+}
 async function spunti() {
   if (!S.yc) {
     $main.innerHTML = testaSpunti() + '<div class="caricamento">Carico gli spunti…</div>';
-    try { S.yc = await (await fetch("/spunti-yc.json")).json(); }
-    catch (e) { $main.innerHTML = testaSpunti() + `<div class="avviso male">Non riesco a caricare gli spunti: ${esc(e.message)}</div>`; return; }
-    // le notizie sono un di piu': se TechCrunch non risponde, si va avanti senza
-    try { const r = await fetch("/api/spunti-tc"); if (r.ok) S.tc = await r.json(); } catch {}
+    // un solo caricamento anche se si clicca piu' volte mentre arriva
+    S.caricoSpunti = S.caricoSpunti || caricaSpunti();
+    try { await S.caricoSpunti; }
+    catch (e) { S.caricoSpunti = null; $main.innerHTML = testaSpunti() + `<div class="avviso male">Non riesco a caricare gli spunti: ${esc(e.message)}</div>`; return; }
+    if (S.scheda !== "spunti") return;
   }
   const F = S.filtriSpunti = S.filtriSpunti || { q: "", settori: [], zona: "", periodo: "", quanti: 60 };
   const tutte = S.yc.aziende, notizie = (S.tc && S.tc.articoli) || [];
-  const parole = senzaAccenti(F.q).split(/\s+/).filter(Boolean);
-  const cerca = (t) => !parole.length || parole.every((w) => new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(senzaAccenti(t)));
-  const eAI = (x) => x.t.some((t) => /^(AI|Artificial Intelligence|Generative AI|Machine Learning|AI Assistant)$/.test(t));
-  const nelSettore = (x, k) => k === "ai" ? eAI(x) : x.i === k;
+  // le espressioni si preparano una volta per ridisegno; i testi in cui
+  // cercare sono gia' pronti (caricaSpunti)
+  const cerchi = senzaAccenti(F.q).split(/\s+/).filter(Boolean).map((w) => new RegExp("(^|[^a-z0-9])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  const cerca = (q) => cerchi.every((re) => re.test(q));
+  const eAI = (x) => x._ai;
+  const nelSettore = (x, k) => k === "ai" ? x._ai : x.i === k;
   const aziende = tutte.filter((x) => {
     if (F.settori.length && !F.settori.some((k) => nelSettore(x, k))) return false;
     if (F.zona === "eu" && !x.r.includes("Europe")) return false;
     if (F.zona === "us" && !x.r.some((r) => /America|United States/.test(r))) return false;
     if (F.zona === "remote" && !x.r.includes("Remote")) return false;
     if (F.periodo && !(F.periodo === "top" ? x.top : x.a >= Number(F.periodo))) return false;
-    return cerca([x.n, x.it, x.o, x.d, x.i, x.si, SETTORI_YC[x.i], SOTTO_YC[x.si], x.t.join(" ")].join(" "));
+    return cerca(x._q);
   });
   if (F.periodo === "top") aziende.sort((a, b) => (b.ts || 0) - (a.ts || 0));
   // le notizie si mescolano alle aziende (una ogni sei), solo senza filtri sui settori
-  const news = F.settori.length || F.zona || F.periodo ? [] : notizie.filter((a) => cerca([a.titolo, a.sintesi, a.categorie.join(" ")].join(" ")));
+  const news = F.settori.length || F.zona || F.periodo ? [] : notizie.filter((a) => cerca(a._q));
   const lista = [];
   let ia = 0, in_ = 0;
   while (ia < aziende.length || in_ < news.length) {
@@ -2116,7 +1936,7 @@ async function spunti() {
     if (in_ < news.length) lista.push({ tipo: "tc", x: news[in_++] });
     if (ia >= aziende.length) while (in_ < news.length) lista.push({ tipo: "tc", x: news[in_++] });
   }
-  const conta = (k) => tutte.filter((x) => nelSettore(x, k)).length;
+  const conta = (k) => S.contiYc[k] || 0;
   const sel = (id, opzioni, v) => `<select id="${id}">${opzioni.map(([k, t]) => `<option value="${esc(k)}" ${v === k ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
   const data = (iso) => new Date(iso).toLocaleDateString("it-IT", { day: "numeric", month: "short" });
   $main.innerHTML = testaSpunti() + `
@@ -2134,12 +1954,12 @@ async function spunti() {
       <div class="spunto-uno">${esc(x.it || x.o)}</div>
       <div><span class="etichetta fonte-yc">Y Combinator</span>${[SETTORI_YC[x.i] || x.i].filter(Boolean).map((t) => `<span class="etichetta grigia">${esc(t)}</span>`).join("")}${eAI(x) ? '<span class="etichetta">AI</span>' : ""}${x.st === "Acquired" ? '<span class="etichetta ambra">acquisita</span>' : ""}</div>
       <div class="riga piccolo" style="margin-top:auto"><a href="https://www.ycombinator.com/companies/${esc(x.s)}" target="_blank" rel="noopener">Pagina su Y Combinator ↗</a>
-        <span class="spazio"></span><button class="btn piccolo primario" data-spunto="${tutte.indexOf(x)}">Usa come spunto</button></div>
+        <span class="spazio"></span><button class="btn piccolo primario" data-spunto="${x._k}">Usa come spunto</button></div>
     </div>` : `<div class="carta spunto">
       <div class="riga"><b>${esc(x.titolo)}</b><span class="spazio"></span><span class="piccolo">${esc(data(x.data))}</span></div>
       <div><span class="etichetta fonte-tc">TechCrunch</span><span class="etichetta grigia">notizia</span></div>
       <div class="riga piccolo" style="margin-top:auto"><a href="${esc(urlSicuro(x.link))}" target="_blank" rel="noopener">Leggi l'articolo ↗</a>
-        <span class="spazio"></span><button class="btn piccolo primario" data-spunto-tc="${notizie.indexOf(x)}">Usa come spunto</button></div>
+        <span class="spazio"></span><button class="btn piccolo primario" data-spunto-tc="${x._k}">Usa come spunto</button></div>
     </div>`).join("") || '<p class="piccolo">Niente con questi filtri.</p>'}</div>
     ${lista.length > F.quanti ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="spAltri">Mostra altri</button></div>` : ""}`;
   const q = document.getElementById("spQ");
@@ -2554,18 +2374,23 @@ document.addEventListener("touchend", (e) => {
   tocco = null;
   if (Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy)) tourFine();
 }, { passive: true });
-// Il tutorial non parte piu' da solo: si apre dal pulsante "?".
-function tourSePrimaVolta() {}
 
 // ---------------------------------------------------------------- nuova versione
 // Se nel frattempo e' uscita una versione nuova del sito, un avviso in basso
 // propone di ricaricare (cosi' nessuno resta con la pagina vecchia).
+// Per non scaricare tutta la pagina (200 KB) ogni due minuti si chiede solo
+// l'intestazione: l'ETag cambia quando cambia la pagina. Solo allora si
+// scarica la pagina per leggerne la versione.
+let etagVisto = null;
 async function controllaVersione() {
   if (document.getElementById("avvisoVersione")) return;
   try {
+    const etag = (await fetch("/", { method: "HEAD", cache: "no-store" })).headers.get("etag");
+    if (etag && etag === etagVisto) return;
     const t = await (await fetch("/?v=" + Date.now(), { cache: "no-store" })).text();
     const m = t.match(/const VERSION = "([^"]+)"/);
-    if (m && m[1] !== VERSION) document.body.insertAdjacentHTML("beforeend", `<div id="avvisoVersione" class="avviso-versione">È uscita una nuova versione del sito. <button class="btn piccolo primario" onclick="location.reload()">Aggiorna</button></div>`);
+    if (m && m[1] === VERSION) { etagVisto = etag; return; }
+    if (m) document.body.insertAdjacentHTML("beforeend", `<div id="avvisoVersione" class="avviso-versione">È uscita una nuova versione del sito. <button class="btn piccolo primario" onclick="location.reload()">Aggiorna</button></div>`);
   } catch {}
 }
 setInterval(controllaVersione, 120000);
