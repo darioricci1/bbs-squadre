@@ -430,7 +430,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.38.0";
+const VERSION = "2.38.1";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -2141,7 +2141,7 @@ async function regia(daCache) {
     ${sezioneRegia("completare", '<h3 style="margin-top:8px">Profili da completare' + sezioneAccessi(s).split('<h3 style="margin-top:24px">Profili da completare')[1])}
     ${sezioneRegia("costi", pannelloSpesa(s))}
     <section class="sezione-regia" data-sez="attivita" ${tabRegia() === "attivita" ? "" : "hidden"}>
-    <h3 style="margin-top:8px">Attività</h3>
+    <h3 style="margin-top:8px">Idee</h3>
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
       <div class="carta"><div class="num">${n.generazioni}</div><div class="piccolo">generazioni</div></div>
       <div class="carta"><div class="num">${n.ideeGenerate}</div><div class="piccolo">idee generate</div></div>
@@ -2469,9 +2469,9 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 
 // ---------------------------------------------------------------- statistiche (admin)
 // La Regia a linguette: ogni titolo e' una sezione, se ne vede una alla volta.
-const TAB_REGIA = [["attivita", "Attività"], ["completare", "Profili da completare"], ["accessi", "Controllo accessi"], ["costi", "Costi"],
-  ["statistiche", "Statistiche"], ["persone", "Persone entrate"], ["registro", "Registro"]];
-const tabRegia = () => (TAB_REGIA.some(([k]) => k === S.tabRegia) ? S.tabRegia : "attivita");
+const TAB_REGIA = [["costi", "Controllo costi"], ["attivita", "Idee"], ["completare", "Profili da completare"],
+  ["statistiche", "Statistiche"], ["persone", "Persone entrate"], ["registro", "Registro"], ["accessi", "Dashboard alert"]];
+const tabRegia = () => (TAB_REGIA.some(([k]) => k === S.tabRegia) ? S.tabRegia : "costi");
 function linguetteRegia(s) {
   const conta = { completare: (s.daCompletare || []).length, persone: s.utenti.length, attivita: s.generazioni.length };
   return `<div class="linguette-regia">${TAB_REGIA.map(([k, t]) => `<button class="${tabRegia() === k ? "attiva" : ""}" data-tab-regia="${k}">${t}${conta[k] ? ` <span class="piccolo">${conta[k]}</span>` : ""}</button>`).join("")}</div>`;
@@ -2516,7 +2516,7 @@ function controlloAccessi(s) {
   const errori = s.eventi.filter((e) => e.tipo === "errore-generazione").slice(0, 10);
   const blocco = (titolo, spiega, righe) => `<div class="carta"><h3 style="margin-top:0">${titolo} <span class="etichetta ${righe.length ? "ambra" : "verde"}">${righe.length}</span></h3>
     <p class="piccolo" style="margin-top:0">${spiega}</p>${righe.length ? `<ul class="piccolo" style="margin:0;padding-left:18px">${righe.join("")}</ul>` : '<p class="piccolo" style="margin:0">Nessun problema.</p>'}</div>`;
-  return `<h3 style="margin-top:8px">Controllo accessi</h3>
+  return `<h3 style="margin-top:8px">Dashboard alert</h3>
     <div class="due">
       ${blocco("Respinti all'ingresso", "Hanno provato a entrare con un account Google non in elenco: probabilmente un indirizzo diverso da quello dato alla BBS.",
         respinti.map((e) => `<li><b>${esc(e.chi)}</b> · ${quando(e.quando)}</li>`))}
