@@ -408,7 +408,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.35.0";
+const VERSION = "2.35.1";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -2014,6 +2014,7 @@ async function regia(daCache) {
   const n = s.numeri;
   $main.innerHTML = `<div class="riga"><div><h2>Regia</h2><p class="sotto">Solo tu vedi questa pagina: quanto costa ogni generazione, tutte le idee, chi è stato scelto o suggerito, cosa è stato condiviso, e le statistiche.</p></div>
       <span class="spazio"></span><div class="riga" style="flex-wrap:nowrap"><button class="btn piccolo" id="scaricaCsv">Profili (CSV)</button><button class="btn piccolo" id="scaricaJson">Tutto (JSON)</button><button class="btn piccolo" id="aggRegia">Aggiorna</button></div></div>
+    ${sezioneAccessi(s)}
     ${pannelloSpesa(s)}
     <h3 style="margin-top:24px">Attività</h3>
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
@@ -2316,6 +2317,17 @@ setInterval(controllaVersione, 120000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") controllaVersione(); });
 
 // ---------------------------------------------------------------- statistiche (admin)
+// In cima alla Regia: chi e' entrato e come, e cosa manca ai profili.
+function sezioneAccessi(s) {
+  return `${controlloAccessi(s)}
+    <h3 style="margin-top:24px">Profili da completare <span class="etichetta ${(s.daCompletare || []).length ? "ambra" : "verde"}">${(s.daCompletare || []).length}</span></h3>
+    <p class="piccolo" style="margin-top:0">Chi si è collegato e ha ancora qualcosa da sistemare. Con «Completa» apri il suo profilo e lo sistemi tu, campo per campo.</p>
+    <div class="carta scorri"><table><tr><th>Persona</th><th>Cosa manca</th><th></th></tr>
+      ${(s.daCompletare || []).map((r) => `<tr><td><b>${esc(r.nome)}</b><div class="piccolo">${esc(r.email)}</div></td><td class="piccolo">${esc(r.manca.join(" · "))}</td>
+        <td><button class="btn piccolo" data-completa="${esc(r.id)}">Completa</button></td></tr>`).join("") || '<tr><td colspan="3" class="piccolo">Tutti i profili collegati sono completi.</td></tr>'}
+    </table></div>
+`;
+}
 document.addEventListener("click", (ev) => {
   const c = ev.target.closest("[data-completa]");
   if (c) { S.profiloAltrui = c.dataset.completa; S.profAperto = null; S.scheda = "profilo"; disegna(); window.scrollTo(0, 0); return; }
@@ -2336,7 +2348,7 @@ function controlloAccessi(s) {
   const errori = s.eventi.filter((e) => e.tipo === "errore-generazione").slice(0, 10);
   const blocco = (titolo, spiega, righe) => `<div class="carta"><h3 style="margin-top:0">${titolo} <span class="etichetta ${righe.length ? "ambra" : "verde"}">${righe.length}</span></h3>
     <p class="piccolo" style="margin-top:0">${spiega}</p>${righe.length ? `<ul class="piccolo" style="margin:0;padding-left:18px">${righe.join("")}</ul>` : '<p class="piccolo" style="margin:0">Nessun problema.</p>'}</div>`;
-  return `<h3 style="margin-top:24px">Controllo accessi</h3>
+  return `<h3 style="margin-top:8px">Controllo accessi</h3>
     <div class="due">
       ${blocco("Respinti all'ingresso", "Hanno provato a entrare con un account Google non in elenco: probabilmente un indirizzo diverso da quello dato alla BBS.",
         respinti.map((e) => `<li><b>${esc(e.chi)}</b> · ${quando(e.quando)}</li>`))}
@@ -2372,13 +2384,6 @@ function sezioneStatistiche(s) {
       <div class="carta"><h3 style="margin-top:0">Settori delle idee</h3>${barre(s.settori, (x) => esc(x[0]))}</div>
       <div class="carta"><h3 style="margin-top:0">B2B / B2C</h3>${barre(s.modelli, (x) => esc(x[0]))}</div>
     </div>
-    ${controlloAccessi(s)}
-    <h3 style="margin-top:24px">Profili da completare <span class="etichetta ${(s.daCompletare || []).length ? "ambra" : "verde"}">${(s.daCompletare || []).length}</span></h3>
-    <p class="piccolo" style="margin-top:0">Chi si è collegato e ha ancora qualcosa da sistemare. Con «Completa» apri il suo profilo e lo sistemi tu, campo per campo.</p>
-    <div class="carta scorri"><table><tr><th>Persona</th><th>Cosa manca</th><th></th></tr>
-      ${(s.daCompletare || []).map((r) => `<tr><td><b>${esc(r.nome)}</b><div class="piccolo">${esc(r.email)}</div></td><td class="piccolo">${esc(r.manca.join(" · "))}</td>
-        <td><button class="btn piccolo" data-completa="${esc(r.id)}">Completa</button></td></tr>`).join("") || '<tr><td colspan="3" class="piccolo">Tutti i profili collegati sono completi.</td></tr>'}
-    </table></div>
     <h3 style="margin-top:24px">Persone entrate</h3>
     <div class="carta scorri"><table><tr><th>Email</th><th>Profilo</th><th>Accessi</th><th>Ultimo</th><th>Crediti usati</th><th></th></tr>
       ${s.utenti.map((u) => `<tr><td>${esc(u.email)}</td><td>${esc(u.profiloNome || "—")}</td><td>${u.accessi || 0}</td><td>${quando(u.ultimo)}</td>
