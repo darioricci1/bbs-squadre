@@ -192,8 +192,10 @@ senza Google». Si sceglie il profilo, si preme «Crea link» e si manda il link
 alla persona. Aprendolo entra direttamente con quel profilo, senza Google.
 
 Il link è un biglietto firmato con `SESSIONE_SEGRETO` che vale solo per entrare
-(non come sessione) e scade dopo 120 giorni. Contiene un codice salvato anche
+(non come sessione) e dura dieci anni, cioè per tutto il project work. Contiene un codice salvato anche
 nel profilo: creare un link nuovo per la stessa persona annulla il precedente.
 Se il profilo era già collegato a un account Google, il link entra in
 quell'account; altrimenti crea un utente `link-<id profilo>@squadre-bbs.link`.
-La sessione dura una settimana come le altre: dopo, basta riaprire il link.
+La sessione che apre dura 400 giorni (il massimo che i browser tengono) e a
+ogni richiesta si ricontrolla che il link valga ancora: con un link nuovo si
+chiude subito.

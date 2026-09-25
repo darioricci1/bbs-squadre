@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.18.0
+// VERSION: 1.18.1
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -539,10 +539,12 @@ async function scollega(chi, corpo, res) {
 
 // Link d'accesso senza Google, per chi non ha un account Google: lo crea
 // l'amministratore per un profilo e lo manda alla persona. E' un biglietto
-// firmato che vale solo per entrare (inv) e scade dopo 120 giorni. Dentro
-// c'e' un codice che sta anche nel profilo: crearne uno nuovo annulla il
-// vecchio.
-const DURATA_LINK_MS = 120 * 24 * 60 * 60 * 1000;
+// firmato che vale solo per entrare (inv) e dura dieci anni, cioe' finche'
+// serve. Dentro c'e' un codice che sta anche nel profilo: crearne uno nuovo
+// annulla il vecchio e chiude le sessioni aperte con quello.
+const DURATA_LINK_MS = 10 * 365 * 24 * 60 * 60 * 1000;
+// La sessione aperta dal link: 400 giorni, il massimo che i browser tengono.
+const DURATA_SESSIONE_LINK_MS = 400 * 24 * 60 * 60 * 1000;
 async function linkAccesso(chi, corpo, req, res) {
   const p = await uno("profili", testo(corpo.profilo, 80));
   if (!p) return res.status(404).json({ error: "Profilo non trovato" });
@@ -552,7 +554,7 @@ async function linkAccesso(chi, corpo, req, res) {
   const t = await firma({ inv: 1, e: email, n: p.nome, p: p.id, k: p.codiceLink }, process.env.SESSIONE_SEGRETO, { durataMs: DURATA_LINK_MS });
   const host = (req.headers && (req.headers["x-forwarded-host"] || req.headers.host)) || "bbs-squadre.vercel.app";
   await segna(chi.email, "link-accesso", { profilo: p.id, nome: p.nome, email });
-  return res.status(200).json({ ok: true, link: `https://${host}/#entra=${t}`, nome: p.nome, scade: new Date(Date.now() + DURATA_LINK_MS).toISOString() });
+  return res.status(200).json({ ok: true, link: `https://${host}/#entra=${t}`, nome: p.nome });
 }
 async function entraConLink(req, res, token, segreto) {
   const c = await leggi(String(token), segreto);
@@ -566,7 +568,8 @@ async function entraConLink(req, res, token, segreto) {
   if (!p.email) { p.email = c.e; await scrivi("profili", p.id, p); }
   await scrivi("utenti", c.e, u);
   await segna(c.e, prima ? "accesso-link" : "primo-accesso-link", { profilo: p.id, nome: p.nome });
-  res.setHeader("Set-Cookie", cookieDaMettere(await firma({ e: c.e, n: p.nome }, segreto)));
+  const opz = { durataMs: DURATA_SESSIONE_LINK_MS };
+  res.setHeader("Set-Cookie", cookieDaMettere(await firma({ e: c.e, n: p.nome, p: p.id, k: c.k }, segreto, opz), opz));
   return res.status(200).json({ email: c.e, nome: p.nome, admin: false });
 }
 
