@@ -429,7 +429,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.37.6";
+const VERSION = "2.37.7";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1517,7 +1517,7 @@ function sezioneAnnunci() {
     .sort((a, b) => String(b.annuncio.quando).localeCompare(String(a.annuncio.quando)));
   if (!altri.length) return "";
   return `<h2 style="margin-top:32px">Annunci</h2>
-    <p class="sotto">Cosa cerca e cosa vorrebbe fare ognuno. Il tuo lo scrivi in cima alla bacheca.</p>
+    <p class="sotto">Su che idea ognuno vorrebbe lavorare. Il tuo lo scrivi in cima alla bacheca.</p>
     <div class="griglia griglia-annunci">${altri.map((p) => `<div class="carta annuncio">
         <div class="riga" style="flex-wrap:nowrap"><div class="avatar piccolo-av">${esc(iniziali(p.nome))}</div>
           <div style="min-width:0"><b>${esc(p.nome)}</b><div class="piccolo testa-post">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || p.titolo || "")}</div></div></div>
@@ -1530,7 +1530,7 @@ function mioAnnuncioRiga() {
   if (!io) return "";
   if (!mioA || S.annuncioAperto) return `<div class="riga annuncio-riga">
       <span class="piccolo"><b>Il tuo annuncio</b> <span class="facoltativo">(facoltativo)</span></span>
-      <input type="text" id="testoAnnuncio" maxlength="400" value="${esc(mioA ? mioA.testo : "")}" placeholder="Cosa cerchi, cosa ti piacerebbe fare. Es. cerco uno di finanza per un'idea nel food">
+      <input type="text" id="testoAnnuncio" maxlength="400" value="${esc(mioA ? mioA.testo : "")}" placeholder="Su che idea ti piacerebbe lavorare? Es. un'idea B2B nel food">
       ${mioA ? '<button class="btn piccolo" data-annulla-annuncio>Annulla</button>' : ""}<button class="btn piccolo primario" data-salva-annuncio>Pubblica</button></div>`;
   return `<div class="riga annuncio-riga pubblicato"><span class="piccolo"><b>Il tuo annuncio:</b></span>
       <span class="testo-annuncio">${esc(mioA.testo)}<button type="button" class="penna" data-penna-annuncio title="Modifica">✎</button></span>
