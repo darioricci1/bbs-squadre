@@ -415,7 +415,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.36.1";
+const VERSION = "2.36.2";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -432,6 +432,8 @@ async function api(azione, corpo, url) {
   });
   let j = {};
   try { j = await r.json(); } catch {}
+  // sessione scaduta mentre si usa il sito: si torna all'accesso
+  if (r.status === 401 && S.dati) { S.dati = null; porta(); }
   if (!r.ok) { const e = new Error(j.error || ("HTTP " + r.status)); e.stato = r.status; throw e; }
   return j;
 }
@@ -460,6 +462,12 @@ async function carica() {
 }
 
 function porta() {
+  // Sessione assente o scaduta: via la pagina Genera (sul telefono coprirebbe
+  // l'accesso) e via il menu, che senza accesso resterebbe vuoto.
+  if (document.getElementById("veloGenera")) { S.generaAperta = false; document.getElementById("veloGenera").remove(); }
+  document.body.classList.remove("genera-pagina", "bloccato", "picker-aperto");
+  document.getElementById("testata").classList.remove("menu-aperto");
+  document.getElementById("burger").style.display = "none";
   document.getElementById("nav").innerHTML = "";
   document.getElementById("chi").innerHTML = "";
   $main.innerHTML = `<div class="porta carta">
@@ -496,6 +504,7 @@ function disegna() {
   if (!d.io.profilo && !(d.io.admin && SOLO_ADMIN.includes(S.scheda))) S.scheda = "profilo";
   const schede = SCHEDE.concat(d.io.admin ? SCHEDE_ADMIN : []);
   const attiva = (k) => S.scheda === k || (k === "bacheca" && ["genera", "persone"].includes(S.scheda));
+  document.getElementById("burger").style.display = "";
   document.getElementById("nav").innerHTML = `<button data-apri-genera class="solo-stretto ${S.generaAperta ? "attivo" : ""}">Genera idee</button>` + schede.map(([k, t]) =>
     `<button data-scheda="${k}" class="${attiva(k) && !S.generaAperta ? "attivo" : ""}">${t}</button>`).join("") +
     // sul telefono il menu ☰ contiene anche i pulsanti di destra
