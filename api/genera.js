@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.4.0
+// VERSION: 1.5.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -50,7 +50,7 @@ const SCHEMA = {
         required: ["titolo", "fascia", "sintesi", "problema", "soluzione", "clienti", "modello", "settore",
           "ricavi", "perche_noi", "ruoli", "compagni", "rischi", "primo_passo", "punteggio",
           "fonte_idea", "differenziazione", "scalabilita", "replicabilita", "sostenibilita",
-          "startup_innovativa", "valutazione", "slide"],
+          "startup_innovativa", "valutazione", "criteri_startup", "punto_debole", "slide"],
         properties: {
           titolo: { type: "string" },
           fascia: { type: "string", enum: ["top", "riserva"] },
@@ -91,6 +91,11 @@ const SCHEMA = {
               come: { type: "string" },
             },
           },
+          criteri_startup: {
+            type: "object", additionalProperties: false, required: ["innovazione", "scalabilita", "replicabilita", "sostenibilita"],
+            properties: { innovazione: { type: "integer" }, scalabilita: { type: "integer" }, replicabilita: { type: "integer" }, sostenibilita: { type: "integer" } },
+          },
+          punto_debole: { type: "string" },
           valutazione: {
             type: "object", additionalProperties: false, required: ["originalita", "fattibilita", "scalabilita_investibilita"],
             properties: { originalita: { type: "integer" }, fattibilita: { type: "integer" }, scalabilita_investibilita: { type: "integer" } },
@@ -123,6 +128,9 @@ Entro il 1 novembre ogni gruppo presenta 3 idee GREZZE, 2 o 3 slide ciascuna: il
 4. Sostenibilita' finanziaria nel lungo periodo: nel breve si puo' bruciare cassa per crescere, ma alla fine i ricavi devono superare i costi.
 5. Requisito di startup innovativa (registro speciale): almeno uno fra spese di ricerca e sviluppo pari al 15% del maggiore fra costi e ricavi, un team con almeno un terzo di dottori di ricerca o due terzi di laureati magistrali, oppure un brevetto o un software registrato. Indica quello piu' plausibile e come.
 
+## I quattro criteri sono vincolanti
+Per ogni idea dai un voto da 1 a 10 a innovazione, scalabilita', replicabilita' e sostenibilita' ("criteri_startup"), con la stessa severita' di un investitore. Le 3 idee "top" devono avere almeno 6 in TUTTI e quattro: se un'idea non ci arriva, non proporla e sostituiscila con una migliore. Le 2 idee "riserva" possono avere un solo criterio sotto 6. In "punto_debole" scrivi il criterio piu' debole dell'idea e cosa servirebbe per rafforzarlo (per le top: il rischio principale su quei quattro criteri).
+
 ## Come trovare idee buone
 Parti da una di queste domande e dichiarala in "fonte_idea": come evolvera' questo settore fra 5-10 anni e cosa servira'; cosa manca oggi; quale bisogno personale, anche latente, ha qualcuno del gruppo (molte startup nascono cosi'); quale modello che funziona all'estero (Silicon Valley, Y Combinator, TechCrunch) si puo' adattare; quale competenza rara del team apre un mercato. Le due cause principali di fallimento sono un prodotto senza un bisogno di mercato e una struttura che non si sostiene: evitale.
 
@@ -132,7 +140,7 @@ Ricevi i profili delle persone: percorso professionale da LinkedIn, azienda con 
 ## Cosa produrre
 Esattamente 5 idee in italiano, dalla migliore: le prime 3 con fascia "top" (affini fra loro, pronte per il 1 novembre), le ultime 2 con fascia "riserva" (valide ma piu' deboli o piu' rischiose, anche in ambiti diversi).
 - "differenziazione": come il bisogno e' risolto oggi e cosa cambia con questa idea.
-- "scalabilita", "replicabilita", "sostenibilita": una o due frasi concrete ciascuna, non generiche.
+- "scalabilita", "replicabilita", "sostenibilita": una o due frasi concrete ciascuna, non generiche, coerenti con i voti in "criteri_startup".
 - "valutazione": da 1 a 10 come la vedrebbe la giuria su originalita', fattibilita', scalabilita' e investibilita'. Sii severo: un 8 deve essere meritato. "punteggio" e' il tuo giudizio complessivo per questo team.
 - "slide": 2 o 3 slide per la consegna del 1 novembre, ciascuna con un titolo e 3-5 punti brevi (problema, soluzione, perche' questo team; niente numeri inventati).
 - "ricavi": come potrebbe guadagnare, in modo plausibile, senza cifre.

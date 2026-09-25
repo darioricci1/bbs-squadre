@@ -151,6 +151,8 @@
   .criterio .livello{display:block;height:6px;border-radius:3px;background:var(--accento-chiaro);overflow:hidden}
   .criterio .livello span{display:block;height:6px;background:var(--accento)}
   .criterio b{color:var(--testo);text-align:right}
+  .criteri-titolo{font-size:12px;font-weight:600;color:var(--testo);margin-top:2px}
+  .criterio.debole .livello span{background:var(--ambra)}
   .slide-bozza{margin-top:10px;border-top:1px solid var(--bordo);padding-top:8px}
   .slide-bozza summary{cursor:pointer;font-weight:600;font-size:14px}
   .slide{border:1px solid var(--bordo);border-radius:10px;padding:10px 12px;margin-top:8px;background:var(--sfondo)}
@@ -184,7 +186,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.3.0";
+const VERSION = "2.4.0";
 const $main = document.getElementById("main");
 const S = { aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -559,8 +561,9 @@ function risultati(g, vecchia) {
       <h3 style="margin-top:8px">${esc(i.titolo)}</h3>
       ${i.fonte_idea ? `<div class="piccolo">Nata da: ${esc(i.fonte_idea)}</div>` : ""}
       <div>${esc(i.sintesi)}</div>
-      ${i.valutazione ? `<div class="criteri">${[["Originalità", i.valutazione.originalita], ["Fattibilità", i.valutazione.fattibilita], ["Scalabilità e investibilità", i.valutazione.scalabilita_investibilita]]
-        .map(([t, v]) => `<div class="criterio"><span>${t}</span><span class="livello"><span style="width:${Math.max(0, Math.min(10, Number(v) || 0)) * 10}%"></span></span><b>${esc(v)}</b></div>`).join("")}</div>` : ""}
+      ${i.criteri_startup ? barreCriteri("È una startup?", [["Innovazione", i.criteri_startup.innovazione], ["Scalabilità", i.criteri_startup.scalabilita], ["Replicabilità", i.criteri_startup.replicabilita], ["Sostenibilità", i.criteri_startup.sostenibilita]]) : ""}
+      ${i.valutazione ? barreCriteri(i.criteri_startup ? "Come la vedrebbe la giuria" : "", [["Originalità", i.valutazione.originalita], ["Fattibilità", i.valutazione.fattibilita], ["Scalabilità e investibilità", i.valutazione.scalabilita_investibilita]]) : ""}
+      ${i.punto_debole ? `<div class="piccolo"><b>Punto debole:</b> ${esc(i.punto_debole)}</div>` : ""}
       <dl>
         <dt>Problema</dt><dd>${esc(i.problema)}</dd>
         <dt>Soluzione</dt><dd>${esc(i.soluzione)}</dd>
@@ -587,6 +590,14 @@ function risultati(g, vecchia) {
     }).join("")}</div>`;
 }
 
+// Barre da 1 a 10; sotto 6 la barra diventa ambra, perche' e' sotto la soglia.
+function barreCriteri(titolo, voci) {
+  return `<div class="criteri">${titolo ? `<div class="criteri-titolo">${esc(titolo)}</div>` : ""}${voci.map(([t, v]) => {
+    const n = Math.max(0, Math.min(10, Number(v) || 0));
+    return `<div class="criterio ${n < 6 ? "debole" : ""}"><span>${t}</span><span class="livello"><span style="width:${n * 10}%"></span></span><b>${esc(v)}</b></div>`;
+  }).join("")}</div>`;
+}
+
 function ideaGenerata(k) {
   const [gid, n] = k.split("|");
   const g = S.dati.generazioni.find((x) => x.id === gid) || (S.ultima && S.ultima.id === gid ? S.ultima : null);
@@ -598,6 +609,8 @@ function ideaGenerata(k) {
       i.differenziazione && "Cosa cambia: " + i.differenziazione, "Clienti: " + i.clienti, "Ricavi: " + i.ricavi,
       i.scalabilita && "Scalabile: " + i.scalabilita, i.replicabilita && "Replicabile: " + i.replicabilita,
       i.startup_innovativa && "Startup innovativa: " + i.startup_innovativa.requisito + " (" + i.startup_innovativa.come + ")",
+      i.criteri_startup && `Criteri startup: innovazione ${i.criteri_startup.innovazione}, scalabilità ${i.criteri_startup.scalabilita}, replicabilità ${i.criteri_startup.replicabilita}, sostenibilità ${i.criteri_startup.sostenibilita} (su 10)`,
+      i.punto_debole && "Punto debole: " + i.punto_debole,
       "Perché noi: " + i.perche_noi, "Primo passo: " + i.primo_passo,
       i.slide && i.slide.length ? "\nBozza slide:\n" + i.slide.map((sl, k) => `${k + 1}. ${sl.titolo}\n` + (sl.punti || []).map((x) => "   - " + x).join("\n")).join("\n") : ""]
       .filter((x) => x !== undefined && x !== null && x !== false).join("\n"),
