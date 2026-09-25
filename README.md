@@ -11,16 +11,11 @@ Chi usa la piattaforma vede due schede.
 - **Bacheca** (la home). In alto i post del master: ognuno contiene da 1 a 5
   idee, scritte a mano o generate, ed e' visibile a tutti oppure solo alle
   persone scelte da chi lo pubblica. Ci si candida con «Voglio partecipare» e
-  l'autore accoglie chi vuole nella squadra. Sotto si generano le idee,
-  partendo da una di tre strade:
-  - **ho un'idea!**: la scrivo e poi la pubblico cosi' com'e', la faccio
-    vedere solo ai compagni che scelgo, oppure uso l'AI (1 credito) per
-    trovare i compagni giusti per quella idea o per svilupparla insieme ad
-    altre; si puo' pubblicare in ogni momento;
-  - **ho delle persone** ma non un'idea: le scelgo (elenco con caselle o
-    «Sfoglia tutte le persone») e Claude genera idee compatibili;
-  - **proposta completa**: Claude parte dal mio profilo e propone idee e
-    squadre.
+  l'autore accoglie chi vuole nella squadra. Le mie sono in blu, le altre in
+  grigio. Sotto si generano le idee con tre domande: **hai un'idea?** (se si'
+  si scrive, e si puo' anche pubblicare cosi' com'e'), **hai compagni?** (si
+  scelgono), **vuoi dare piu' paletti a Claude?** (cursori, settore, testo
+  libero). Poi un solo pulsante Genera.
   Le squadre sono di 7 o 8: Claude completa quelle piu' piccole, con una
   riga di motivo per ogni persona proposta. Perche' nessuno resti fuori,
   l'ultimo posto di ogni squadra va a una delle persone coinvolte meno
@@ -32,17 +27,17 @@ Chi usa la piattaforma vede due schede.
   gruppo), il settore da una tendina di 10 voci e un campo di testo libero.
   Il tipo di startup e la strada da cui nasce l'idea li sceglie Claude e li
   scrive su ogni idea.
-  Una proposta generata si pubblica in due modi: **solo alle persone della
-  proposta** (spuntate tutte, se ne tolgono o aggiungono quante si vuole,
-  senza obbligo di arrivare a 7 o 8; ognuna vede perche' e' stata proposta)
-  oppure **a tutto il master senza nomi** (si vede solo l'idea).
+  Ogni idea generata si condivide **con tutti** (senza nomi) o **col
+  gruppo** (le persone della proposta, spuntate: chi si toglie non la vede e
+  sparisce anche dal testo; gli altri vedono perche' sono stati proposti).
   Le istruzioni a Claude (`SISTEMA` in `api/genera.js`) seguono le linee
   guida del 24 settembre 2026: startup innovativa, scalabile, replicabile e
   sostenibile, requisito di startup innovativa, criteri della giuria, 3 idee
   grezze e affini per il 1 novembre con la bozza di 2-3 slide ciascuna.
   Ogni generazione propone 5 idee brevi (3 top e 2 di riserva) e costa **1
-  credito**; su ogni idea «Approfondisci» fa scrivere a Claude domande di
-  partenza, criteri spiegati e bozza delle slide (compreso nel credito).
+  credito**. L'approfondimento (domande di partenza, slide) c'e' nel server
+  ma per ora e' spento nella pagina (`APPROFONDISCI` in `index.html`), per
+  risparmiare token.
   Ognuno ha 10 crediti (`BBS_CREDITI`), l'amministratore ne aggiunge da
   Regia. Il credito si restituisce se la generazione fallisce. Le idee
   si selezionano (da 1 a 5) e si condividono con un clic.
