@@ -207,12 +207,15 @@
   .voce-proposta input{margin-top:4px}
   .scelte-gen{margin-top:12px}
   .percorso-gen{padding:6px 18px 18px}
-  .domanda-gen{border-bottom:1px solid var(--bordo);padding:14px 0}
-  .domanda-gen .riga{flex-wrap:nowrap;align-items:center}
+  .domande-riga{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+  @media (max-width:760px){.domande-riga{grid-template-columns:1fr}}
+  .domanda-gen{border:2px solid var(--bordo);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+  .domanda-gen.aperta{border-color:var(--accento);background:var(--accento-chiaro)}
+  .domanda-gen .si-no{margin-top:auto}
+  .risposta-gen{border-top:1px solid var(--bordo);margin-top:14px;padding-top:12px}
+  .pulsanti-gen{margin-top:16px;gap:10px;align-items:center}
   .domanda-icona{width:40px;height:40px;border-radius:50%;background:var(--accento-chiaro);color:var(--accento);display:flex;align-items:center;justify-content:center;flex:none}
   .domanda-gen.aperta .domanda-icona{background:var(--accento);color:#fff}
-  .domanda-dentro{margin:10px 0 0 52px}
-  @media (max-width:760px){.domanda-dentro{margin-left:0}.domanda-gen .riga{flex-wrap:wrap}}
   .si-no{display:flex;gap:4px;flex:none}
   .btn.grande{font-size:16px;padding:10px 18px;display:inline-flex;align-items:center;gap:8px}
   .azioni-idea{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:12px;margin-top:12px}
@@ -275,7 +278,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.15.1";
+const VERSION = "2.16.0";
 const $main = document.getElementById("main");
 const S = { tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -608,28 +611,29 @@ function genera() {
   const R = S.risposte;
   const blocca = !io || S.generando || senzaCrediti();
   const siNo = (k) => `<div class="si-no"><button class="btn piccolo ${R[k] ? "primario" : ""}" data-risposta="${k}|si">Sì</button><button class="btn piccolo ${R[k] ? "" : "primario"}" data-risposta="${k}|no">No</button></div>`;
-  const domanda = (k, ic, testo, sotto, dentro) => `<div class="domanda-gen ${R[k] ? "aperta" : ""}">
-      <div class="riga"><span class="domanda-icona">${icona(ic)}</span><div style="flex:1"><b>${testo}</b>${sotto ? `<div class="piccolo">${sotto}</div>` : ""}</div>${siNo(k)}</div>
-      ${R[k] ? `<div class="domanda-dentro">${dentro}</div>` : ""}</div>`;
+  // Tre box affiancati con la domanda; sotto, a tutta larghezza, quello che
+  // serve per ogni risposta "si'".
+  const dentro = {};
+  const domanda = (k, ic, testo, sotto, corpo) => { dentro[k] = corpo; return `<div class="domanda-gen ${R[k] ? "aperta" : ""}">
+      <span class="domanda-icona">${icona(ic)}</span><b>${testo}</b>${sotto ? `<div class="piccolo">${sotto}</div>` : ""}${siNo(k)}</div>`; };
   const nomeGenera = R.idea && R.compagni ? "Sviluppa l'idea con il gruppo" : R.idea ? "Sviluppa l'idea e trova i compagni"
     : R.compagni ? "Genera idee per il gruppo" : "Proponi idee e compagni";
   box.innerHTML = `<div class="riga"><div><h2>Genera idee</h2>
-      <p class="sotto">Rispondi a tre domande e premi Genera: Claude legge i profili (LinkedIn, aziende dove avete lavorato, passioni) e propone cinque idee brevi, ognuna con la squadra di 7-8 persone. Ogni generazione costa 1 credito.</p></div>
+      <p class="sotto">Rispondi a tre domande e premi Genera: l'AI legge i profili (LinkedIn, aziende dove avete lavorato, passioni) e propone cinque idee brevi, ognuna con la squadra di 7-8 persone. Ogni generazione costa 1 credito.</p></div>
       <span class="spazio"></span><span data-tour="crediti">${testoCrediti()}</span></div>
     ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano qui sotto; se te ne servono altri, chiedi a Dario.</div>' : ""}
-    <div class="carta percorso-gen" data-tour="percorsi">
+    <div class="carta percorso-gen" data-tour="percorsi"><div class="domande-riga">
       ${domanda("idea", "idea", "Hai un'idea?", "", `
         <label style="margin-top:0">Titolo <small>(facoltativo)</small></label>
         <input type="text" id="ideaTitolo" value="${esc(S.ideaTitolo || "")}" placeholder="Es. L'invenduto dei campi nei ristoranti">
         <label>La tua idea <small>(cosa, per chi, perché: bastano due o tre righe)</small></label>
         <textarea id="miaIdea" placeholder="Es. una piattaforma che mette in contatto le aziende agricole dell'Emilia con i ristoranti, per vendere l'invenduto">${esc(S.miaIdea || "")}</textarea>
-        <div class="riga" style="margin-top:8px"><button class="btn" data-pubblica-idea>Pubblicala in bacheca</button>
-          <span class="piccolo">così com'è, la vedono tutti; oppure falla sviluppare a Claude qui sotto</span></div>`)}
+`)}
       ${domanda("compagni", "persone", R.idea ? "Hai compagni con cui la vuoi sviluppare?" : "Hai compagni con cui vuoi lavorare?", "", `
         <div id="pickGruppo"></div>
         <p class="piccolo" id="contaGruppo" style="margin:6px 0 0"></p>
         <p class="piccolo" style="margin:6px 0 0"><a href="#" data-scheda="persone">Sfoglia tutte le persone</a></p>`)}
-      ${domanda("paletti", "paletti", "Vuoi dare più paletti a Claude?", "Se no, decide Claude: tipo di startup e punto di partenza li scrive comunque su ogni idea.", `
+      ${domanda("paletti", "paletti", "Vuoi dare più paletti all'AI?", "Se no, decide l'AI: tipo di startup e punto di partenza li scrive comunque su ogni idea.", `
         <div class="scelte-griglia">
           <div><label style="margin-top:0">Modello di business</label>
             <input type="range" class="cursore" id="opzModello" min="0" max="2" step="1" value="${{ B2B: 0, "": 1, B2C: 2 }[S.opz.modello]}">
@@ -642,8 +646,12 @@ function genera() {
         <div class="gettoni">${(S.dati.scelte ? S.dati.scelte.settori : []).map((x) => `<button class="gettone ${S.opz.settore === x ? "attivo" : ""}" data-opz-settore="${esc(x)}">${esc(x)}</button>`).join("")}</div>
         <label>Indicazioni in più <small>(testo libero: un vincolo, un mercato, uno spunto, quello che vuoi)</small></label>
         <textarea id="note" placeholder="Es. qualcosa che si possa validare in due mesi">${esc(S.note || "")}</textarea>`)}
-      <div class="riga" style="margin-top:14px"><button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} ${nomeGenera}</button>
-        <span class="piccolo">1 credito</span></div>
+      </div>
+      ${["idea", "compagni", "paletti"].filter((k) => R[k]).map((k) => `<div class="risposta-gen">${dentro[k]}</div>`).join("")}
+      <div class="riga pulsanti-gen">
+        ${R.idea ? `<button class="btn grande" data-pubblica-idea>Pubblica l'idea in bacheca</button>` : ""}
+        <button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} Genera con l'AI</button>
+        <span class="piccolo">${R.idea ? "Pubblica: la vedono tutti, così com'è. " : ""}Genera: ${nomeGenera.toLowerCase()}, 1 credito.</span></div>
     </div>
     <div id="msgGen"></div>
     <div id="risultati">${S.ultima ? risultati(S.ultima) : ""}</div>
@@ -654,7 +662,7 @@ function genera() {
     const n = S.scelti.size + 1, el = document.getElementById("contaGruppo");
     if (el) el.innerHTML = !S.scelti.size ? "" : n >= 7
       ? `Squadra di <b>${n}</b>: completa.`
-      : `Squadra di <b>${n}</b> con te: Claude proporrà ${7 - n === 8 - n ? 7 - n : `da ${7 - n} a ${8 - n}`} persone per arrivare a 7-8.`;
+      : `Squadra di <b>${n}</b> con te: l'AI proporrà ${7 - n === 8 - n ? 7 - n : `da ${7 - n} a ${8 - n}`} persone per arrivare a 7-8.`;
   };
   const cur = (id, voci, k) => { const el = document.getElementById(id); if (el) el.oninput = () => { S.opz[k] = voci[Number(el.value)]; }; };
   cur("opzModello", ["B2B", "", "B2C"], "modello");
@@ -690,7 +698,7 @@ function genera() {
     const persone = R.compagni ? [...S.scelti] : [];
     if (R.compagni && !persone.length) { avvisa("msgGen", "Scegli almeno un compagno, oppure rispondi No.", "male"); return; }
     S.generando = true; genera();
-    avvisa("msgGen", "Claude sta leggendo i profili e scrivendo le idee: di solito ci vuole meno di un minuto…");
+    avvisa("msgGen", "L'AI sta leggendo i profili e scrivendo le idee: di solito ci vuole meno di un minuto…");
     document.getElementById("msgGen").scrollIntoView({ behavior: "smooth", block: "center" });
     const paletti = R.paletti ? S.opz : { modello: "", perno: "", settore: "" };
     try {
@@ -816,7 +824,7 @@ document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-approfondisci]");
   if (!b) return;
   const [gid, n] = b.dataset.approfondisci.split("|");
-  b.disabled = true; b.textContent = "Claude sta approfondendo l'idea: una ventina di secondi…";
+  b.disabled = true; b.textContent = "L'AI sta approfondendo l'idea: una ventina di secondi…";
   try {
     const g = await api("", { modo: "approfondisci", generazione: gid, indice: Number(n) }, "/api/genera");
     const k = S.dati.generazioni.findIndex((x) => x.id === gid);
@@ -992,7 +1000,7 @@ function apriEditor(post) {
           <span><b>${esc((profilo(x.id) || {}).nome || "?")}</b>${x.scelto ? ' <span class="etichetta grigia">scelto da te</span>' : ""}${x.motivo ? `<br><span class="piccolo">${esc(x.motivo)}</span>` : ""}</span></label>`).join("")}
         <p class="piccolo" style="margin:6px 0 0">Non serve arrivare a 7 o 8: puoi condividerla anche solo con alcune di queste persone. Chi togli non la vedrà e sparisce anche dal testo dell'idea; gli altri vedranno la riga sul perché sono stati proposti.</p></div>` : ""}
       <div id="ePick" style="${visibilita === "scelti" ? "" : "display:none"}"></div>
-      ${!conProposta && visibilita === "scelti" && (post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).length ? `<p class="piccolo">Suggeriti da Claude: ${(post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).map((id) => `<a href="#" data-sugg-dest="${id}">+ ${esc(profilo(id).nome)}</a>`).join(" · ")}</p>` : ""}
+      ${!conProposta && visibilita === "scelti" && (post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).length ? `<p class="piccolo">Suggeriti dall'AI: ${(post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).map((id) => `<a href="#" data-sugg-dest="${id}">+ ${esc(profilo(id).nome)}</a>`).join(" · ")}</p>` : ""}
       <div class="due"><div><label>Cosa cerchi <small>(competenze, ruoli, un messaggio)</small></label><input type="text" id="eCerco" value="${esc(post.cerco || "")}"></div>
       <div><label>Persone nella squadra, te compreso</label><select id="ePosti">${[8, 7].map((n) => `<option value="${n}" ${Number(post.posti) === n ? "selected" : ""}>${n} persone</option>`).join("")}</select></div></div>
       <div id="msgEd"></div>
@@ -1586,7 +1594,7 @@ async function regia(daCache) {
         ${g.costo ? `<div class="piccolo">${esc(g.costo.modello)} · ${g.costo.input.toLocaleString("it-IT")} token in entrata · ${g.costo.output.toLocaleString("it-IT")} in uscita (ragionamento compreso)</div>` : ""}
         ${g.modo === "gruppo" ? `<div class="piccolo" style="margin-top:4px"><b>Ha scelto:</b> ${esc((g.personeNomi || []).join(", "))}</div>` : ""}
         ${g.note ? `<div class="piccolo"><b>Indicazioni:</b> «${esc(g.note)}»</div>` : ""}
-        <table style="margin-top:8px"><tr><th></th><th>Idea</th><th>Settore</th><th>Compagni suggeriti da Claude</th></tr>
+        <table style="margin-top:8px"><tr><th></th><th>Idea</th><th>Settore</th><th>Compagni suggeriti dall'AI</th></tr>
           ${g.idee.map((i) => `<tr><td><span class="etichetta ${i.fascia === "top" ? "verde" : "ambra"}">${esc(i.punteggio)}</span></td>
             <td><b>${esc(i.titolo)}</b><div class="piccolo">${esc(i.sintesi || "")}</div></td>
             <td class="piccolo">${esc(i.modello)} · ${esc(i.settore)}</td>
@@ -1619,7 +1627,7 @@ async function regia(daCache) {
 // Come genera Claude e quanto costa: modello ed effort si cambiano qui, e la
 // tabella dice quanto e' costata in media ogni generazione con ciascuna scelta
 // (proposta + approfondimenti), con la proiezione su 500 generazioni.
-const NOMI_MODELLI = { "claude-opus-5": "Claude Opus 5 (il più bravo)", "claude-sonnet-5": "Claude Sonnet 5 (circa 60% in meno)" };
+const NOMI_MODELLI = { "claude-opus-5": "Opus 5 (il più bravo)", "claude-sonnet-5": "Sonnet 5 (circa 60% in meno)" };
 const NOMI_EFFORT = { low: "basso (ragiona poco, costa meno)", medium: "medio", high: "alto (ragiona di più, costa di più)" };
 function pannelloSpesa(s) {
   const i = s.impostazioni || {};
@@ -1706,7 +1714,7 @@ async function aziende(daCache) {
   const lista = d.aziende.filter((a) => (F.stato === "tutte" || (F.stato === "sistemare" ? daSistemare(a) : a.stato === F.stato)) &&
     (!q || senzaAccenti([a.nome, a.scritto, a.settore, a.persone.map((x) => x.nome + " " + x.ruolo).join(" ")].join(" ")).includes(q)));
   const bott = (k, t, n) => `<button class="btn ${F.stato === k ? "primario" : ""}" data-filtro-az="${k}">${t} (${n})</button>`;
-  $main.innerHTML = `<div class="riga"><div><h2>Aziende</h2><p class="sotto">Le aziende dove hanno lavorato le persone, con sito, settore e cosa fanno: Claude le legge per capire come ognuno può contribuire. Le ho cercate io sui siti; quelle <b>senza sito</b> o con un <b>dubbio</b> sono qui da sistemare a mano.</p></div>
+  $main.innerHTML = `<div class="riga"><div><h2>Aziende</h2><p class="sotto">Le aziende dove hanno lavorato le persone, con sito, settore e cosa fanno: l'AI le legge per capire come ognuno può contribuire. Le ho cercate io sui siti; quelle <b>senza sito</b> o con un <b>dubbio</b> sono qui da sistemare a mano.</p></div>
       <span class="spazio"></span><button class="btn" id="aggAz">Aggiorna</button></div>
     <div class="riga" style="margin-bottom:10px">
       ${bott("sistemare", "Da sistemare", conta(daSistemare))}${bott("trovata", "Trovate", conta((a) => a.stato === "trovata"))}
@@ -1790,12 +1798,12 @@ const TOUR = [
   { testo: "<b>Benvenuto in Squadre BBS!</b><br>In un minuto ti faccio vedere come funziona. Tu fai le azioni, io ti dico dove cliccare." },
   { sel: '[data-scheda="profilo"]', azione: true, testo: "Si parte dal tuo profilo: <b>clicca «Il mio profilo»</b>." },
   { sel: '[data-tour="linkedin"] h3', testo: "Qui ci sono i tuoi <b>dati LinkedIn</b>, caricati da noi: dai un'occhiata che siano giusti. Se mancano, li prendi dal PDF del tuo profilo." },
-  { sel: '#passioni', testo: "Poi aggiungi <b>passioni, settori e preferenze</b>: servono a Claude per proporti le idee giuste e i compagni adatti. Alla fine ricordati <b>Salva profilo</b>." },
+  { sel: '#passioni', testo: "Poi aggiungi <b>passioni, settori e preferenze</b>: servono all'AI per proporti le idee giuste e i compagni adatti. Alla fine ricordati <b>Salva profilo</b>." },
   { sel: '[data-scheda="bacheca"]', azione: true, testo: "Ora andiamo alla home: <b>clicca «Bacheca»</b>." },
-  { sel: '[data-tour="percorsi"]', testo: "Qui generi le idee con Claude, rispondendo a tre domande: <b>hai un'idea?</b> <b>hai compagni?</b> <b>vuoi dare paletti?</b> Poi premi Genera. Le squadre sono di <b>7 o 8</b>." },
-  { sel: '[data-scheda="spunti"]', testo: "Cerchi ispirazione? Nella scheda <b>Spunti</b> ci sono migliaia di startup di Y Combinator e le ultime notizie di TechCrunch: con <b>Usa come spunto</b> Claude parte da lì per le tue idee." },
+  { sel: '[data-tour="percorsi"]', testo: "Qui generi le idee con l'AI, rispondendo a tre domande: <b>hai un'idea?</b> <b>hai compagni?</b> <b>vuoi dare paletti?</b> Poi premi Genera. Le squadre sono di <b>7 o 8</b>." },
+  { sel: '[data-scheda="spunti"]', testo: "Cerchi ispirazione? Nella scheda <b>Spunti</b> ci sono migliaia di startup di Y Combinator e le ultime notizie di TechCrunch: con <b>Usa come spunto</b> l'AI parte da lì per le tue idee." },
   { sel: '[data-tour="crediti"]', testo: "Ogni generazione costa <b>1 credito</b>. Usali con calma: prima completa il profilo, le idee vengono meglio." },
-  { testo: "<b>Fatto!</b> Quando Claude ti propone le idee, selezionane da 1 a 5 e premi <b>Condividi</b>.<br>Il tutorial lo ritrovi dal pulsante <b>?</b> in alto." },
+  { testo: "<b>Fatto!</b> Quando l'AI ti propone le idee, selezionane da 1 a 5 e premi <b>Condividi</b>.<br>Il tutorial lo ritrovi dal pulsante <b>?</b> in alto." },
 ];
 let tour = null;
 function tourAvvia() {

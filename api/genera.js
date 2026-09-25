@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.12.0
+// VERSION: 1.12.1
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -246,8 +246,8 @@ async function chiamaClaude({ modello, effort }, elenco, testo, schema) {
 }
 
 function erroreClaude(e) {
-  if (/workspace/i.test(String(e.message))) return [502, "La chiave di Claude su Vercel non e' legata a un workspace: crea una chiave dentro un workspace nella console Anthropic, oppure aggiungi su Vercel ANTHROPIC_WORKSPACE_ID con l'id del workspace, poi ridistribuisci."];
-  return [e instanceof Anthropic.RateLimitError ? 429 : 502, "Claude non ha risposto: " + (e.message || e)];
+  if (/workspace/i.test(String(e.message))) return [502, "La chiave dell'AI su Vercel non e' legata a un workspace: crea una chiave dentro un workspace nella console Anthropic, oppure aggiungi su Vercel ANTHROPIC_WORKSPACE_ID con l'id del workspace, poi ridistribuisci."];
+  return [e instanceof Anthropic.RateLimitError ? 429 : 502, "L'AI non ha risposto: " + (e.message || e)];
 }
 
 export default async function handler(req, res) {
@@ -348,12 +348,12 @@ export default async function handler(req, res) {
   try { risposta = await chiamaClaude(imp, elenco, testo, SCHEMA); }
   catch (e) { await restituisci(); const [st, msg] = erroreClaude(e); return res.status(st).json({ error: msg }); }
   if (risposta.stop_reason === "refusal" || risposta.stop_reason === "max_tokens") await restituisci();
-  if (risposta.stop_reason === "refusal") return res.status(422).json({ error: "Claude ha rifiutato questa richiesta. Prova a cambiare le indicazioni." });
+  if (risposta.stop_reason === "refusal") return res.status(422).json({ error: "L'AI ha rifiutato questa richiesta. Prova a cambiare le indicazioni." });
   if (risposta.stop_reason === "max_tokens") return res.status(502).json({ error: "Risposta troppo lunga e tagliata: riprova." });
 
   const blocco = risposta.content.find((b) => b.type === "text");
   let idee;
-  try { idee = JSON.parse(blocco.text).idee; } catch { await restituisci(); return res.status(502).json({ error: "Risposta di Claude non leggibile: riprova." }); }
+  try { idee = JSON.parse(blocco.text).idee; } catch { await restituisci(); return res.status(502).json({ error: "Risposta dell'AI non leggibile: riprova." }); }
 
   for (const i of idee) {
     i.ruoli = (i.ruoli || []).filter((r) => nomeDi(r.id)).map((r) => ({ ...r, nome: nomeDi(r.id) }));
@@ -400,11 +400,11 @@ async function approfondisci(chi, corpo, { profili, aziende, siti, imp, elenco }
   let risposta;
   try { risposta = await chiamaClaude(imp, elenco, testo, SCHEMA_DETTAGLIO); }
   catch (e) { const [st, msg] = erroreClaude(e); return res.status(st).json({ error: msg }); }
-  if (risposta.stop_reason === "refusal") return res.status(422).json({ error: "Claude ha rifiutato questa richiesta." });
+  if (risposta.stop_reason === "refusal") return res.status(422).json({ error: "L'AI ha rifiutato questa richiesta." });
   if (risposta.stop_reason === "max_tokens") return res.status(502).json({ error: "Risposta troppo lunga e tagliata: riprova." });
   let dettagli;
   try { dettagli = JSON.parse(risposta.content.find((b) => b.type === "text").text); }
-  catch { return res.status(502).json({ error: "Risposta di Claude non leggibile: riprova." }); }
+  catch { return res.status(502).json({ error: "Risposta dell'AI non leggibile: riprova." }); }
 
   // Si rilegge la generazione appena prima di scrivere: se nel frattempo e'
   // stata approfondita un'altra idea, non la si perde.
