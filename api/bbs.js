@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.15.0
+// VERSION: 1.16.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -211,7 +211,7 @@ async function dati(chi, res) {
     io: { email: chi.email, nome: chi.nome, admin: chi.admin, adminVero: chi.adminVero, profilo: io, foto: u && u.foto, crediti },
     profili: Object.values(profili).map((p) => {
       // i testi dei ruoli per intero solo nel proprio profilo, che si modifica
-      const lavori = lavoriPubblici(p, siti).map((l) => p.id === io || l.descrizioneRuolo.length <= 300 ? l : { ...l, descrizioneRuolo: l.descrizioneRuolo.slice(0, 300) + "…" });
+      const lavori = lavoriPubblici(p, siti).map((l) => p.id === io || chi.admin || l.descrizioneRuolo.length <= 300 ? l : { ...l, descrizioneRuolo: l.descrizioneRuolo.slice(0, 300) + "…" });
       const out = { ...profiloPubblico(p, aziende, chi.admin), lavori };
       delete out.lavoriMiei;
       return out;
@@ -331,7 +331,8 @@ async function nuovoProfilo(chi, corpo, res) {
 }
 
 async function aggiornaProfilo(chi, corpo, res) {
-  const p = await mioProfilo(chi.email);
+  // l'amministratore puo' completare il profilo di un altro
+  const p = chi.admin && corpo.profilo ? await uno("profili", String(corpo.profilo)) : await mioProfilo(chi.email);
   if (!p) return res.status(404).json({ error: "Prima collega il tuo profilo." });
   for (const c of CAMPI_PROFILO) if (corpo[c] != null) p[c] = testo(corpo[c], c === "linkedinTesto" ? 20000 : 4000);
   p.extra = p.extra || {};
@@ -642,9 +643,9 @@ async function salvaImpostazioni(chi, corpo, res) {
 }
 
 async function statistiche(res) {
-  const [profili, utenti, bachecaTutta, generazioni, registro, aziende] = await Promise.all([
+  const [profili, utenti, bachecaTutta, generazioni, registro, aziende, siti] = await Promise.all([
     tutti("profili"), tutti("utenti"), tutti("bacheca"),
-    ultimi("generazioni", 1000), eventi(1000), tutti("aziende"),
+    ultimi("generazioni", 1000), eventi(1000), tutti("aziende"), tutti("siti"),
   ]);
   const nomeDi = (id) => (profili[id] && profili[id].nome) || id;
   const bacheca = Object.fromEntries(Object.entries(bachecaTutta).filter(([, i]) => !i.esempio));   // gli esempi non contano
@@ -695,6 +696,19 @@ async function statistiche(res) {
       bacheca: Object.keys(bacheca).length,
       aziende: Object.keys(aziende).length,
     },
+    // Chi si e' collegato e ha il profilo incompleto: cosa gli manca.
+    daCompletare: Object.values(profili).filter((p) => p.email).map((p) => {
+      const x = p.extra || {}, L = lavoriPubblici(p, siti), manca = [];
+      if (!p.linkedin) manca.push("link LinkedIn");
+      if (!p.esperienze && !p.linkedinTesto) manca.push("dati LinkedIn (PDF)");
+      if (!x.passioni && !x.cosaCerco) manca.push("passioni e preferenze");
+      const senzaSito = L.filter((l) => !l.sito).length, dubbi = L.filter((l) => l.stato === "mancante" || l.stato === "dubbio").length;
+      const senzaRuolo = L.filter((l) => !l.descrizioneRuolo).length;
+      if (senzaSito) manca.push(senzaSito === 1 ? "1 sito di azienda" : senzaSito + " siti di aziende");
+      if (dubbi) manca.push(dubbi === 1 ? "1 azienda da controllare" : dubbi + " aziende da controllare");
+      if (senzaRuolo) manca.push(senzaRuolo === 1 ? "1 ruolo senza descrizione" : senzaRuolo + " ruoli senza descrizione");
+      return { id: p.id, nome: p.nome, email: p.email, manca };
+    }).filter((r) => r.manca.length).sort((a, b) => b.manca.length - a.manca.length || String(a.nome).localeCompare(String(b.nome))),
     coppie: ordina(coppie, 40).map(([k, n]) => { const [a, b] = k.split("|"); return { a: nomeDi(a), b: nomeDi(b), n }; }),
     cercati: ordina(cercati, 30).map(([id, n]) => ({ nome: nomeDi(id), n })),
     settori: ordina(settori), modelli: ordina(modelli),

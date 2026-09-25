@@ -408,7 +408,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.34.0";
+const VERSION = "2.35.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -434,6 +434,11 @@ function avvisa(dove, testo, tipo) {
 }
 const profilo = (id) => S.dati.profili.find((p) => p.id === id);
 const mio = () => S.dati.io.profilo && profilo(S.dati.io.profilo);
+// Il profilo aperto nella scheda: il mio, o quello di un altro che
+// l'amministratore sta completando (dalle statistiche).
+const altrui = () => !!(S.profiloAltrui && S.dati.io.admin && profilo(S.profiloAltrui));
+const profiloInModifica = () => (altrui() ? profilo(S.profiloAltrui) : mio());
+const perChi = () => (altrui() ? { profilo: S.profiloAltrui } : {});
 
 // ---------------------------------------------------------------- avvio
 async function carica() {
@@ -508,6 +513,7 @@ document.addEventListener("click", async (ev) => {
   if (b) {
     ev.preventDefault(); document.getElementById("testata").classList.remove("menu-aperto");
     if (S.generaAperta) chiudiGenera();
+    S.profiloAltrui = null; S.profAperto = null;
     S.scheda = b.dataset.scheda; disegna(); if (S.scheda !== "genera") window.scrollTo(0, 0);
   }
   const mc = ev.target.closest("[data-clic]");
@@ -1659,10 +1665,12 @@ function campiProfilo(p, lista, aperto) {
   }).join("");
 }
 function schedaProfilo() {
-  const p = mio();
+  const p = profiloInModifica();
   if (!p) return collega();
   const aperto = S.profAperto;
-  $main.innerHTML = `<h2>Il mio profilo</h2>
+  $main.innerHTML = `${altrui() ? `<div class="avviso info riga" style="margin-top:0"><span>Stai completando il profilo di <b>${esc(p.nome)}</b>: ogni modifica si salva subito sul suo profilo.</span>
+      <span class="spazio"></span><button class="btn piccolo" data-torna-regia>← Torna alla Regia</button></div>` : ""}
+    <h2>${altrui() ? "Profilo di " + esc(p.nome) : "Il mio profilo"}</h2>
     <p class="sotto">La parte LinkedIn arriva dall'import; le altre cose le aggiungi tu e servono a trovarti le persone e le idee giuste. Clicca ✎ per cambiare un campo.</p>
     <div class="due">
       <div class="carta" data-tour="linkedin"><h3 style="margin-top:0">Dal LinkedIn</h3>
@@ -1682,10 +1690,10 @@ function schedaProfilo() {
     </div>
     <div class="carta" style="margin-top:14px" id="mieiLavori">${editorLavori(p)}</div>
     <div id="msgProf"></div>
-    <div class="riga" style="margin-top:14px"><span class="spazio"></span><button class="btn pericolo" id="lasciaProf">Questo non è il mio profilo</button></div>`;
+    ${altrui() ? "" : `<div class="riga" style="margin-top:14px"><span class="spazio"></span><button class="btn pericolo" id="lasciaProf">Questo non è il mio profilo</button></div>`}`;
   const el = $main.querySelector("[data-val-prof]");
   if (el) { el.focus(); if (el.setSelectionRange && el.value) el.setSelectionRange(el.value.length, el.value.length); }
-  document.getElementById("lasciaProf").onclick = async () => {
+  if (document.getElementById("lasciaProf")) document.getElementById("lasciaProf").onclick = async () => {
     if (!confirm("Scollegarti da " + p.nome + "? Potrai scegliere il tuo profilo con «Sono io».")) return;
     try { await api("lascia", {}); S.dati = await api("dati"); disegna(); }
     catch (e) { avvisa("msgProf", e.message, "male"); }
@@ -1705,7 +1713,7 @@ function schedaProfilo() {
       metti("esperienze", [r.riepilogo, r.esperienze].filter(Boolean).join("\n\n"));
       metti("formazione", r.formazione); metti("linkedinTesto", r.testo);
       if (!p.linkedin) metti("linkedin", r.linkedin);
-      await api("profilo", corpo); S.dati = await api("dati"); S.profAperto = null; schedaProfilo();
+      await api("profilo", { ...corpo, ...perChi() }); S.dati = await api("dati"); S.profAperto = null; schedaProfilo();
       avvisa("msgProf", "PDF letto e salvato: controlla i campi.", "bene");
     } catch (e) { avvisa("msgProf", "Non riesco a leggere questo PDF: " + e.message, "male"); }
   };
@@ -1717,8 +1725,8 @@ document.addEventListener("click", async (ev) => {
   const c = ok.dataset.okProf, v = document.querySelector("[data-val-prof]").value.trim();
   ok.disabled = true;
   try {
-    await api("profilo", { [c]: v });
-    const p = mio();
+    await api("profilo", { [c]: v, ...perChi() });
+    const p = profiloInModifica();
     if (MIEI_PROF.includes(c)) { p.extra = p.extra || {}; p.extra[c] = v; } else p[c] = v;
     const y = window.scrollY; S.profAperto = null; schedaProfilo(); window.scrollTo(0, y);
   } catch (e) { ok.disabled = false; avvisa("msgProf", e.message, "male"); }
@@ -1777,7 +1785,7 @@ document.addEventListener("click", async (ev) => {
   ok.disabled = true;
   if (c === "sito" && v && l && v !== l.sito) ok.textContent = "L'AI sta leggendo il sito…";
   try {
-    const r = await api("lavori", { lavori: [{ id, [c]: v }] });
+    const r = await api("lavori", { lavori: [{ id, [c]: v }], ...perChi() });
     // i dati dell'azienda valgono per tutti i lavori nella stessa azienda
     for (const x of p.lavori || []) { const n = (r.lavori || []).find((y) => String(y.id) === String(x.id)); if (n) Object.assign(x, n); }
     if (l && !(r.lavori || []).length) l[c] = v;
@@ -2308,6 +2316,11 @@ setInterval(controllaVersione, 120000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") controllaVersione(); });
 
 // ---------------------------------------------------------------- statistiche (admin)
+document.addEventListener("click", (ev) => {
+  const c = ev.target.closest("[data-completa]");
+  if (c) { S.profiloAltrui = c.dataset.completa; S.profAperto = null; S.scheda = "profilo"; disegna(); window.scrollTo(0, 0); return; }
+  if (ev.target.closest("[data-torna-regia]")) { S.profiloAltrui = null; S.profAperto = null; S.scheda = "regia"; disegna(); }
+});
 // I problemi di accesso in evidenza: chi e' stato respinto, chi e' entrato
 // senza profilo, i collegamenti con un nome Google diverso da quello del
 // profilo, chi ha lasciato un profilo, le generazioni fallite.
@@ -2360,6 +2373,12 @@ function sezioneStatistiche(s) {
       <div class="carta"><h3 style="margin-top:0">B2B / B2C</h3>${barre(s.modelli, (x) => esc(x[0]))}</div>
     </div>
     ${controlloAccessi(s)}
+    <h3 style="margin-top:24px">Profili da completare <span class="etichetta ${(s.daCompletare || []).length ? "ambra" : "verde"}">${(s.daCompletare || []).length}</span></h3>
+    <p class="piccolo" style="margin-top:0">Chi si è collegato e ha ancora qualcosa da sistemare. Con «Completa» apri il suo profilo e lo sistemi tu, campo per campo.</p>
+    <div class="carta scorri"><table><tr><th>Persona</th><th>Cosa manca</th><th></th></tr>
+      ${(s.daCompletare || []).map((r) => `<tr><td><b>${esc(r.nome)}</b><div class="piccolo">${esc(r.email)}</div></td><td class="piccolo">${esc(r.manca.join(" · "))}</td>
+        <td><button class="btn piccolo" data-completa="${esc(r.id)}">Completa</button></td></tr>`).join("") || '<tr><td colspan="3" class="piccolo">Tutti i profili collegati sono completi.</td></tr>'}
+    </table></div>
     <h3 style="margin-top:24px">Persone entrate</h3>
     <div class="carta scorri"><table><tr><th>Email</th><th>Profilo</th><th>Accessi</th><th>Ultimo</th><th>Crediti usati</th><th></th></tr>
       ${s.utenti.map((u) => `<tr><td>${esc(u.email)}</td><td>${esc(u.profiloNome || "—")}</td><td>${u.accessi || 0}</td><td>${quando(u.ultimo)}</td>
