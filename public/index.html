@@ -49,7 +49,9 @@
     .gen-persone,.proposta-riga{padding:8px 10px}
     .proposta-riga summary{gap:6px}
     .titolo-proposta{font-size:15px;flex:1 1 60%}
-    .azioni-gen .btn,.pulsanti-gen .btn{flex:1 1 100%}
+    .azioni-gen .btn{flex:1 1 100%}
+    .pulsanti-gen{flex-wrap:nowrap}
+    .pulsanti-gen .btn{flex:1 1 0;min-width:0;justify-content:center;white-space:normal;font-size:14px;padding:11px 8px;text-align:center}
     .pulsanti-gen .piccolo{flex:1 1 100%}
     h2{font-size:22px}
   }
@@ -152,7 +154,7 @@
   .sotto-idea summary{cursor:pointer}
   .finestra.finestra-genera{width:min(1180px,100%,calc((100vh - 300px) * 3 + 110px));position:relative;padding-top:14px}
   .finestra-genera .sotto{margin:2px 0 0;font-size:14px}
-  .finestra-genera .percorso-gen{margin-top:8px;padding:14px;border-radius:6px}
+  .finestra-genera .percorso-gen{margin-top:8px;padding:14px}
   .finestra-genera .domande-riga{margin-top:0}
   .cucina{position:absolute;inset:0;z-index:5;border-radius:inherit;background:rgba(255,255,255,.93);backdrop-filter:blur(3px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
   .padella{font-size:72px;animation:salta 1.1s ease-in-out infinite;transform-origin:50% 80%}
@@ -186,6 +188,21 @@
   .finestra{background:var(--carta);color:var(--testo);border-radius:16px;padding:20px;width:min(720px,100%);box-shadow:0 20px 60px rgba(0,0,0,.35)}
   .blocco-idea{border:1px solid var(--bordo);border-radius:12px;padding:12px;margin-top:12px}
   body.bloccato{overflow:hidden}
+  .burger,.solo-stretto{display:none}
+  .riga-crediti{margin:6px 0 0;align-items:center}
+  @media (max-width:760px){
+    .burger{display:block;border:0;background:var(--accento-chiaro);color:var(--accento);font-size:20px;width:40px;height:40px;border-radius:12px;cursor:pointer;order:0}
+    .marchio{order:1}
+    nav{display:none !important}
+    header.menu-aperto nav{display:flex !important;flex-direction:column;align-items:stretch;order:4;flex:0 0 100%;margin:4px 0 0;padding:6px 0;border-top:1px solid var(--bordo)}
+    header.menu-aperto nav button{text-align:left;padding:12px 10px;font-size:16px}
+    header.menu-aperto nav .solo-stretto{display:block}
+    body.genera-pagina main{display:none}
+    body.genera-pagina.bloccato{overflow:auto}
+    body.genera-pagina #veloGenera{position:static;background:none;padding:0;display:block;overflow:visible;z-index:auto}
+    body.genera-pagina #veloGenera > .finestra{width:100%;border-radius:0;box-shadow:none;padding:14px 12px 40px;background:transparent;margin:0}
+    body.genera-pagina .chiudi-genera{display:none}
+  }
   .regia-gen{margin-bottom:12px}
   .regia-gen table td,.regia-gen table th{padding:5px 8px}
   .tour-velo{position:fixed;inset:0;z-index:30;background:rgba(10,15,25,.55)}
@@ -265,7 +282,7 @@
   .percorso-gen{padding:6px 18px 18px}
   .domande-riga{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px;align-items:stretch}
   @media (max-width:900px){.domande-riga{grid-template-columns:minmax(0,1fr)}}
-  .domanda-gen{min-width:0;border:2px solid var(--bordo);border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+  .domanda-gen{min-width:0;border:2px solid var(--bordo);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
   .domanda-gen.aperta{border-color:var(--accento);background:var(--accento-chiaro)}
   .domanda-testa{flex-wrap:nowrap;align-items:center;width:100%;gap:10px}
   .domanda-corpo{width:100%;flex:1;display:flex;flex-direction:column;min-height:0}
@@ -371,7 +388,8 @@
 </style>
 </head>
 <body>
-<header><div class="barra">
+<header id="testata"><div class="barra">
+  <button id="burger" class="burger" aria-label="Menu">☰</button>
   <div class="marchio"><img src="/logo-bbs.png" alt="Bologna Business School">Squadre BBS <small>project work</small></div>
   <nav id="nav"></nav>
   <div class="chi" id="chi"></div>
@@ -382,7 +400,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.30.3";
+const VERSION = "2.31.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -458,8 +476,8 @@ function disegna() {
   if (!d.io.profilo && !(d.io.admin && SOLO_ADMIN.includes(S.scheda))) S.scheda = "profilo";
   const schede = SCHEDE.concat(d.io.admin ? SCHEDE_ADMIN : []);
   const attiva = (k) => S.scheda === k || (k === "bacheca" && ["genera", "persone"].includes(S.scheda));
-  document.getElementById("nav").innerHTML = schede.map(([k, t]) =>
-    `<button data-scheda="${k}" class="${attiva(k) ? "attivo" : ""}">${t}</button>`).join("");
+  document.getElementById("nav").innerHTML = `<button data-apri-genera class="solo-stretto ${S.generaAperta ? "attivo" : ""}">Genera idee</button>` + schede.map(([k, t]) =>
+    `<button data-scheda="${k}" class="${attiva(k) && !S.generaAperta ? "attivo" : ""}">${t}</button>`).join("");
   document.getElementById("chi").innerHTML = `
     ${d.io.adminVero ? `<button class="btn piccolo" id="modoUtente" title="Usa la piattaforma come un collega qualsiasi">${d.io.admin ? `<span class="solo-largo">Vedi come </span>utente` : `<span class="solo-largo">Torna </span>admin`}</button>` : ""}
     <button class="btn piccolo" id="aiuto" title="Rivedi il tutorial">?</button>
@@ -474,7 +492,11 @@ function disegna() {
 }
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-scheda]");
-  if (b) { ev.preventDefault(); S.scheda = b.dataset.scheda; disegna(); if (S.scheda !== "genera") window.scrollTo(0, 0); }
+  if (b) {
+    ev.preventDefault(); document.getElementById("testata").classList.remove("menu-aperto");
+    if (S.generaAperta) chiudiGenera();
+    S.scheda = b.dataset.scheda; disegna(); if (S.scheda !== "genera") window.scrollTo(0, 0);
+  }
   if (ev.target.id === "esci") api("esci", {}).then(porta);
   if (ev.target.id === "aiuto") tourAvvia();
   if (ev.target.closest("#modoUtente") || ev.target.closest("[data-torna-admin]")) {
@@ -505,6 +527,9 @@ function apriGenera() {
       <section id="secGenera" class="sezione-genera"></section></div></div>`);
     document.body.classList.add("bloccato");
   }
+  document.body.classList.add("genera-pagina");
+  document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("attivo", b.hasAttribute("data-apri-genera")));
+  document.getElementById("testata").classList.remove("menu-aperto");
   genera();
   if (S.generando) mostraCucina();
 }
@@ -513,12 +538,15 @@ function chiudiGenera() {
   if (S.scheda === "genera") S.scheda = "bacheca";
   const v = document.getElementById("veloGenera");
   if (v) v.remove();
+  document.body.classList.remove("genera-pagina");
   if (!document.querySelector(".velo")) document.body.classList.remove("bloccato");
   if (tour) setTimeout(tourMostra, 60);
 }
 document.addEventListener("click", (ev) => {
-  if (ev.target.closest("[data-chiudi-genera]")) chiudiGenera();
-  else if (ev.target.closest("[data-apri-genera]")) apriGenera();
+  const cg = ev.target.closest("[data-chiudi-genera]");
+  if (cg) { chiudiGenera(); if (cg.hasAttribute("data-vai-bacheca")) S.scheda = "bacheca"; disegna(); window.scrollTo(0, 0); }
+  else if (ev.target.closest("[data-apri-genera]")) { apriGenera(); window.scrollTo(0, 0); }
+  else if (ev.target.closest("#burger")) document.getElementById("testata").classList.toggle("menu-aperto");
 });
 document.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape" && S.generaAperta && document.querySelectorAll(".velo").length === 1 && !document.querySelector("#veloGenera .elenco-persone:not([hidden])")) chiudiGenera();
@@ -785,8 +813,9 @@ function genera() {
       <div id="msgGen"></div><div id="risultati">${risultati(S.ultima, true, true)}</div>`;
     return;
   }
-  box.innerHTML = `<div class="riga"><div><h2>Genera idee</h2>
+  box.innerHTML = `<div><h2>Genera idee</h2>
       <p class="sotto">Compila quello che vuoi, anche niente, e premi Sviluppa: l'AI legge i profili (LinkedIn, aziende dove avete lavorato, passioni) e propone cinque idee brevi, ognuna con la squadra di 7-8 persone. Ogni generazione costa 1 credito.</p></div>
+    <div class="riga riga-crediti">${S.dati.bacheca.length ? `<button class="btn piccolo" data-chiudi-genera data-vai-bacheca>Vai alla bacheca →</button>` : ""}
       <span class="spazio"></span><span data-tour="crediti">${testoCrediti()}</span></div>
     ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano in fondo alla bacheca; se te ne servono altri, chiedi a Dario.</div>' : ""}
     <div class="carta percorso-gen" data-tour="percorsi"><div class="domande-riga">

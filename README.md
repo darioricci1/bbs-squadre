@@ -28,7 +28,10 @@ Chi usa la piattaforma vede due schede.
   pulsante «Genera nuova idea» per tornare ai campi. Si condivide con tutto
   l'EMBA o con la squadra, oppure si salva per dopo: ogni generazione resta
   in fondo alla bacheca, in «Le tue idee», chiusa a tendina. Mentre l'AI
-  lavora c'e' un caricamento in sovrimpressione con frasi scherzose.
+  lavora c'e' un caricamento in sovrimpressione con frasi scherzose. Sul
+  telefono Genera idee e' la prima pagina (niente finestra), le schede stanno
+  nel menu ☰ in alto a sinistra e «Vai alla bacheca» compare quando in
+  bacheca c'e' qualcosa.
   Le squadre sono di 7 o 8: l'AI completa quelle piu' piccole, con una
   riga di motivo per ogni persona proposta. La squadra e' una sola per
   tutte le cinque proposte della stessa generazione. I risultati stanno in
