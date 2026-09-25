@@ -307,6 +307,7 @@
   .etichetta.fonte-tc{background:#e8f7ee;color:#067a3a}
   .griglia-bacheca{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
   #secBacheca .idea{aspect-ratio:1/1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+  #secBacheca .idea .etichetta{white-space:nowrap}
   .testa-post{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   .puntini{display:flex;justify-content:center;gap:6px;margin:8px 0 0}
   .puntini button{width:9px;height:9px;border-radius:50%;border:0;padding:0;background:var(--bordo);cursor:pointer}
@@ -358,7 +359,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.29.2";
+const VERSION = "2.29.3";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1277,7 +1278,7 @@ function bacheca() {
         <div class="scorri-idee" data-scorri="${i.id}">${idee.map((x, k) => {
           const [frase] = String(x.descrizione || "").split(/\n\s*\n/);
           return `<div class="idea-slide">
-            ${idee.length > 1 ? `<div class="piccolo">Idea ${k + 1} di ${idee.length}${i.titolo ? " · " + esc(i.titolo) : ""}</div>` : ""}
+            ${idee.length > 1 ? `<div class="piccolo">Idea ${k + 1} di ${idee.length}${i.titolo && !/^\d+ idee di /.test(i.titolo) ? " · " + esc(i.titolo) : ""}</div>` : ""}
             <h3 class="titolo-post">${esc(x.titolo)}</h3>
             <p class="frase-post">${esc(frase)}</p>
             <div class="riga">${x.modello ? `<span class="etichetta">${esc(x.modello)}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}</div>
