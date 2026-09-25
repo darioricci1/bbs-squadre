@@ -430,7 +430,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.37.12";
+const VERSION = "2.38.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -621,7 +621,7 @@ function chiudiGenera() {
   document.body.classList.remove("genera-pagina");
   if (!document.querySelector(".velo")) document.body.classList.remove("bloccato");
   registraStoria();
-  if (tour) setTimeout(tourMostra, 60);
+  if (tour && !S.tourChiude) setTimeout(tourMostra, 60);
 }
 document.addEventListener("click", (ev) => {
   const cg = ev.target.closest("[data-chiudi-genera]");
@@ -2371,11 +2371,16 @@ const usd = (v, dec = 2) => "$" + Number(v || 0).toLocaleString("it-IT", { minim
 // altri hanno il pulsante Avanti. Parte da solo la prima volta.
 const TOUR = [
   { testo: "<b>Benvenuto in Squadre BBS!</b><br>In un minuto ti faccio vedere le due cose che contano: <b>generare le idee</b> e la <b>bacheca</b>." },
-  { sel: '[data-tour="apri-genera"]', testo: "<b>Genera idee</b>: scrivi la tua idea, scegli i compagni, dai qualche indicazione all'AI. Tutto è facoltativo: puoi anche lasciare vuoto e premere <b>Sviluppa con l'AI</b>. Ogni generazione costa <b>1 credito</b>; se l'idea ce l'hai già, la pubblichi subito con <b>Pubblica in bacheca</b>." },
-  { sel: '.griglia-bacheca', testo: "La <b>bacheca</b>: le idee di tutti. Le tue sono in blu. Se un post ha più idee, scorri coi puntini in alto; con <b>Mi interessa</b> ti candidi, e lo vede solo chi l'ha pubblicata." },
-  { sel: '.precedenti', testo: "In fondo alla bacheca, in <b>Le tue idee</b>, ritrovi tutte le proposte che l'AI ha scritto per te, anche quelle salvate per dopo." },
-  { sel: '[data-scheda="spunti"]', testo: "Cerchi ispirazione? In <b>Spunti</b> ci sono migliaia di startup e le ultime notizie: con <b>Usa come spunto</b> l'AI parte da lì." },
-  { sel: '[data-scheda="profilo"]', testo: "Per ultimo il tuo <b>profilo</b>: controlla i dati LinkedIn e aggiungi passioni e settori. Più è completo, più le idee e i compagni che propone l'AI sono giusti." },
+  { genera: true, sel: "#secGenera .domanda-gen:nth-child(1)", testo: "<b>Hai un'idea?</b> Scrivila qui: un titolo e due o tre righe. Se non ce l'hai, lascia vuoto: la inventa l'AI." },
+  { genera: true, sel: "#secGenera .domanda-gen:nth-child(2)", testo: "<b>I compagni</b>: seleziona le persone con cui ti piacerebbe lavorare. L'AI completa la squadra fino a 7-8." },
+  { genera: true, sel: "#secGenera .domanda-gen:nth-child(3)", testo: "<b>Più indicazioni</b>, se vuoi: B2B o B2C, su quale competenza basarla, il settore. Se no decide l'AI." },
+  { genera: true, sel: "#secGenera .pulsanti-gen", testo: "<b>Pubblica in bacheca</b> mette subito la tua idea così com'è. <b>Sviluppa con l'AI</b> ti propone cinque idee con la squadra; ogni generazione costa <b>1 credito</b>." },
+  { sel: ".griglia-bacheca", testo: "La <b>bacheca</b>: le idee di tutti. Le tue sono in blu, quelle private in giallo. Se un post ha più idee, scorri coi puntini; con <b>Mi interessa</b> ti candidi, e lo vede solo chi l'ha pubblicata." },
+  { sel: ".annuncio-riga", testo: "Hai una direzione ma non ancora un'idea? Scrivila qui: la vedono tutti nella sezione <b>Annunci</b>." },
+  { sel: ".precedenti", apri: ".precedenti", testo: "In fondo alla bacheca, in <b>Le tue idee</b>, ritrovi tutte le proposte che l'AI ha scritto per te." },
+  { scheda: "spunti", sel: "[data-spunto]", testo: "Cerchi ispirazione? Questa è la scheda <b>Spunti</b>: migliaia di startup e le ultime notizie. Con <b>Usa come spunto</b> l'AI parte da lì per le tue idee." },
+  { scheda: "profilo", sel: '[data-tour="linkedin"]', testo: "Per ultimo il tuo <b>profilo</b>: qui i dati di LinkedIn. Controlla che siano giusti; col pennino ✎ cambi ogni campo." },
+  { scheda: "profilo", sel: "#passioni", testo: "E qui <b>quello che aggiungi tu</b>: passioni, settori, idee che hai già. Più è completo, più le idee e i compagni che propone l'AI sono giusti." },
   { testo: "<b>Fatto!</b> Il tutorial lo ritrovi quando vuoi da <b>Come funziona</b> (sul telefono è nel menu ☰)." },
 ];
 let tour = null;
@@ -2393,9 +2398,23 @@ function tourFine() {
 function tourMostra() {
   document.querySelectorAll(".tour-anello,.tour-fumetto,.tour-velo").forEach((e) => e.remove());
   if (!tour) return;
-  if (document.querySelector(".velo")) return;   // c'e' una finestra aperta: il tutorial riprende quando si chiude
+  if (document.querySelector(".velo:not(#veloGenera)")) return;   // c'e' una finestra aperta: il tutorial riprende quando si chiude
   const passo = TOUR[tour.i];
   if (!passo) return tourFine();
+  // il tutorial apre la scheda di cui parla (bacheca, spunti, profilo)
+  const voluta = passo.scheda || "bacheca";
+  if (S.scheda !== voluta || S.profiloAltrui) {
+    if (S.generaAperta) { S.tourChiude = true; chiudiGenera(); S.tourChiude = false; }
+    S.profiloAltrui = null; S.scheda = voluta; disegna(); window.scrollTo(0, 0);   // disegna richiama il tutorial
+    return;
+  }
+  if (passo.apri) { const d = document.querySelector(passo.apri); if (d) d.open = true; }
+  // la pagina puo' metterci un attimo (gli spunti si caricano): si riprova
+  if (passo.sel && !document.querySelector(passo.sel) && (tour.attese || 0) < 15) { tour.attese = (tour.attese || 0) + 1; return setTimeout(tourMostra, 200); }
+  tour.attese = 0;
+  // i passi su Genera idee si vedono dentro la sua finestra (o pagina, sul telefono)
+  if (passo.genera && !S.generaAperta) { apriGenera(); return setTimeout(tourMostra, 80); }
+  if (!passo.genera && S.generaAperta) { S.tourChiude = true; chiudiGenera(); S.tourChiude = false; return setTimeout(tourMostra, 80); }
   // se il punto non si vede (sul telefono le schede stanno nel menu) il fumetto va al centro
   const el0 = passo.sel ? document.querySelector(passo.sel) : null, el = el0 && el0.offsetParent ? el0 : null;
   const fumetto = document.createElement("div");
@@ -2430,7 +2449,7 @@ document.addEventListener("click", (ev) => {
   if (ev.target.closest("[data-tour-salta]")) tourFine();
   else if (ev.target.closest("[data-tour-avanti]") && tour) { tour.i++; tourMostra(); }
 });
-["scroll", "resize"].forEach((t) => window.addEventListener(t, () => { if (tour && tour.posiziona) tour.posiziona(); }, { passive: true }));
+["scroll", "resize"].forEach((t) => window.addEventListener(t, () => { if (tour && tour.posiziona) tour.posiziona(); }, { passive: true, capture: true }));
 // Il tutorial non parte piu' da solo: si apre dal pulsante "?".
 function tourSePrimaVolta() {}
 

@@ -178,3 +178,9 @@ scrivere un annuncio breve (400 caratteri) su cosa cerca e cosa vorrebbe
 fare. Uno a testa, salvato nel profilo (`annuncio`), si cambia col pennino e
 si toglie. Azione `POST annuncio {testo}`.
 
+## Tutorial
+
+Parte solo da «Come funziona». Mostra i campi di Genera idee dentro la sua
+finestra, poi bacheca, annuncio, «Le tue idee», la scheda Spunti e il
+profilo: ogni passo apre la sezione di cui parla.
+
