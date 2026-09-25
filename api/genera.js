@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.11.0
+// VERSION: 1.12.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -273,7 +273,10 @@ export default async function handler(req, res) {
   const note = String(corpo.note || "").slice(0, 1500);
   // Motore 2: chi ha gia' un'idea la scrive, e Claude la sviluppa e cerca i
   // compagni di strada migliori per farla.
-  const miaIdea = modo === "scopri" ? String(corpo.idea || "").trim().slice(0, 1500) : "";
+  // Anche con delle persone gia' scelte ("gruppo"). Con focus "compagni" si
+  // cercano solo i compagni: una sola idea, quella scritta, e costa meno.
+  const miaIdea = String(corpo.idea || "").trim().slice(0, 1500);
+  const soloCompagni = !!miaIdea && corpo.focus === "compagni";
   const scelti = [...new Set((Array.isArray(corpo.persone) ? corpo.persone : []).map(String))]
     .filter((id) => id !== io.id && profili[id]).slice(0, 7);
   if (modo === "gruppo" && !scelti.length) return res.status(400).json({ error: "Scegli almeno una persona con cui lavorare." });
@@ -337,7 +340,8 @@ export default async function handler(req, res) {
     settori.length ? `\n## Settore\nLe idee devono stare ${settori.length === 1 ? "nel settore" : "in uno di questi settori (distribuiscile fra loro, o combinali)"}: ${settori.join("; ")}.` : "",
     tipo ? `\n## Tipo di startup\nTutte le idee devono essere di questo tipo: ${tipo[1]}, cioe' ${tipo[2]}. Tienilo coerente con scalabilita' e replicabilita'.` : "",
     fonte ? `\n## Da dove partire\nParti da questa strada per trovare le idee: ${fonte[1].toLowerCase()}. In "fonte_idea" metti "${fonte[0]}" almeno per le 3 idee top.` : "",
-    miaIdea ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona ha gia' un'idea e cerca i compagni di strada migliori per realizzarla. Le 3 idee top sono questa idea sviluppata al meglio e due sue varianti vicine (un altro cliente, un altro modello di ricavo, un altro mercato); le 2 di riserva possono essere alternative diverse. Valutala con la stessa severita' sui quattro criteri: se ha un punto debole, dillo in "punto_debole" e proponi come rafforzarla. Per ogni idea scegli i compagni che servono davvero a realizzarla.` : "",
+    miaIdea && soloCompagni ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona vuole solo trovare i compagni giusti per QUESTA idea. Eccezione alla regola delle 5 idee: in "idee" metti UNA sola idea, fascia "top", che e' quella scritta, riordinata nei campi senza cambiarla. Concentrati sui compagni: scegli chi serve davvero a realizzarla. Valutala comunque con severita' sui quattro criteri e segnala il punto debole.` : "",
+    miaIdea && !soloCompagni ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona ha gia' un'idea e cerca i compagni di strada migliori per realizzarla. Le 3 idee top sono questa idea sviluppata al meglio e due sue varianti vicine (un altro cliente, un altro modello di ricavo, un altro mercato); le 2 di riserva possono essere alternative diverse. Valutala con la stessa severita' sui quattro criteri: se ha un punto debole, dillo in "punto_debole" e proponi come rafforzarla. Per ogni idea scegli i compagni che servono davvero a realizzarla.` : "",
   ].join("\n");
 
   let risposta;
@@ -357,7 +361,7 @@ export default async function handler(req, res) {
   }
 
   const costo = costoDi(risposta.model, risposta.usage);
-  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, scelte: { modello: modelloScelto || "indifferente", perno: perno ? perno.id : null, pernoNome: perno ? perno.nome : null, gruppo: tuttoIlGruppo, settori }, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
+  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, focus: soloCompagni ? "compagni" : undefined, scelte: { modello: modelloScelto || "indifferente", perno: perno ? perno.id : null, pernoNome: perno ? perno.nome : null, gruppo: tuttoIlGruppo, settori }, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
   await scrivi("generazioni", g.id, g);
   await segna(chi.email, "generazione", { modo, persone: scelti, titoli: idee.map((i) => i.titolo), usd: costo.usd });
   const perUtente = { ...g, crediti: chi.admin ? null : await creditiDi(chi.email, u) };

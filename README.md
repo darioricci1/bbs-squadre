@@ -13,8 +13,10 @@ Chi usa la piattaforma vede due schede.
   persone scelte da chi lo pubblica. Ci si candida con «Voglio partecipare» e
   l'autore accoglie chi vuole nella squadra. Sotto si generano le idee,
   partendo da una di tre strade:
-  - **ho un'idea** e cerco le persone giuste: la scrivo, Claude la sviluppa
-    (con due varianti e due alternative) e propone i compagni di strada;
+  - **ho un'idea!**: la scrivo e poi la pubblico cosi' com'e', la faccio
+    vedere solo ai compagni che scelgo, oppure uso l'AI (1 credito) per
+    trovare i compagni giusti per quella idea o per svilupparla insieme ad
+    altre; si puo' pubblicare in ogni momento;
   - **ho delle persone** ma non un'idea: le scelgo (elenco con caselle o
     «Sfoglia tutte le persone») e Claude genera idee compatibili;
   - **proposta completa**: Claude parte dal mio profilo e propone idee e

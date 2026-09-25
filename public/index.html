@@ -182,6 +182,11 @@
   .voce-proposta:first-child{border-top:0}
   .voce-proposta input{margin-top:4px}
   .scelte-gen{margin-top:12px}
+  .azioni-idea{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:12px;margin-top:12px}
+  @media (max-width:900px){.azioni-idea{grid-template-columns:1fr}}
+  .azione-idea{border:1px solid var(--bordo);border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:flex-start}
+  .azione-idea p{margin:4px 0 8px}
+  .azione-idea #pickIdea{width:100%}
   .spesa{border:2px solid var(--accento)}
   .scelte-griglia{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:4px}
   @media (max-width:760px){.scelte-griglia{grid-template-columns:1fr}}
@@ -232,7 +237,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.11.1";
+const VERSION = "2.12.0";
 const $main = document.getElementById("main");
 const S = { opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -551,7 +556,7 @@ const ICONE = {
 };
 const icona = (k) => `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONE[k]}</svg>`;
 const PERCORSI = [
-  ["idea", "Ho un'idea e vorrei trovare delle persone insieme a cui svilupparla", "Scrivi l'idea: Claude la sviluppa e ti propone i compagni di strada migliori."],
+  ["idea", "Ho un'idea!", "Scrivila e pubblicala così com'è, falla vedere solo ad alcuni compagni, oppure fatti aiutare dall'AI a trovare i compagni o a svilupparla."],
   ["persone", "Ci sono persone con cui mi piacerebbe lavorare, ma non ho ancora un'idea", "Sceglile: Claude genera idee compatibili con i vostri profili."],
   ["profilo", "Vorrei una proposta sia di idee sia di compagni di squadra", "Claude parte dal tuo profilo e ti propone idee e squadre."],
 ];
@@ -574,10 +579,21 @@ function genera() {
     <div class="percorsi" data-tour="percorsi">${PERCORSI.map(([k, t, sotto], n) => `<button class="percorso ${S.percorso === k ? "scelto" : ""}" data-percorso="${k}">
       <span class="percorso-icona">${icona(k)}</span><b>${t}</b><span class="piccolo">${sotto}</span></button>`).join("")}</div>
     ${S.percorso === "idea" ? `<div class="carta motore">
-        <label style="margin-top:0">La tua idea <small>(due o tre righe: cosa, per chi, perché)</small></label>
+        <label style="margin-top:0">Titolo <small>(facoltativo)</small></label>
+        <input type="text" id="ideaTitolo" value="${esc(S.ideaTitolo || "")}" placeholder="Es. L'invenduto dei campi nei ristoranti">
+        <label>La tua idea <small>(cosa, per chi, perché: bastano due o tre righe)</small></label>
         <textarea id="miaIdea" placeholder="Es. una piattaforma che mette in contatto le aziende agricole dell'Emilia con i ristoranti, per vendere l'invenduto">${esc(S.miaIdea || "")}</textarea>
-        <p class="piccolo">Claude la sviluppa (con due varianti vicine e due alternative) e per ognuna ti propone la squadra di 7-8 persone più adatta a realizzarla.</p>
-        <button class="btn primario" id="gIdea" ${blocca || !(S.miaIdea || "").trim() ? "disabled" : ""}>Sviluppa la mia idea e trova i compagni</button></div>` : ""}
+        <div class="azioni-idea">
+          <div class="azione-idea"><b>Pubblicala</b><p class="piccolo">Così com'è, in bacheca, per tutto il master.</p>
+            <button class="btn" data-idea-azione="pubblica">Pubblica per tutti</button></div>
+          <div class="azione-idea"><b>Falla vedere solo ad alcuni</b><p class="piccolo">Scegli i compagni: solo loro la vedranno.</p>
+            <div id="pickIdea"></div>
+            <button class="btn" data-idea-azione="condividi" style="margin-top:8px">Condividi con loro</button></div>
+          <div class="azione-idea"><b>Con l'AI</b> <span class="piccolo">(1 credito)</span><p class="piccolo">Claude legge i profili del master${S.sceltiIdea && S.sceltiIdea.size ? " e parte dai compagni che hai scelto" : ""}.</p>
+            <button class="btn primario" data-idea-azione="compagni" ${blocca ? "disabled" : ""}>Trova i compagni giusti</button>
+            <button class="btn" data-idea-azione="sviluppa" style="margin-top:6px" ${blocca ? "disabled" : ""}>Sviluppa questa e altre idee</button></div>
+        </div>
+        <p class="piccolo" style="margin:8px 0 0">Puoi pubblicarla quando vuoi, anche dopo aver usato l'AI.</p></div>` : ""}
     ${S.percorso === "persone" ? `<div class="carta motore">
         <p class="piccolo" style="margin-top:0">Scegli con chi vorresti lavorare: Claude genera idee compatibili con i vostri profili. Le squadre sono di <b>7 o 8 persone</b>: se ne scegli meno, propone chi aggiungere per completarla.</p>
         <div id="pickGruppo"></div>
@@ -633,16 +649,30 @@ function genera() {
   const note = document.getElementById("note");
   if (note) note.addEventListener("input", (e) => { S.note = e.target.value; });
   const idea = document.getElementById("miaIdea");
-  if (idea) idea.addEventListener("input", (e) => {
-    S.miaIdea = e.target.value;
-    document.getElementById("gIdea").disabled = blocca || !S.miaIdea.trim();
+  if (idea) idea.addEventListener("input", (e) => { S.miaIdea = e.target.value; });
+  const tIdea = document.getElementById("ideaTitolo");
+  if (tIdea) tIdea.addEventListener("input", (e) => { S.ideaTitolo = e.target.value; });
+  const pickIdea = document.getElementById("pickIdea");
+  if (pickIdea) { S.sceltiIdea = S.sceltiIdea || new Set(); pickerPersone(pickIdea, S.sceltiIdea, null, "Clicca per vedere tutti, o scrivi un nome…"); }
+  box.querySelectorAll("[data-idea-azione]").forEach((b) => b.onclick = () => {
+    const testo = (S.miaIdea || "").trim();
+    if (!testo) { avvisa("msgGen", "Prima scrivi la tua idea.", "male"); document.getElementById("miaIdea").focus(); return; }
+    const titolo = (S.ideaTitolo || "").trim() || testo.split(/[.\n]/)[0].slice(0, 80);
+    const az = b.dataset.ideaAzione;
+    if (az === "pubblica") return apriEditor({ idee: [{ titolo, descrizione: testo }], visibilita: "tutti" });
+    if (az === "condividi") {
+      if (!S.sceltiIdea.size) { avvisa("msgGen", "Scegli almeno una persona a cui farla vedere.", "male"); return; }
+      return apriEditor({ idee: [{ titolo, descrizione: testo }], visibilita: "scelti", destinatari: [...S.sceltiIdea] });
+    }
+    const persone = [...(S.sceltiIdea || [])];
+    return vai(persone.length ? "gruppo" : "scopri", true, az === "compagni" ? "compagni" : "", persone)();
   });
-  const vai = (modo, conIdea) => async () => {
+  const vai = (modo, conIdea, focus, personeIdea) => async () => {
     S.generando = true; genera();
     avvisa("msgGen", "Claude sta leggendo i profili e scrivendo le idee: di solito ci vuole meno di un minuto…");
     document.getElementById("msgGen").scrollIntoView({ behavior: "smooth", block: "center" });
     try {
-      const g = await api("", { modo, persone: modo === "gruppo" ? [...S.scelti] : [], note: S.note || "", idea: conIdea ? S.miaIdea || "" : "", modello: S.opz.modello, perno: S.opz.perno, settore: S.opz.settore }, "/api/genera");
+      const g = await api("", { modo, persone: modo === "gruppo" ? personeIdea || [...S.scelti] : [], note: S.note || "", idea: conIdea ? S.miaIdea || "" : "", focus: focus || "", modello: S.opz.modello, perno: S.opz.perno, settore: S.opz.settore }, "/api/genera");
       if (g.crediti) S.dati.io.crediti = g.crediti;
       S.ultima = g;
       S.dati.generazioni.unshift(g);
@@ -656,7 +686,7 @@ function genera() {
   const bott = (id, f) => { const b = document.getElementById(id); if (b) b.onclick = f; };
   bott("gGruppo", vai("gruppo"));
   bott("gScopri", vai("scopri"));
-  bott("gIdea", vai("scopri", true));
+
   box.querySelectorAll("details[data-gen]").forEach((d) => d.addEventListener("toggle", () => {
     const dentro = d.querySelector("div");
     if (d.open && !dentro.innerHTML) dentro.innerHTML = risultati(S.dati.generazioni.find((g) => g.id === d.dataset.gen), true);
