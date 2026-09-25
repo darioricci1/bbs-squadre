@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.17.1
+// VERSION: 1.17.2
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -216,9 +216,12 @@ async function dati(chi, res) {
       const lavori = lavoriPubblici(p, siti).map((l) => p.id === io || chi.admin || l.descrizioneRuolo.length <= 300 ? l : { ...l, descrizioneRuolo: l.descrizioneRuolo.slice(0, 300) + "…" });
       const out = { ...profiloPubblico(p, aziende, chi.admin), lavori };
       // ruolo e azienda vuoti: si prendono dal lavoro attuale (o dal piu' recente)
+      // prima dal titolo ("General Manager presso Rinnai Italia srl, Executive MBA"),
+      // poi dal lavoro attuale (o dal piu' recente)
+      const dalTitolo = String(out.titolo || "").split(/\s[|·]\s|,\s/)[0].match(/^(.{3,80}?)\s+(?:presso|at|@|c\/o)\s+(.{2,60})$/i);
       const ora = lavori.find((l) => l.attuale) || lavori[0];
-      if (ora && !out.ruolo) { out.ruolo = ora.ruolo; out.ruoloDedotto = true; }
-      if (ora && !out.azienda) { out.azienda = ora.azienda; out.aziendaDedotta = true; }
+      if (!out.ruolo && (dalTitolo || ora)) { out.ruolo = dalTitolo ? dalTitolo[1].trim() : ora.ruolo; out.ruoloDedotto = true; }
+      if (!out.azienda && (dalTitolo || ora)) { out.azienda = dalTitolo ? dalTitolo[2].trim() : ora.azienda; out.aziendaDedotta = true; }
       delete out.lavoriMiei;
       return out;
     })
