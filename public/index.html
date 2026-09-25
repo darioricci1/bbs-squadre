@@ -126,7 +126,8 @@
   .sugg.preso{color:var(--grigio);cursor:default}
   .solo-largo{}
   @media (max-width:760px){.solo-largo{display:none}}
-  .sezione-genera{margin-top:40px;padding-top:28px;border-top:2px dashed var(--bordo)}
+  .sezione-genera{margin-top:0;padding-top:0}
+  .finestra-genera .sezione-genera h2{margin-top:0}
   .motore{position:relative;padding-top:20px}
   .motore h3{margin:0 0 4px}
   .motore-n{position:absolute;top:-14px;left:16px;width:28px;height:28px;border-radius:50%;background:var(--accento);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center}
@@ -227,9 +228,9 @@
   .voce-proposta input{margin-top:4px}
   .scelte-gen{margin-top:12px}
   .percorso-gen{padding:6px 18px 18px}
-  .domande-riga{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;align-items:stretch}
-  @media (max-width:760px){.domande-riga{grid-template-columns:1fr}}
-  .domanda-gen{border:2px solid var(--bordo);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+  .domande-riga{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px;align-items:stretch}
+  @media (max-width:900px){.domande-riga{grid-template-columns:minmax(0,1fr)}}
+  .domanda-gen{min-width:0;border:2px solid var(--bordo);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
   .domanda-gen.aperta{border-color:var(--accento);background:var(--accento-chiaro)}
   .domanda-testa{flex-wrap:nowrap;align-items:center;width:100%;gap:10px}
   .domanda-corpo{width:100%}
@@ -240,7 +241,7 @@
   .domanda-corpo textarea.note-corta{min-height:44px;height:44px}
   .domanda-corpo label{margin-top:8px}
   .domanda-corpo .cursore-voci{font-size:11px}
-  @media (max-width:760px){.domanda-gen{min-height:0}.domanda-vuota{display:none}}
+  @media (max-width:900px){.domanda-gen{min-height:0}.domanda-vuota{display:none}}
   .domanda-corpo .scelte-griglia{grid-template-columns:1fr;gap:6px}
   .domanda-corpo textarea{min-height:90px}
   .domanda-gen .gettone{font-size:12px;padding:4px 9px}
@@ -338,7 +339,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.24.0";
+const VERSION = "2.24.1";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
