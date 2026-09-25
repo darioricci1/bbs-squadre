@@ -198,7 +198,7 @@
   .annuncio-riga > .piccolo{white-space:nowrap}
   .annuncio-riga.pubblicato{background:var(--accento-chiaro);border-color:var(--accento)}
   .annuncio-riga .testo-annuncio{min-width:0;overflow:hidden;text-overflow:ellipsis}
-  @media (max-width:760px){.annuncio-riga{flex-wrap:wrap}.annuncio-riga > .piccolo{flex:1 1 100%}.annuncio-riga input{flex:1 1 0}}
+  @media (max-width:760px){.annuncio-riga{flex-wrap:wrap}.annuncio-riga > .piccolo{flex:1 1 100%;white-space:normal}.annuncio-riga input{flex:1 1 0}}
   .precedenti{margin-top:24px}
   .precedenti > summary{cursor:pointer;font-weight:600;font-size:17px;margin-bottom:10px}
   .chiudi-genera{position:absolute;top:12px;right:12px;z-index:2}
@@ -446,10 +446,13 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.42.3";
+const VERSION = "2.43.0";
 const $main = document.getElementById("main");
-const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
-  stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
+// Lo stato della pagina. Si ricrea da zero a ogni uscita, cosi' chi entra
+// dopo non ritrova niente di chi c'era prima.
+const statoIniziale = () => ({ selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
+  stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" });
+const S = statoIniziale();
 
 // ---------------------------------------------------------------- utilita'
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -472,6 +475,8 @@ function avvisa(dove, testo, tipo) {
   const el = typeof dove === "string" ? document.getElementById(dove) : dove;
   if (el) el.innerHTML = testo ? `<div class="avviso ${tipo || "info"}">${esc(testo)}</div>` : "";
 }
+// Un indirizzo da mettere in un href: solo http(s), mai "javascript:".
+const urlSicuro = (v) => { v = String(v || "").trim(); return /^https?:\/\//i.test(v) ? v : "https://" + v.replace(/^[a-z][a-z0-9+.-]*:\/*/i, ""); };
 const profilo = (id) => S.dati.profili.find((p) => p.id === id);
 const mio = () => S.dati.io.profilo && profilo(S.dati.io.profilo);
 // Il profilo aperto nella scheda: il mio, o quello di un altro che
@@ -494,6 +499,12 @@ async function carica() {
 
 function porta() {
   chiudiBenvenuto();
+  // via tutto quello che era di chi stava usando il sito (il tasto Indietro
+  // non deve rimostrarlo); restano solo gli spunti, che sono di tutti
+  const { yc, tc } = S;
+  for (const k of Object.keys(S)) delete S[k];
+  Object.assign(S, statoIniziale(), { yc, tc });
+  tour = null;
   // Sessione assente o scaduta: via la pagina Genera (sul telefono coprirebbe
   // l'accesso) e via il menu, che senza accesso resterebbe vuoto.
   if (document.getElementById("veloGenera")) { S.generaAperta = false; document.getElementById("veloGenera").remove(); }
@@ -531,6 +542,7 @@ const SCHEDE_ADMIN = [["regia", "Regia"], ["aziende", "Aziende"]];
 const SOLO_ADMIN = ["regia", "aziende", "statistiche", "importa"];
 
 function disegna() {
+  if (!S.dati) return;
   const d = S.dati;
   if (!d.io.admin && SOLO_ADMIN.includes(S.scheda)) S.scheda = "bacheca";
   if (!d.io.profilo && !(d.io.admin && SOLO_ADMIN.includes(S.scheda))) S.scheda = "profilo";
@@ -550,7 +562,7 @@ function disegna() {
     <span class="solo-largo">${esc(d.io.email)}</span><button class="btn piccolo" id="esci">Esci</button>`;
   const viste = { bacheca: () => home(false), genera: () => home(true), persone, spunti, profilo: schedaProfilo, regia, aziende, statistiche: regia, importa };
   (viste[S.scheda] || viste.bacheca)();
-  if (S.comeUtente) $main.insertAdjacentHTML("afterbegin", `<div class="avviso info riga" style="margin-top:0">
+  if (S.comeUtente && S.dati.io.adminVero) $main.insertAdjacentHTML("afterbegin", `<div class="avviso info riga" style="margin-top:0">
     <span>Stai usando la piattaforma <b>come un utente qualsiasi</b>: niente Regia, bacheca e crediti come li vedono i colleghi.</span>
     <span class="spazio"></span><button class="btn piccolo" data-torna-admin>Torna amministratore</button></div>`);
   if (tour) setTimeout(tourMostra, 30);
@@ -593,14 +605,18 @@ document.addEventListener("click", async (ev) => {
   }
   const mc = ev.target.closest("[data-clic]");
   if (mc) { document.getElementById("testata").classList.remove("menu-aperto"); const t = document.getElementById(mc.dataset.clic); if (t) t.click(); return; }
-  if (ev.target.id === "esci") api("esci", {}).then(porta);
+  if (ev.target.id === "esci") api("esci", {}).then(porta).catch((e) => alert("Non riesco a uscire: " + e.message));
   if (ev.target.id === "aiuto") tourAvvia();
   if (ev.target.closest("#modoUtente") || ev.target.closest("[data-torna-admin]")) {
     S.comeUtente = !S.comeUtente;
+    try { S.dati = await api("dati"); }
+    catch (e) { S.comeUtente = !S.comeUtente; return alert(e.message); }
     memoria("bbs-come-utente", S.comeUtente ? "1" : "");
-    S.dati = await api("dati"); S.scheda = "bacheca"; disegna(); window.scrollTo(0, 0);
+    S.scheda = "bacheca"; disegna(); window.scrollTo(0, 0);
   }
 });
+// Quante idee sono spuntate nella stessa generazione della chiave "gid|n".
+const selezionateDi = (k) => [...S.selezione].filter((x) => x.startsWith(k.split("|")[0] + "|")).length;
 function memoria(k, v) {
   try { if (v === undefined) return localStorage.getItem(k); if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); }
   catch { return null; }
@@ -642,6 +658,7 @@ function chiudiBenvenuto() {
   if (v) v.remove();
 }
 function apriGenera() {
+  if (!S.dati) return;
   S.generaAperta = true; S.generaVista = true; S.vistaRisultati = false;
   if (!document.getElementById("veloGenera")) {
     document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloGenera"><div class="finestra finestra-genera" role="dialog" aria-modal="true">
@@ -752,7 +769,7 @@ function pickerPersone(box, scelti, alCambio, segnaposto, massimo, conMe) {
   box.querySelector(".picker-freccia").onclick = () => { if (aperto) chiudi(); else { apri(); inp.focus(); } };
   inp.oninput = () => { sel = 0; apri(); disegnaElenco(); };
   inp.onkeydown = (e) => {
-    if (e.key === "Escape") { chiudi(); inp.blur(); return; }
+    if (e.key === "Escape") { e.stopPropagation(); chiudi(); inp.blur(); return; }
     if (e.key === "Backspace" && !inp.value && scelti.size) { scelti.delete([...scelti].pop()); cambiato(); return; }
     if (!aperto) apri();
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -794,7 +811,7 @@ function rigaPersona(p) {
         ${trovato ? `<div class="rp-trovato">…${trovato}…</div>` : ""}</div>
       <div class="rp-etichette">${etichette}</div>
       <div class="rp-azioni">
-        ${p.linkedin ? `<a class="piccolo" href="${esc(p.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}
+        ${p.linkedin ? `<a class="piccolo" href="${esc(urlSicuro(p.linkedin))}" target="_blank" rel="noopener">LinkedIn</a>` : ""}
         ${!sonoIo ? `<button class="btn piccolo ${scelto ? "primario" : ""}" data-scegli="${p.id}">${scelto ? "Nel gruppo ✓" : "+ Gruppo"}</button>` : ""}
         <span class="rp-freccia">${aperta ? "▴" : "▾"}</span>
       </div>
@@ -804,7 +821,7 @@ function rigaPersona(p) {
       ${az ? dett("Azienda (AIDA)", [az.settore || az.ateco, az.fatturato && "fatturato " + az.fatturato, az.dipendenti && az.dipendenti + " dipendenti"].filter(Boolean).join(" · ")) : ""}
       ${dett("Competenze", p.competenze)}${dett("Passioni", x.passioni)}${dett("Settori", x.settori)}
       ${dett("Ruolo nel team", x.ruoloNelTeam)}${dett("Cosa cerca", x.cosaCerco)}${dett("Idee", x.ideeMie)}
-      ${p.lavori && p.lavori.length ? `<dt>Esperienze</dt><dd>${p.lavori.slice(0, 8).map((l) => `<div class="persona-lavoro"><b>${esc(l.ruolo)}</b> @ ${l.sito ? `<a href="${esc(l.sito)}" target="_blank" rel="noopener">${esc(l.azienda)}</a>` : esc(l.azienda)}
+      ${p.lavori && p.lavori.length ? `<dt>Esperienze</dt><dd>${p.lavori.slice(0, 8).map((l) => `<div class="persona-lavoro"><b>${esc(l.ruolo)}</b> @ ${l.sito ? `<a href="${esc(urlSicuro(l.sito))}" target="_blank" rel="noopener">${esc(l.azienda)}</a>` : esc(l.azienda)}
           <span class="piccolo">${esc(l.periodo.replace(/\s*\(.*\)$/, ""))}${l.settore ? " · " + esc(l.settore) : ""}</span>
           ${l.descrizioneAzienda ? `<div class="piccolo">${esc(l.descrizioneAzienda)}</div>` : ""}
           ${l.descrizioneRuolo ? `<div class="piccolo">${esc(l.descrizioneRuolo.slice(0, 280))}${l.descrizioneRuolo.length > 280 ? "…" : ""}</div>` : ""}</div>`).join("")}</dd>`
@@ -932,6 +949,7 @@ function togliCucina() {
   const c = document.getElementById("cucina"); if (c) c.remove();
 }
 function genera() {
+  if (!S.dati) return;
   const box = sezione("secGenera");
   const io = mio();
   const R = S.risposte;
@@ -1191,7 +1209,7 @@ document.addEventListener("click", (ev) => {
   if (c) {
     const k = c.dataset.selezionaCard;
     if (S.selezione.has(k)) S.selezione.delete(k);
-    else { if (S.selezione.size >= 5) { alert("Puoi condividere al massimo 5 idee insieme."); return; } S.selezione.add(k); }
+    else { if (selezionateDi(k) >= 5) { alert("Puoi condividere al massimo 5 idee insieme."); return; } S.selezione.add(k); }
     const presa = S.selezione.has(k);
     c.classList.toggle("selezionata", presa); c.querySelector(".spunta-card").textContent = presa ? "✓" : "";
     return aggiornaBlocco(k.split("|")[0]);
@@ -1374,7 +1392,7 @@ document.addEventListener("change", (ev) => {
   if (c) {
     const k = c.dataset.seleziona;
     if (c.checked) {
-      if (S.selezione.size >= 5) { c.checked = false; alert("Puoi condividere al massimo 5 idee insieme."); return; }
+      if (selezionateDi(k) >= 5) { c.checked = false; alert("Puoi condividere al massimo 5 idee insieme."); return; }
       S.selezione.add(k);
     } else S.selezione.delete(k);
     c.closest(".proposta-riga").classList.toggle("selezionata", c.checked);
@@ -1613,6 +1631,7 @@ document.addEventListener("click", async (ev) => {
 const ideeDelPost = (i) => (i.idee && i.idee.length ? i.idee : [{ titolo: i.titolo, descrizione: i.descrizione, modello: i.modello, settore: i.settore }]);
 
 function bacheca() {
+  if (!S.dati) return;
   const box = sezione("secBacheca");
   const io = S.dati.io.profilo;
   const f = S.filtroBacheca || "tutte";
@@ -1836,7 +1855,7 @@ function campiProfilo(p, lista, aperto) {
       return `<div class="campo-lav"><span class="etichetta-lav">${t}</span><span class="campo-aperto">${ctrl}<button type="button" class="btn piccolo primario" data-ok-prof="${c}">OK</button></span></div>`;
     }
     const mostra = !v ? '<span class="vuoto">aggiungi…</span>'
-      : c === "linkedin" ? `<a href="${esc(/^https?:\/\//i.test(v) ? v : "https://" + v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, ""))}</a>`
+      : c === "linkedin" ? `<a href="${esc(urlSicuro(v))}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, ""))}</a>`
       : `<span class="${righe && righe !== "sel" && righe > 3 ? "testo-lungo" : ""}">${esc(v)}</span>`;
     return `<div class="campo-lav"><span class="etichetta-lav">${t}</span><span class="valore-lav">${mostra}<button type="button" class="penna" data-penna-prof="${c}" title="Modifica">✎</button></span></div>`;
   }).join("");
@@ -1927,7 +1946,7 @@ function editorLavori(p, aperto) {
   const valore = (l, c) => {
     const v = l[c] || "";
     if (!v) return '<span class="vuoto">aggiungi…</span>';
-    if (c === "sito") return `<a href="${esc(/^https?:\/\//i.test(v) ? v : "https://" + v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, ""))}</a>`;
+    if (c === "sito") return `<a href="${esc(urlSicuro(v))}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, ""))}</a>`;
     return esc(v);
   };
   const campo = (l, c) => {
@@ -2112,7 +2131,7 @@ async function spunti() {
     </div>` : `<div class="carta spunto">
       <div class="riga"><b>${esc(x.titolo)}</b><span class="spazio"></span><span class="piccolo">${esc(data(x.data))}</span></div>
       <div><span class="etichetta fonte-tc">TechCrunch</span><span class="etichetta grigia">notizia</span></div>
-      <div class="riga piccolo" style="margin-top:auto"><a href="${esc(x.link)}" target="_blank" rel="noopener">Leggi l'articolo ↗</a>
+      <div class="riga piccolo" style="margin-top:auto"><a href="${esc(urlSicuro(x.link))}" target="_blank" rel="noopener">Leggi l'articolo ↗</a>
         <span class="spazio"></span><button class="btn piccolo primario" data-spunto-tc="${notizie.indexOf(x)}">Usa come spunto</button></div>
     </div>`).join("") || '<p class="piccolo">Niente con questi filtri.</p>'}</div>
     ${lista.length > F.quanti ? `<div style="text-align:center;margin-top:14px"><button class="btn" id="spAltri">Mostra altri</button></div>` : ""}`;
@@ -2355,7 +2374,7 @@ async function aziende(daCache) {
       <div class="riga"><b>${esc(a.scritto)}</b>${a.nome && a.nome !== a.scritto ? `<span class="piccolo">(${esc(a.nome)})</span>` : ""}
         <span class="stato-az ${a.stato}">${STATI_AZ[a.stato]}</span>${a.fiducia && !a.manuale ? `<span class="piccolo">fiducia ${esc(a.fiducia)}</span>` : ""}
         ${a.manuale ? '<span class="piccolo">modificata a mano</span>' : ""}<span class="spazio"></span>
-        ${a.sito ? `<a class="piccolo" href="${esc(a.sito)}" target="_blank" rel="noopener">apri il sito</a>` : `<a class="piccolo" href="https://www.google.com/search?q=${encodeURIComponent(a.scritto)}" target="_blank" rel="noopener">cerca su Google</a>`}
+        ${a.sito ? `<a class="piccolo" href="${esc(urlSicuro(a.sito))}" target="_blank" rel="noopener">apri il sito</a>` : `<a class="piccolo" href="https://www.google.com/search?q=${encodeURIComponent(a.scritto)}" target="_blank" rel="noopener">cerca su Google</a>`}
         <a class="piccolo" href="https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(a.scritto)}" target="_blank" rel="noopener">cerca su LinkedIn</a></div>
       ${a.nota ? `<div class="piccolo" style="color:var(--ambra)">${esc(a.nota)}</div>` : ""}
       <div class="due" style="margin-top:6px">
@@ -2366,7 +2385,7 @@ async function aziende(daCache) {
       <label>Cosa fa l'azienda</label><textarea data-c="descrizione" placeholder="Cosa produce o vende, a chi, quanto è grande">${esc(a.descrizione || "")}</textarea>
       <details style="margin-top:8px" ${daSistemare(a) ? "open" : ""}><summary class="piccolo">Chi ci ha lavorato (${a.persone.length}) e cosa faceva</summary>
         ${a.persone.map((x) => `<div class="persona-lavoro" data-ruolo="${esc(x.id)}" data-profilo="${esc(x.profilo)}"><b>${esc(x.nome)}</b> · ${esc(x.ruolo)} <span class="piccolo">${esc(x.periodo.replace(/\s*\(.*\)$/, ""))}</span>
-          ${x.linkedin ? `<a class="piccolo" href="${esc(x.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : `<a class="piccolo" href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(x.nome)}" target="_blank" rel="noopener">cerca su LinkedIn</a>`}
+          ${x.linkedin ? `<a class="piccolo" href="${esc(urlSicuro(x.linkedin))}" target="_blank" rel="noopener">LinkedIn</a>` : `<a class="piccolo" href="https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(x.nome)}" target="_blank" rel="noopener">cerca su LinkedIn</a>`}
           <textarea data-c="descrizioneRuolo" placeholder="Cosa faceva in questo ruolo">${esc(x.descrizioneRuolo || "")}</textarea></div>`).join("")}</details>
       <div class="riga" style="margin-top:8px"><button class="btn primario" data-salva-az>Salva</button>
         ${a.stato !== "ignorata" ? '<button class="btn" data-ignora-az>Non è un\'azienda</button>' : ""}
@@ -2432,7 +2451,7 @@ const TOUR = [
   { genera: true, sel: "#secGenera .pulsanti-gen", testo: "<b>Pubblica in bacheca</b> mette subito la tua idea così com'è. <b>Sviluppa con l'AI</b> ti propone cinque idee con la squadra; ogni generazione costa <b>1 credito</b>." },
   { sel: ".griglia-bacheca", testo: "La <b>bacheca</b>: le idee di tutti. Le tue sono in blu, quelle private in giallo. Se un post ha più idee, scorri coi puntini; con <b>Mi interessa</b> ti candidi, e lo vede solo chi l'ha pubblicata." },
   { sel: ".annuncio-riga", testo: "Hai una direzione ma non ancora un'idea? Scrivila qui: la vedono tutti nella sezione <b>Annunci</b>." },
-  { sel: ".precedenti", apri: ".precedenti", testo: "In fondo alla bacheca, in <b>Le tue idee</b>, ritrovi tutte le proposte che l'AI ha scritto per te." },
+  { sel: ".precedenti", apri: ".precedenti", facoltativo: true, testo: "In fondo alla bacheca, in <b>Le tue idee</b>, ritrovi tutte le proposte che l'AI ha scritto per te." },
   { scheda: "spunti", sel: "[data-spunto]", testo: "Cerchi ispirazione? Questa è la scheda <b>Spunti</b>: migliaia di startup e le ultime notizie. Con <b>Usa come spunto</b> l'AI parte da lì per le tue idee." },
   { scheda: "profilo", sel: '[data-tour="linkedin"]', testo: "Per ultimo il tuo <b>profilo</b>: qui i dati di LinkedIn. Controlla che siano giusti; col pennino ✎ cambi ogni campo." },
   { scheda: "profilo", sel: "#passioni", testo: "E qui <b>quello che aggiungi tu</b>: passioni, settori, idee che hai già. Più è completo, più le idee e i compagni che propone l'AI sono giusti." },
@@ -2469,6 +2488,7 @@ function tourMostra() {
   if (!passo.genera && S.generaAperta) { S.tourChiude = true; chiudiGenera(); S.tourChiude = false; return setTimeout(tourMostra, 80); }
   if (passo.apri) { const d = document.querySelector(passo.apri); if (d) d.open = true; }
   // la pagina puo' metterci un attimo (gli spunti si caricano): si riprova
+  if (passo.facoltativo && passo.sel && !document.querySelector(passo.sel)) { tour.i++; return tourMostra(); }
   if (passo.sel && !document.querySelector(passo.sel) && (tour.attese || 0) < 15) { tour.attese = (tour.attese || 0) + 1; return setTimeout(tourMostra, 200); }
   tour.attese = 0;
   // se il punto non si vede (sul telefono le schede stanno nel menu) il fumetto va al centro
@@ -2485,17 +2505,25 @@ function tourMostra() {
     document.body.appendChild(fumetto);
     return;
   }
-  el.scrollIntoView({ block: "center" });
   const anello = document.createElement("div"); anello.className = "tour-anello";
   document.body.appendChild(anello); document.body.appendChild(fumetto);
+  // Un riquadro che ci sta insieme al fumetto va al centro; uno piu' alto
+  // dello schermo va in alto, con il fumetto sopra il suo bordo superiore.
+  const hf = fumetto.getBoundingClientRect().height;
+  if (el.getBoundingClientRect().height + hf + 40 < window.innerHeight) el.scrollIntoView({ block: "center" });
+  else { el.style.scrollMarginTop = hf + 30 + "px"; el.scrollIntoView({ block: "start" }); el.style.scrollMarginTop = ""; }
   const posiziona = () => {
     const r = el.getBoundingClientRect(), m = 6;
     Object.assign(anello.style, { top: r.top - m + "px", left: r.left - m + "px", width: r.width + 2 * m + "px", height: r.height + 2 * m + "px" });
     const f = fumetto.getBoundingClientRect();
+    // sotto il riquadro se c'e' posto, se no sopra; se non c'e' posto
+    // nemmeno sopra (riquadro alto in cima alla pagina) in fondo allo schermo,
+    // cosi' l'inizio del riquadro resta visibile
     const sotto = r.bottom + 14 + f.height < window.innerHeight;
-    fumetto.style.top = (sotto ? r.bottom + 14 : Math.max(10, r.top - 14 - f.height)) + "px";
+    const sopra = !sotto && r.top - 14 - f.height >= 10;
+    fumetto.style.top = (sotto ? r.bottom + 14 : sopra ? r.top - 14 - f.height : window.innerHeight - f.height - 10) + "px";
     fumetto.style.left = Math.max(10, Math.min(window.innerWidth - f.width - 10, r.left + r.width / 2 - f.width / 2)) + "px";
-    fumetto.classList.toggle("sopra", !sotto);
+    fumetto.classList.toggle("sopra", sopra);
   };
   posiziona();
   tour.posiziona = posiziona;
@@ -2635,7 +2663,8 @@ function scaricaProfiliCsv() {
     ["AIDA fatturato", (p) => p.aziendaInfo && p.aziendaInfo.fatturato], ["AIDA dipendenti", (p) => p.aziendaInfo && p.aziendaInfo.dipendenti],
     ["Collegato", (p) => (p.rivendicato ? "sì" : "no")], ["Aggiornato", (p) => p.aggiornato],
   ];
-  const cella = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  // un valore che inizia con = + - @ Excel lo prenderebbe per una formula
+  const cella = (v) => '"' + String(v == null ? "" : v).replace(/^[=+\-@]/, "'$&").replace(/"/g, '""') + '"';
   const righe = [col.map((c) => cella(c[0])).join(";")]
     .concat(S.dati.profili.map((p) => col.map((c) => cella(c[1](p))).join(";")));
   const a = document.createElement("a");

@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.18.2
+// VERSION: 1.18.3
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -41,7 +41,8 @@ import {
   creditiDi, vedeIdea,
 } from "../lib/bbs.js";
 import { lavoriDi, lavoriPubblici, infoAzienda, chiaveAziendaNome, idLavoro } from "../lib/lavori.js";
-import { descriviAzienda } from "../lib/leggi-sito.js";
+import { descriviAzienda, leggiPagina } from "../lib/leggi-sito.js";
+import { generazioniDi } from "../lib/db.js";
 import { lavoriDa } from "../lib/esperienze.js";
 import { SETTORI, TIPI, FONTI } from "../lib/scelte.js";
 import { MODELLI, EFFORT, impostazioniGenera } from "./genera.js";
@@ -184,7 +185,7 @@ export function profiloPerNome(nome, profili) {
 
 async function dati(chi, res) {
   const [profili, aziende, bacheca, generazioni, letto, siti] = await Promise.all([
-    tutti("profili"), tutti("aziende"), tutti("bacheca"), ultimi("generazioni", 300),
+    tutti("profili"), tutti("aziende"), tutti("bacheca"), generazioniDi(chi.email, 30),
     uno("utenti", chi.email), tutti("siti"),
   ]);
   const u = letto || { email: chi.email, nome: chi.nome, profilo: null };
@@ -234,7 +235,7 @@ async function dati(chi, res) {
       .map((i) => chi.admin || i.autore === io ? i : { ...i, interessati: (i.interessati || []).filter((x) => x === io) })
       .sort((x, y) => String(y.creata).localeCompare(String(x.creata))),
     scelte: { settori: SETTORI, tipi: TIPI, fonti: FONTI },
-    generazioni: generazioni.filter((g) => g.chi === chi.email).slice(0, 30)
+    generazioni: generazioni
       .map((g) => { if (chi.adminVero) return g; const { costo, ...resto } = g; return resto; }),
   });
 }
@@ -307,6 +308,8 @@ async function rivendica(chi, corpo, res) {
   const p = await uno("profili", testo(corpo.id, 80));
   if (!p) return res.status(404).json({ error: "Profilo non trovato" });
   if (p.email) return res.status(409).json({ error: "Questo profilo e' gia' stato preso. Se e' il tuo, scrivi a Dario." });
+  // il profilo importato con l'email di un altro e' suo: non lo prende nessun altro
+  if (p.emailAttesa && p.emailAttesa.toLowerCase() !== chi.email) return res.status(409).json({ error: "Questo profilo e' riservato a un altro indirizzo. Se e' il tuo, scrivi a Dario." });
   p.email = chi.email;
   await scrivi("profili", p.id, p);
   const u = (await uno("utenti", chi.email)) || { email: chi.email };
@@ -329,12 +332,20 @@ async function lascia(chi, res) {
   return res.status(200).json({ ok: true });
 }
 
+// Link e foto del profilo: solo http(s). "javascript:..." in un href
+// eseguirebbe codice a chi ci clicca.
+function linkSicuri(p) {
+  if (p.linkedin && !/^https?:\/\//i.test(p.linkedin)) p.linkedin = "https://" + p.linkedin.replace(/^[a-z][a-z0-9+.-]*:\/*/i, "");
+  if (p.foto && !/^https:\/\//i.test(p.foto)) delete p.foto;
+}
+
 async function nuovoProfilo(chi, corpo, res) {
   if (await mioProfilo(chi.email)) return res.status(409).json({ error: "Hai gia' un profilo collegato." });
   const u = (await uno("utenti", chi.email)) || { email: chi.email };
   const p = { id: nuovoId("p"), email: chi.email, nome: testo(corpo.nome, 120) || chi.nome, origine: "creato", creato: new Date().toISOString() };
   for (const c of CAMPI_PROFILO) if (corpo[c] != null && c !== "nome") p[c] = testo(corpo[c], c === "linkedinTesto" ? 20000 : 4000);
   if (!p.foto && u.foto) p.foto = u.foto;
+  linkSicuri(p);
   await scrivi("profili", p.id, p);
   u.profilo = p.id;
   await scrivi("utenti", chi.email, u);
@@ -349,6 +360,7 @@ async function aggiornaProfilo(chi, corpo, res) {
   for (const c of CAMPI_PROFILO) if (corpo[c] != null) p[c] = testo(corpo[c], c === "linkedinTesto" ? 20000 : 4000);
   p.extra = p.extra || {};
   for (const c of CAMPI_MIEI) if (corpo[c] != null) p.extra[c] = testo(corpo[c], 2000);
+  linkSicuri(p);
   p.aggiornato = new Date().toISOString();
   await scrivi("profili", p.id, p);
   await segna(chi.email, "profilo", { profilo: p.id });
@@ -432,6 +444,8 @@ async function idea(chi, corpo, res) {
     generazione: testo(corpo.generazione, 80) || i.generazione || "",
     aggiornata: new Date().toISOString(),
   });
+  // idea riservata: chi non e' piu' fra i destinatari esce anche dalla squadra
+  if (visibilita === "scelti") i.membri = (i.membri || []).filter((id) => id === i.autore || destinatari.includes(id));
   await scrivi("bacheca", i.id, i);
   await segna(chi.email, corpo.id ? "idea-modificata" : "idea-pubblicata",
     { idea: i.id, titolo: i.titolo, origine: i.origine, quante: idee.length, visibilita, destinatari });
@@ -528,6 +542,8 @@ async function scollega(chi, corpo, res) {
   if (!p) return res.status(404).json({ error: "Profilo non trovato" });
   const email = p.email;
   delete p.email;
+  // scollegato vuol dire anche: il suo link d'accesso non vale piu'
+  delete p.codiceLink; delete p.linkAccesso; delete p.linkCreato;
   await scrivi("profili", p.id, p);
   if (email) {
     const u = await uno("utenti", email);
@@ -548,6 +564,7 @@ const DURATA_SESSIONE_LINK_MS = 400 * 24 * 60 * 60 * 1000;
 async function linkAccesso(chi, corpo, req, res) {
   const p = await uno("profili", testo(corpo.profilo, 80));
   if (!p) return res.status(404).json({ error: "Profilo non trovato" });
+  if (p.email && sonoAmministratore(p.email)) return res.status(400).json({ error: "Non si crea un link per un profilo di amministratore." });
   const email = p.email || `link-${p.id}@squadre-bbs.link`.toLowerCase();
   p.codiceLink = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   const t = await firma({ inv: 1, e: email, n: p.nome, p: p.id, k: p.codiceLink }, process.env.SESSIONE_SEGRETO, { durataMs: DURATA_LINK_MS });
@@ -603,6 +620,7 @@ async function salvaLavori(chi, corpo, res) {
   if (!p) return res.status(404).json({ error: "Profilo non trovato: collega prima il tuo profilo." });
   const miei = Object.fromEntries(lavoriDi(p, siti).map((l) => [l.id, l]));
   const nuoviSiti = [];
+  let riletti = 0;
   p.lavoriMiei = p.lavoriMiei || {};
   for (const x of Array.isArray(corpo.lavori) ? corpo.lavori.slice(0, 60) : []) {
     const l = miei[String(x.id)];
@@ -618,7 +636,8 @@ async function salvaLavori(chi, corpo, res) {
     };
     if (az.sito && !/^https?:\/\//i.test(az.sito)) az.sito = "https://" + az.sito;
     // sito nuovo e nessun altro campo scritto a mano: si rilegge il sito
-    if (az.sito && az.sito !== (prima.sito || "") && typeof x.settore !== "string" && typeof x.descrizioneAzienda !== "string") {
+    if (az.sito && az.sito !== (prima.sito || "") && typeof x.settore !== "string" && typeof x.descrizioneAzienda !== "string"
+      && (riletti += 1) <= 3 && (chi.admin || await conta("rileggi:" + chi.email, 3600) <= 30)) {
       try {
         const d = await descriviAzienda(prima.nome || l.azienda, az.sito);
         if (d.settore) az.settore = d.settore;
@@ -671,24 +690,11 @@ async function aziendaSalva(chi, corpo, res) {
 // Legge titolo e descrizione dalla pagina di un sito, per riempire i campi
 // senza chiamare Claude (costo zero).
 async function aziendaLeggi(corpo, res) {
-  let url = testo(corpo.url, 300);
+  const url = testo(corpo.url, 300);
   if (!url) return res.status(400).json({ error: "Scrivi l'indirizzo del sito." });
-  if (!/^https?:\/\//i.test(url)) url = "https://" + url;
-  let host;
-  try { host = new URL(url).hostname; } catch { return res.status(400).json({ error: "Indirizzo non valido." }); }
-  if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(host) || host.endsWith(".internal")) return res.status(400).json({ error: "Indirizzo non valido." });
   try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Squadre BBS)" }, redirect: "follow", signal: AbortSignal.timeout(8000) });
-    const html = (await r.text()).slice(0, 400000);
-    const meta = (nome) => {
-      const m = html.match(new RegExp(`<meta[^>]+(?:name|property)=["']${nome}["'][^>]*>`, "i"));
-      const c = m && m[0].match(/content=["']([^"']*)["']/i);
-      return c ? c[1] : "";
-    };
-    const pulito = (t) => String(t || "").replace(/&amp;/g, "&").replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim();
-    const titolo = pulito(meta("og:site_name") || (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]);
-    const descrizione = pulito(meta("description") || meta("og:description"));
-    return res.status(200).json({ url: r.url || url, stato: r.status, titolo: titolo.slice(0, 200), descrizione: descrizione.slice(0, 600) });
+    const pg = await leggiPagina(url);
+    return res.status(200).json({ url: pg.url, titolo: pg.titolo, descrizione: pg.descrizione });
   } catch (e) {
     return res.status(200).json({ url, errore: "Il sito non risponde (" + (e.name === "TimeoutError" ? "troppo lento" : e.message) + ")." });
   }

@@ -1,5 +1,5 @@
 // api/spunti-tc.js
-// VERSION: 1.0.0
+// VERSION: 1.0.1
 // Le ultime notizie di TechCrunch su startup, venture capital e raccolte
 // fondi, per la scheda Spunti (l'altra fonte citata da Claudio Venezia oltre
 // a Y Combinator). Legge i feed RSS pubblici di TechCrunch, toglie i doppioni
@@ -32,7 +32,7 @@ export function leggiFeed(xml) {
   return xml.split("<item>").slice(1).map((it) => ({
     titolo: pulisci(campo(it, "title")),
     link: pulisci(campo(it, "link")),
-    data: new Date(pulisci(campo(it, "pubDate"))).toISOString(),
+    data: (() => { const d = new Date(pulisci(campo(it, "pubDate"))); return isNaN(d) ? "" : d.toISOString(); })(),
     autore: pulisci(campo(it, "dc:creator")),
     categorie: [...new Set([...it.matchAll(/<category>([\s\S]*?)<\/category>/g)]
       .map((m) => pulisci(m[1])).filter(Boolean).map((c) => c.charAt(0).toUpperCase() + c.slice(1)))]
