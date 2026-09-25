@@ -329,6 +329,9 @@
   .scorri-idee{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;flex:1;min-height:0}
   .scorri-idee::-webkit-scrollbar{display:none}
   .idea-slide{flex:0 0 100%;scroll-snap-align:start;min-width:0;display:flex;flex-direction:column;gap:6px;padding-top:8px;overflow:hidden}
+  .testa-slide{gap:6px;flex-wrap:nowrap;overflow:hidden;min-height:22px}
+  .testa-slide .etichetta{overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1}
+  .testa-slide .piccolo,.testa-slide .modello-slide{white-space:nowrap;flex-shrink:0}
   .titolo-post{margin:0;font-size:18px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .frase-post{margin:0;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
   .piede-post{margin-top:auto;padding-top:8px}
@@ -373,7 +376,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.30.0";
+const VERSION = "2.30.2";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1396,10 +1399,9 @@ function bacheca() {
         <div class="scorri-idee" data-scorri="${i.id}">${idee.map((x, k) => {
           const [frase] = String(x.descrizione || "").split(/\n\s*\n/);
           return `<div class="idea-slide">
-            ${idee.length > 1 ? `<div class="piccolo">Idea ${k + 1} di ${idee.length}${i.titolo && !/^\d+ idee di /.test(i.titolo) ? " · " + esc(i.titolo) : ""}</div>` : ""}
+            <div class="riga testa-slide">${idee.length > 1 ? `<span class="piccolo">Idea ${k + 1} di ${idee.length}${i.titolo && !/^\d+ idee di /.test(i.titolo) ? " · " + esc(i.titolo) : ""}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}<span class="spazio"></span>${x.modello ? `<span class="etichetta modello-slide">${esc(x.modello)}</span>` : ""}</div>
             <h3 class="titolo-post">${esc(x.titolo)}</h3>
             <p class="frase-post">${esc(frase)}</p>
-            <div class="riga">${x.modello ? `<span class="etichetta">${esc(x.modello)}</span>` : ""}${x.settore ? `<span class="etichetta grigia">${esc(x.settore)}</span>` : ""}</div>
           </div>`;
         }).join("")}</div>
         <div class="piede-post">
