@@ -191,6 +191,13 @@
   .linguette-regia button.attiva{color:var(--accento);border-bottom-color:var(--accento)}
   .linguette-regia button .piccolo{background:var(--accento-chiaro);color:var(--accento);border-radius:99px;padding:1px 7px;margin-left:4px}
   @media (max-width:760px){.linguette-regia{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
+  .annuncio-riga{flex-wrap:nowrap;gap:8px;margin:0 0 16px;background:var(--carta);border:1px solid var(--bordo);border-radius:14px;padding:8px 10px 8px 14px}
+  .annuncio-riga input{flex:1;margin:0;min-width:0;border:0;background:var(--sfondo)}
+  .annuncio-riga .facoltativo{color:var(--grigio);font-weight:400}
+  .annuncio-riga > .piccolo{white-space:nowrap}
+  .annuncio-riga.pubblicato{background:var(--accento-chiaro);border-color:var(--accento)}
+  .annuncio-riga .testo-annuncio{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  @media (max-width:760px){.annuncio-riga{flex-wrap:wrap}.annuncio-riga > .piccolo{flex:1 1 100%}.annuncio-riga input{flex:1 1 0}}
   .precedenti{margin-top:24px}
   .precedenti > summary{cursor:pointer;font-weight:600;font-size:17px;margin-bottom:10px}
   .chiudi-genera{position:absolute;top:12px;right:12px;z-index:2}
@@ -422,7 +429,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.37.4";
+const VERSION = "2.37.5";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1508,21 +1515,30 @@ function sezioneAnnunci() {
   const io = mio(), mioA = io && io.annuncio;
   const altri = S.dati.profili.filter((p) => p.annuncio && (!io || p.id !== io.id))
     .sort((a, b) => String(b.annuncio.quando).localeCompare(String(a.annuncio.quando)));
-  const scrivo = io && (!mioA || S.annuncioAperto);
-  const mia = !io ? "" : scrivo
-    ? `<div class="carta annuncio mio"><div class="piccolo"><b>Il tuo annuncio</b> · cosa cerchi, cosa ti piacerebbe fare</div>
-        <textarea id="testoAnnuncio" rows="3" maxlength="400" placeholder="Es. Cerco qualcuno di finanza e uno di marketing per un'idea nel food; mi piacerebbe un progetto B2C con un prodotto vero.">${esc(mioA ? mioA.testo : "")}</textarea>
-        <div class="riga" style="margin-top:8px"><span class="spazio"></span>${mioA ? '<button class="btn piccolo" data-annulla-annuncio>Annulla</button>' : ""}<button class="btn piccolo primario" data-salva-annuncio>Pubblica l'annuncio</button></div></div>`
-    : `<div class="carta annuncio mio"><div class="riga piccolo"><b>Il tuo annuncio</b><span>· ${quando(mioA.quando)}</span><span class="spazio"></span><button class="btn piccolo pericolo" data-togli-annuncio>Togli</button></div>
-        <p class="testo-annuncio">${esc(mioA.testo)}<button type="button" class="penna" data-penna-annuncio title="Modifica">✎</button></p></div>`;
+  if (!altri.length) return "";
   return `<h2 style="margin-top:32px">Annunci</h2>
-    <p class="sotto">Cosa cerca e cosa vorrebbe fare ognuno. Il tuo lo scrivi qui, in due righe.</p>
-    <div class="griglia griglia-annunci">${mia}${altri.map((p) => `<div class="carta annuncio">
+    <p class="sotto">Cosa cerca e cosa vorrebbe fare ognuno. Il tuo lo scrivi in cima alla bacheca.</p>
+    <div class="griglia griglia-annunci">${altri.map((p) => `<div class="carta annuncio">
         <div class="riga" style="flex-wrap:nowrap"><div class="avatar piccolo-av">${esc(iniziali(p.nome))}</div>
           <div style="min-width:0"><b>${esc(p.nome)}</b><div class="piccolo testa-post">${esc([p.ruolo, p.azienda].filter(Boolean).join(" · ") || p.titolo || "")}</div></div></div>
         <p class="testo-annuncio">${esc(p.annuncio.testo)}</p><div class="piccolo">${quando(p.annuncio.quando)}</div></div>`).join("")}</div>
-    ${!altri.length && !io ? '<p class="piccolo">Ancora nessun annuncio.</p>' : ""}`;
+`;
 }
+// Il mio annuncio: una riga in cima alla bacheca, facoltativa.
+function mioAnnuncioRiga() {
+  const io = mio(), mioA = io && io.annuncio;
+  if (!io) return "";
+  if (!mioA || S.annuncioAperto) return `<div class="riga annuncio-riga">
+      <span class="piccolo"><b>Il tuo annuncio</b> <span class="facoltativo">(facoltativo)</span></span>
+      <input type="text" id="testoAnnuncio" maxlength="400" value="${esc(mioA ? mioA.testo : "")}" placeholder="Cosa cerchi, cosa ti piacerebbe fare. Es. cerco uno di finanza per un'idea nel food">
+      ${mioA ? '<button class="btn piccolo" data-annulla-annuncio>Annulla</button>' : ""}<button class="btn piccolo primario" data-salva-annuncio>Pubblica</button></div>`;
+  return `<div class="riga annuncio-riga pubblicato"><span class="piccolo"><b>Il tuo annuncio:</b></span>
+      <span class="testo-annuncio">${esc(mioA.testo)}<button type="button" class="penna" data-penna-annuncio title="Modifica">✎</button></span>
+      <span class="spazio"></span><button class="btn piccolo pericolo" data-togli-annuncio>Togli</button></div>`;
+}
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && ev.target.id === "testoAnnuncio") { ev.preventDefault(); const b = document.querySelector("[data-salva-annuncio]"); if (b) b.click(); }
+});
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-salva-annuncio],[data-togli-annuncio],[data-penna-annuncio],[data-annulla-annuncio]");
   if (!b) return;
@@ -1555,6 +1571,7 @@ function bacheca() {
   box.innerHTML = `<div class="riga testa-bacheca"><div><h2>Bacheca</h2>
     <p class="sotto">Le idee del master, per tutti o solo per qualche compagno: candidati a quelle che ti interessano.</p></div>
     <span class="spazio"></span><button class="btn primario grande" data-apri-genera data-tour="apri-genera">${icona("idea")} Genera idee</button></div>
+    ${mioAnnuncioRiga()}
     <div class="griglia griglia-bacheca">${lista.map((i) => {
       const mia = i.autore === io;
       const dentro = (i.membri || []).includes(io) && !(i.proposti || []).includes(io);
