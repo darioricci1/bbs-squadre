@@ -408,7 +408,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.33.2";
+const VERSION = "2.34.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -2308,6 +2308,35 @@ setInterval(controllaVersione, 120000);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") controllaVersione(); });
 
 // ---------------------------------------------------------------- statistiche (admin)
+// I problemi di accesso in evidenza: chi e' stato respinto, chi e' entrato
+// senza profilo, i collegamenti con un nome Google diverso da quello del
+// profilo, chi ha lasciato un profilo, le generazioni fallite.
+function controlloAccessi(s) {
+  const parole = (t) => new Set(senzaAccenti(String(t || "")).split(/[^a-z]+/).filter((w) => w.length > 2));
+  const simili = (a, b) => { const x = parole(a), y = parole(b); return [...x].some((w) => y.has(w)); };
+  const ultimoPer = (tipo) => { const m = new Map(); for (const e of s.eventi) if (e.tipo === tipo && !m.has(e.chi)) m.set(e.chi, e); return [...m.values()]; };
+  const entrati = new Set(s.utenti.map((u) => u.email));
+  const respinti = ultimoPer("rifiutato").filter((e) => !entrati.has(e.chi));
+  const senza = s.utenti.filter((u) => !u.profiloNome);
+  const strani = s.utenti.filter((u) => u.profiloNome && u.nome && !simili(u.nome, u.profiloNome));
+  const lasciati = ultimoPer("lascia");
+  const errori = s.eventi.filter((e) => e.tipo === "errore-generazione").slice(0, 10);
+  const blocco = (titolo, spiega, righe) => `<div class="carta"><h3 style="margin-top:0">${titolo} <span class="etichetta ${righe.length ? "ambra" : "verde"}">${righe.length}</span></h3>
+    <p class="piccolo" style="margin-top:0">${spiega}</p>${righe.length ? `<ul class="piccolo" style="margin:0;padding-left:18px">${righe.join("")}</ul>` : '<p class="piccolo" style="margin:0">Nessun problema.</p>'}</div>`;
+  return `<h3 style="margin-top:24px">Controllo accessi</h3>
+    <div class="due">
+      ${blocco("Respinti all'ingresso", "Hanno provato a entrare con un account Google non in elenco: probabilmente un indirizzo diverso da quello dato alla BBS.",
+        respinti.map((e) => `<li><b>${esc(e.chi)}</b> · ${quando(e.quando)}</li>`))}
+      ${blocco("Entrati senza profilo", "Sono dentro ma non collegati a un profilo del master: devono sceglierlo con «Chi sei?».",
+        senza.map((u) => `<li><b>${esc(u.nome || "")}</b> ${esc(u.email)} · ${quando(u.ultimo)}</li>`))}
+      ${blocco("Collegamenti da controllare", "Il nome dell'account Google non somiglia a quello del profilo collegato.",
+        strani.map((u) => `<li><b>${esc(u.nome)}</b> (${esc(u.email)}) → ${esc(u.profiloNome)}</li>`))}
+      ${blocco("Hanno lasciato un profilo", "Hanno premuto «Questo non è il mio profilo».",
+        lasciati.map((e) => `<li><b>${esc(e.chi)}</b> ha lasciato ${esc(e.nome || "?")} · ${quando(e.quando)}</li>`))}
+      ${blocco("Generazioni fallite", "Gli errori dell'AI (le ultime 10). Le connessioni cadute dal telefono non compaiono qui: la pagina recupera le idee da sola.",
+        errori.map((e) => `<li><b>${esc(e.chi)}</b> · ${quando(e.quando)} · ${esc(e.errore || "")}</li>`))}
+    </div>`;
+}
 // Le statistiche, in fondo alla Regia.
 function sezioneStatistiche(s) {
   const n = s.numeri;
@@ -2330,6 +2359,7 @@ function sezioneStatistiche(s) {
       <div class="carta"><h3 style="margin-top:0">Settori delle idee</h3>${barre(s.settori, (x) => esc(x[0]))}</div>
       <div class="carta"><h3 style="margin-top:0">B2B / B2C</h3>${barre(s.modelli, (x) => esc(x[0]))}</div>
     </div>
+    ${controlloAccessi(s)}
     <h3 style="margin-top:24px">Persone entrate</h3>
     <div class="carta scorri"><table><tr><th>Email</th><th>Profilo</th><th>Accessi</th><th>Ultimo</th><th>Crediti usati</th><th></th></tr>
       ${s.utenti.map((u) => `<tr><td>${esc(u.email)}</td><td>${esc(u.profiloNome || "—")}</td><td>${u.accessi || 0}</td><td>${quando(u.ultimo)}</td>

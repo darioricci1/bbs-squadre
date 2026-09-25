@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.13.0
+// VERSION: 1.13.1
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -349,14 +349,14 @@ export default async function handler(req, res) {
 
   let risposta;
   try { risposta = await chiamaClaude(imp, elenco, testo, SCHEMA); }
-  catch (e) { await restituisci(); const [st, msg] = erroreClaude(e); return res.status(st).json({ error: msg }); }
-  if (risposta.stop_reason === "refusal" || risposta.stop_reason === "max_tokens") await restituisci();
+  catch (e) { await restituisci(); const [st, msg] = erroreClaude(e); await segna(chi.email, "errore-generazione", { errore: msg, tecnico: String(e.message || e).slice(0, 300) }); return res.status(st).json({ error: msg }); }
+  if (risposta.stop_reason === "refusal" || risposta.stop_reason === "max_tokens") { await restituisci(); await segna(chi.email, "errore-generazione", { errore: risposta.stop_reason }); }
   if (risposta.stop_reason === "refusal") return res.status(422).json({ error: "L'AI ha rifiutato questa richiesta. Prova a cambiare le indicazioni." });
   if (risposta.stop_reason === "max_tokens") return res.status(502).json({ error: "Risposta troppo lunga e tagliata: riprova." });
 
   const blocco = risposta.content.find((b) => b.type === "text");
   let idee, uscita;
-  try { uscita = JSON.parse(blocco.text); idee = uscita.idee; } catch { await restituisci(); return res.status(502).json({ error: "Risposta dell'AI non leggibile: riprova." }); }
+  try { uscita = JSON.parse(blocco.text); idee = uscita.idee; } catch { await restituisci(); await segna(chi.email, "errore-generazione", { errore: "risposta non leggibile" }); return res.status(502).json({ error: "Risposta dell'AI non leggibile: riprova." }); }
 
   // la stessa squadra vale per ogni idea (si copia in ognuna per la pagina)
   const vistiC = new Set();
