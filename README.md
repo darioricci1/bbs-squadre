@@ -14,7 +14,7 @@ Chi usa la piattaforma vede due schede.
   l'autore accoglie chi vuole nella squadra. Le mie sono in blu, le altre in
   grigio. Sotto si generano le idee con tre domande: **hai un'idea?** (se si'
   si scrive, e si puo' anche pubblicare cosi' com'e'), **hai compagni?** (si
-  scelgono), **vuoi dare piu' paletti a Claude?** (cursori, settore a pillole,
+  scelgono), **vuoi dare piu' indicazioni all'AI?** (cursori, settore a pillole,
   testo libero). Poi un solo pulsante Genera.
   Le squadre sono di 7 o 8: Claude completa quelle piu' piccole, con una
   riga di motivo per ogni persona proposta. Perche' nessuno resti fuori,

@@ -299,7 +299,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.17.1";
+const VERSION = "2.17.2";
 const $main = document.getElementById("main");
 const S = { tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -655,7 +655,7 @@ function genera() {
         <div id="pickGruppo"></div>
         <p class="piccolo" id="contaGruppo" style="margin:6px 0 0"></p>
 `)}
-      ${domanda("paletti", "paletti", "Vuoi dare più paletti all'AI?", "Se no, decide l'AI: tipo di startup e punto di partenza li scrive comunque su ogni idea.", `
+      ${domanda("paletti", "paletti", "Vuoi dare più indicazioni all'AI?", "Se no, decide l'AI: tipo di startup e punto di partenza li scrive comunque su ogni idea.", `
         <div class="scelte-griglia">
           <div><label style="margin-top:0">Modello di business</label>
             <input type="range" class="cursore" id="opzModello" min="0" max="2" step="1" value="${{ B2B: 0, "": 1, B2C: 2 }[S.opz.modello]}">
@@ -1826,7 +1826,7 @@ const TOUR = [
   { sel: '[data-tour="linkedin"] h3', testo: "Qui ci sono i tuoi <b>dati LinkedIn</b>, caricati da noi: dai un'occhiata che siano giusti. Se mancano, li prendi dal PDF del tuo profilo." },
   { sel: '#passioni', testo: "Poi aggiungi <b>passioni, settori e preferenze</b>: servono all'AI per proporti le idee giuste e i compagni adatti. Alla fine ricordati <b>Salva profilo</b>." },
   { sel: '[data-scheda="bacheca"]', azione: true, testo: "Ora andiamo alla home: <b>clicca «Bacheca»</b>." },
-  { sel: '[data-tour="percorsi"]', testo: "Qui generi le idee con l'AI, rispondendo a tre domande: <b>hai un'idea?</b> <b>hai compagni?</b> <b>vuoi dare paletti?</b> Poi premi Genera. Le squadre sono di <b>7 o 8</b>." },
+  { sel: '[data-tour="percorsi"]', testo: "Qui generi le idee con l'AI, rispondendo a tre domande: <b>hai un'idea?</b> <b>hai compagni?</b> <b>vuoi dare più indicazioni?</b> Poi premi Genera. Le squadre sono di <b>7 o 8</b>." },
   { sel: '[data-scheda="spunti"]', testo: "Cerchi ispirazione? Nella scheda <b>Spunti</b> ci sono migliaia di startup di Y Combinator e le ultime notizie di TechCrunch: con <b>Usa come spunto</b> l'AI parte da lì per le tue idee." },
   { sel: '[data-tour="crediti"]', testo: "Ogni generazione costa <b>1 credito</b>. Usali con calma: prima completa il profilo, le idee vengono meglio." },
   { testo: "<b>Fatto!</b> Quando l'AI ti propone le idee, selezionane da 1 a 5 e premi <b>Condividi</b>.<br>Il tutorial lo ritrovi dal pulsante <b>?</b> in alto." },
