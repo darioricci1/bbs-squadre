@@ -288,7 +288,7 @@
   .domanda-gen{aspect-ratio:1/1}
   .domanda-vuota{flex:1;width:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--grigio);font-size:14px;border:1px dashed var(--bordo);border-radius:10px;padding:14px}
   .domanda-corpo label:first-child{margin-top:0}
-  .domanda-corpo .cursore{margin:4px 0 2px}
+  .domanda-corpo .cursore{margin-top:4px;margin-bottom:2px}
   .domanda-corpo textarea.note-corta{min-height:44px;height:44px}
   .domanda-corpo label{margin-top:8px}
   .domanda-corpo .cursore-voci{font-size:11px}
@@ -310,13 +310,14 @@
   .spesa{border:2px solid var(--accento)}
   .scelte-griglia{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:4px}
   @media (max-width:760px){.scelte-griglia{grid-template-columns:1fr}}
-  .cursore{width:100%;margin:10px 0 4px;-webkit-appearance:none;appearance:none;background:transparent;height:20px;cursor:pointer}
+  /* il cursore va dal centro della prima etichetta al centro dell'ultima: il pallino sta sopra la voce */
+  .cursore{display:block;width:calc(66.667% + 18px);margin:10px 0 4px calc(16.667% - 9px);-webkit-appearance:none;appearance:none;background:transparent;height:20px;cursor:pointer}
   .cursore::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--bordo)}
   .cursore::-moz-range-track{height:4px;border-radius:2px;background:var(--bordo)}
   .cursore::-moz-range-progress{background:transparent}
   .cursore::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accento);margin-top:-7px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
   .cursore::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accento);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-  .cursore-voci{display:flex;justify-content:space-between;font-size:12px;color:var(--grigio)}
+  .cursore-voci{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;font-size:12px;color:var(--grigio)}
   .gettoni{display:flex;flex-wrap:wrap;gap:6px}
   .gettone{border:1px solid var(--bordo);background:var(--carta,#fff);border-radius:99px;padding:5px 11px;font:inherit;font-size:13px;cursor:pointer;color:inherit}
   .gettone:hover{border-color:var(--accento)}
@@ -397,7 +398,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.31.4";
+const VERSION = "2.31.5";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
