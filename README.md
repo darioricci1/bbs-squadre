@@ -25,6 +25,11 @@ Chi usa la piattaforma vede due schede.
   finora (la piu' compatibile fra loro). Comparire in una proposta generata
   vale 1 punto; essere fra i destinatari di una proposta pubblicata con i
   nomi, o nella squadra di un post, vale 3.
+  Sotto i box ci sono scelte facoltative (`lib/scelte.js`): modello di
+  business (B2B, B2C, indifferente), la persona del gruppo sulla cui
+  competenza basare la startup (o tutte insieme), fino a 3 settori (dalla
+  classificazione di Y Combinator), il tipo di startup e da dove partire
+  (dalla lezione di Venezia), piu' un campo di testo libero.
   Una proposta generata si pubblica in due modi: **solo alle persone della
   proposta** (spuntate tutte, se ne tolgono o aggiungono quante si vuole,
   senza obbligo di arrivare a 7 o 8; ognuna vede perche' e' stata proposta)

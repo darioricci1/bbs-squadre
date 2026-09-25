@@ -181,6 +181,11 @@
   .voce-proposta{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid var(--bordo)}
   .voce-proposta:first-child{border-top:0}
   .voce-proposta input{margin-top:4px}
+  .scelte-gen{margin-top:12px}
+  .gettoni{display:flex;flex-wrap:wrap;gap:6px}
+  .gettone{border:1px solid var(--bordo);background:var(--carta,#fff);border-radius:99px;padding:5px 11px;font:inherit;font-size:13px;cursor:pointer;color:inherit}
+  .gettone:hover{border-color:var(--accento)}
+  .gettone.attivo{background:var(--accento);border-color:var(--accento);color:#fff}
   .perche-te{background:var(--accento-chiaro);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
   .motore h3{font-size:18px}
   .percorsi{display:grid;grid-template-columns:repeat(3,1fr);gap:22px 12px;margin:22px 0 12px}
@@ -219,9 +224,9 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.7.0";
+const VERSION = "2.8.0";
 const $main = document.getElementById("main");
-const S = { aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
+const S = { opz: { modello: "", perno: "", settori: [], tipo: "", fonte: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
 
 // ---------------------------------------------------------------- utilita'
@@ -534,6 +539,29 @@ const PERCORSI = [
   ["persone", "Ci sono persone con cui mi piacerebbe lavorare, ma non ho ancora un'idea", "Sceglile: Claude genera idee compatibili con i vostri profili."],
   ["profilo", "Vorrei una proposta sia di idee sia di compagni di squadra", "Claude parte dal tuo profilo e ti propone idee e squadre."],
 ];
+// Gettoni delle scelte facoltative: un clic sceglie, un altro toglie. Si
+// ridisegna tenendo la posizione, perche' il riquadro cambia poco.
+document.addEventListener("click", (ev) => {
+  const st = ev.target.closest("[data-opz-settore]"), tp = ev.target.closest("[data-opz-tipo]"), fn = ev.target.closest("[data-opz-fonte]");
+  const az = ev.target.closest("[data-opz-azzera]");
+  if (!st && !tp && !fn && !az) return;
+  if (st) {
+    const v = st.dataset.opzSettore, L = S.opz.settori;
+    if (L.includes(v)) L.splice(L.indexOf(v), 1);
+    else if (L.length < 3) L.push(v);
+    else { avvisa("msgGen", "Puoi scegliere al massimo 3 settori: togline uno prima.", "info"); return; }
+  }
+  if (tp) S.opz.tipo = S.opz.tipo === tp.dataset.opzTipo ? "" : tp.dataset.opzTipo;
+  if (fn) S.opz.fonte = S.opz.fonte === fn.dataset.opzFonte ? "" : fn.dataset.opzFonte;
+  if (az) S.opz = { modello: "", perno: "", settori: [], tipo: "", fonte: "" };
+  const y = window.scrollY; genera(); window.scrollTo(0, y);
+});
+document.addEventListener("click", (ev) => {
+  const m = ev.target.closest("[data-opz-modello]");
+  if (!m) return;
+  S.opz.modello = m.dataset.opzModello;
+  document.querySelectorAll("[data-opz-modello]").forEach((x) => x.classList.toggle("primario", x === m));
+});
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-percorso]");
   if (!b) return;
@@ -566,7 +594,26 @@ function genera() {
     ${S.percorso === "profilo" ? `<div class="carta motore">
         <p class="piccolo" style="margin-top:0">Claude parte dal tuo profilo (esperienze, aziende, passioni, preferenze) e propone cinque idee; per ognuna ti suggerisce la squadra di 7-8 persone più adatta fra quelle del master.</p>
         <button class="btn primario" id="gScopri" ${blocca ? "disabled" : ""}>Proponi idee e compagni</button></div>` : ""}
-    ${S.percorso ? `<label>Indicazioni in più <small>(facoltativo: un settore, un vincolo, uno spunto da cui partire)</small></label>
+    ${S.percorso ? `<div class="carta scelte-gen">
+      <div class="riga"><b>Scelte facoltative</b><span class="piccolo">se non scegli nulla, decide Claude</span><span class="spazio"></span>
+        ${S.opz.modello || S.opz.perno || S.opz.settori.length || S.opz.tipo || S.opz.fonte ? '<button class="btn piccolo" data-opz-azzera>Azzera</button>' : ""}</div>
+      <div class="due" style="margin-top:6px">
+        <div><label style="margin-top:0">Modello di business</label>
+          <div class="riga">${[["", "Indifferente"], ["B2B", "B2B · clienti aziende"], ["B2C", "B2C · clienti consumatori"]].map(([k, t]) =>
+            `<button class="btn piccolo ${S.opz.modello === k ? "primario" : ""}" data-opz-modello="${k}">${t}</button>`).join("")}</div></div>
+        <div id="boxPerno"><label style="margin-top:0">Su quale competenza basare la startup</label>
+          <select id="opzPerno"></select>
+          <p class="piccolo" style="margin:4px 0 0" id="notaPerno"></p></div>
+      </div>
+      ${S.dati.scelte ? `<label>Settore <small>(fino a 3; classificazione di Y Combinator)</small></label>
+      <div class="gettoni">${S.dati.scelte.settori.map((x) => `<button class="gettone ${S.opz.settori.includes(x) ? "attivo" : ""}" data-opz-settore="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+      <label>Tipo di startup</label>
+      <div class="gettoni">${S.dati.scelte.tipi.map(([k, t, d]) => `<button class="gettone ${S.opz.tipo === k ? "attivo" : ""}" data-opz-tipo="${k}" title="${esc(d)}">${esc(t)}</button>`).join("")}</div>
+      ${S.opz.tipo ? `<p class="piccolo" style="margin:4px 0 0">${esc((S.dati.scelte.tipi.find(([k]) => k === S.opz.tipo) || [])[2] || "")}</p>` : ""}
+      <label>Da dove partire <small>(le cinque strade indicate da Venezia)</small></label>
+      <div class="gettoni">${S.dati.scelte.fonti.map(([k, t]) => `<button class="gettone ${S.opz.fonte === k ? "attivo" : ""}" data-opz-fonte="${esc(k)}">${esc(t)}</button>`).join("")}</div>` : ""}
+      </div>` : ""}
+    ${S.percorso ? `<label>Indicazioni in più <small>(testo libero, facoltativo: un vincolo, un mercato, uno spunto, quello che vuoi)</small></label>
     <textarea id="note" placeholder="Es. qualcosa legato al food, B2B, che si possa validare in due mesi">${esc(S.note || "")}</textarea>` : ""}
     <div id="msgGen"></div>
     <div id="risultati">${S.ultima ? risultati(S.ultima) : ""}</div>
@@ -579,12 +626,27 @@ function genera() {
       ? `Squadra di <b>${n}</b>: completa.`
       : `Squadra di <b>${n}</b> con te: Claude proporrà ${7 - n === 8 - n ? 7 - n : `da ${7 - n} a ${8 - n}`} persone per arrivare a 7-8.`;
   };
+  // Su chi basare la startup: io e, se scelgo delle persone, anche loro.
+  const opzioniPerno = () => {
+    const sel = document.getElementById("opzPerno");
+    if (!sel || !io) return;
+    const gruppo = [io, ...(S.percorso === "persone" ? [...S.scelti].map(profilo).filter(Boolean) : [])].filter(Boolean);
+    if (!gruppo.some((p) => p.id === S.opz.perno)) S.opz.perno = "";
+    const breve = (p) => [p.ruolo, p.azienda].filter(Boolean).join(" @ ") || p.titolo || "";
+    sel.innerHTML = `<option value="">${gruppo.length > 1 ? "Decidi tu, mettendo insieme le competenze di tutti" : "Decidi tu, partendo da tutte le mie esperienze"}</option>` +
+      gruppo.map((p) => `<option value="${esc(p.id)}" ${S.opz.perno === p.id ? "selected" : ""}>${p.id === io.id ? "La mia" : esc(p.nome)}${breve(p) ? " · " + esc(breve(p).slice(0, 60)) : ""}</option>`).join("");
+    document.getElementById("notaPerno").textContent = S.opz.perno
+      ? "Le idee partiranno dal settore e dall'esperienza di " + (S.opz.perno === io.id ? "te" : (profilo(S.opz.perno) || {}).nome) + "; gli altri completano."
+      : gruppo.length > 1 ? "Claude cerca le idee dove le competenze del gruppo si combinano meglio." : "Scegli le persone per poter basare l'idea su una di loro.";
+  };
+  const selPerno = document.getElementById("opzPerno");
+  if (selPerno) { opzioniPerno(); selPerno.onchange = () => { S.opz.perno = selPerno.value; opzioniPerno(); }; }
   const pick = document.getElementById("pickGruppo");
   if (pick) {
     pickerPersone(pick, S.scelti, () => {
       const b = document.getElementById("gGruppo");
       if (b) b.disabled = blocca || !S.scelti.size;
-      contaGruppo();
+      contaGruppo(); opzioniPerno();
     }, "Clicca per vedere tutti, o scrivi un nome…", 7);
     contaGruppo();
   }
@@ -600,7 +662,7 @@ function genera() {
     avvisa("msgGen", "Claude sta leggendo i profili e scrivendo le idee: di solito ci vuole meno di un minuto…");
     document.getElementById("msgGen").scrollIntoView({ behavior: "smooth", block: "center" });
     try {
-      const g = await api("", { modo, persone: modo === "gruppo" ? [...S.scelti] : [], note: S.note || "", idea: conIdea ? S.miaIdea || "" : "" }, "/api/genera");
+      const g = await api("", { modo, persone: modo === "gruppo" ? [...S.scelti] : [], note: S.note || "", idea: conIdea ? S.miaIdea || "" : "", modello: S.opz.modello, perno: S.opz.perno, settori: S.opz.settori, tipo: S.opz.tipo, fonte: S.opz.fonte }, "/api/genera");
       if (g.crediti) S.dati.io.crediti = g.crediti;
       S.ultima = g;
       S.dati.generazioni.unshift(g);
@@ -624,6 +686,9 @@ function genera() {
 function risultati(g, vecchia) {
   if (!g) return "";
   return `${vecchia ? "" : `<h3 style="margin-top:22px">Idee ${g.modo === "gruppo" ? "per il gruppo" : "per te"}</h3>
+    ${(() => { const c = g.scelte || {}; const v = [c.modello && c.modello !== "indifferente" && c.modello, c.pernoNome && "basata sulla competenza di " + esc(c.pernoNome),
+      (c.settori || []).length && esc(c.settori.join(", ")), c.tipo && esc(c.tipo), c.fonte && "partendo da: " + esc(c.fonte.toLowerCase())].filter(Boolean);
+      return v.length ? `<p class="piccolo" style="margin:0">Scelte: ${v.join(" · ")}</p>` : ""; })()}
     <p class="piccolo">Seleziona da 1 a 5 idee e premi <b>Condividi</b>: decidi tu se le vede tutto il master o solo alcuni compagni.</p>`}
     <div class="griglia" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">${g.idee.map((i, n) => {
       const k = g.id + "|" + n, presa = S.selezione.has(k);

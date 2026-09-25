@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.8.0
+// VERSION: 1.9.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -41,6 +41,7 @@ import {
 } from "../lib/bbs.js";
 import { lavoriDi, lavoriPubblici, infoAzienda, chiaveAziendaNome, idLavoro } from "../lib/lavori.js";
 import { lavoriDa } from "../lib/esperienze.js";
+import { SETTORI, TIPI, FONTI } from "../lib/scelte.js";
 import { MODELLI, EFFORT, impostazioniGenera } from "./genera.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
@@ -207,6 +208,7 @@ async function dati(chi, res) {
       .sort((x, y) => String(x.nome).localeCompare(String(y.nome))),
     bacheca: Object.values(bacheca).filter((i) => vedeIdea(i, io, chi.admin))
       .sort((x, y) => String(y.creata).localeCompare(String(x.creata))),
+    scelte: { settori: SETTORI, tipi: TIPI, fonti: FONTI },
     generazioni: generazioni.filter((g) => g.chi === chi.email).slice(0, 30)
       .map((g) => { if (chi.adminVero) return g; const { costo, ...resto } = g; return resto; }),
   });

@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.9.0
+// VERSION: 1.10.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -25,6 +25,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { esigiAccesso, corpoDi, nuovoId, tutti, uno, scrivi, ultimi, conta, correggi, segna, aziendaPer, creditiDi, chiaveCrediti, CREDITI_BASE, DIECI_ANNI } from "../lib/bbs.js";
 import { lavoriDi, presentazioneDa } from "../lib/lavori.js";
+import { scelteDalCorpo } from "../lib/scelte.js";
 
 export const config = { maxDuration: 300 };
 
@@ -289,6 +290,11 @@ export default async function handler(req, res) {
 
   const gruppo = [io, ...scelti.map((id) => profili[id])];
   const idGruppo = new Set(gruppo.map((p) => p.id));
+  // Le scelte sotto i box: modello di business e la persona sulla cui
+  // competenza costruire la startup (se no Claude mette insieme tutte).
+  const modelloScelto = ["B2B", "B2C"].includes(corpo.modello) ? corpo.modello : "";
+  const perno = idGruppo.has(String(corpo.perno || "")) ? profili[String(corpo.perno)] : null;
+  const { settori, tipo, fonte } = scelteDalCorpo(corpo);
 
   // Nessuno resta fuori: si conta quanto ogni persona e' gia' stata
   // coinvolta, e le meno coinvolte vanno a Claude come candidate per l'ultimo
@@ -321,6 +327,11 @@ export default async function handler(req, res) {
     "Gli altri partecipanti, fra cui scegliere i compagni da proporre, sono tutti quelli dell'elenco del master tranne le persone del gruppo.",
     daMax > 0 ? `\n## Chi e' stato proposto poco finora\nPerche' nessuno resti fuori dalle squadre: in ogni idea l'ULTIMO compagno proposto deve essere una di queste persone, la piu' compatibile con quell'idea (anche se non e' perfetta, trova il ruolo in cui puo' essere utile e scrivilo nel motivo). Sono in ordine: le prime sono state proposte meno volte, a parita' di compatibilita' preferiscile. Varia la persona fra un'idea e l'altra.\n${pocoProposte.map((id) => `- ${id} ${profili[id].nome} (coinvolta finora: ${esposizione[id]} punti)`).join("\n")}` : "",
     note ? `## Indicazioni di chi chiede\n${note}` : "",
+    modelloScelto ? `\n## Vincolo sul modello di business\nTutte e 5 le idee devono essere ${modelloScelto === "B2B" ? "B2B (clienti aziende); B2B2C va bene solo se chi paga sono le aziende" : "B2C (clienti consumatori finali); B2B2C va bene solo se il valore arriva al consumatore"}. In "modello" usa ${modelloScelto} o B2B2C.` : "",
+    perno ? `\n## Su chi costruire la startup\nLe idee devono basarsi principalmente sulla competenza e sull'esperienza di ${perno.nome} (${perno.id}): il settore, i clienti o la tecnologia che conosce meglio sono il cuore del progetto, e gli altri completano cio' che manca. In "perche_noi" spiega cosa porta ${perno.nome}.` : (gruppo.length > 1 ? "\n## Su chi costruire la startup\nNessuno in particolare: metti insieme le competenze di tutto il gruppo e cerca le idee dove si combinano meglio." : ""),
+    settori.length ? `\n## Settore\nLe idee devono stare ${settori.length === 1 ? "nel settore" : "in uno di questi settori (distribuiscile fra loro, o combinali)"}: ${settori.join("; ")}.` : "",
+    tipo ? `\n## Tipo di startup\nTutte le idee devono essere di questo tipo: ${tipo[1]}, cioe' ${tipo[2]}. Tienilo coerente con scalabilita' e replicabilita'.` : "",
+    fonte ? `\n## Da dove partire\nParti da questa strada per trovare le idee: ${fonte[1].toLowerCase()}. In "fonte_idea" metti "${fonte[0]}" almeno per le 3 idee top.` : "",
     miaIdea ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona ha gia' un'idea e cerca i compagni di strada migliori per realizzarla. Le 3 idee top sono questa idea sviluppata al meglio e due sue varianti vicine (un altro cliente, un altro modello di ricavo, un altro mercato); le 2 di riserva possono essere alternative diverse. Valutala con la stessa severita' sui quattro criteri: se ha un punto debole, dillo in "punto_debole" e proponi come rafforzarla. Per ogni idea scegli i compagni che servono davvero a realizzarla.` : "",
   ].join("\n");
 
@@ -341,7 +352,7 @@ export default async function handler(req, res) {
   }
 
   const costo = costoDi(risposta.model, risposta.usage);
-  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
+  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, scelte: { modello: modelloScelto || "indifferente", perno: perno ? perno.id : null, pernoNome: perno ? perno.nome : null, settori, tipo: tipo ? tipo[1] : null, fonte: fonte ? fonte[1] : null }, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
   await scrivi("generazioni", g.id, g);
   await segna(chi.email, "generazione", { modo, persone: scelti, titoli: idee.map((i) => i.titolo), usd: costo.usd });
   const perUtente = { ...g, crediti: chi.admin ? null : await creditiDi(chi.email, u) };
