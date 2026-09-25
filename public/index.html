@@ -234,14 +234,14 @@
   .domanda-gen.aperta{border-color:var(--accento);background:var(--accento-chiaro)}
   .domanda-testa{flex-wrap:nowrap;align-items:center;width:100%;gap:10px}
   .domanda-corpo{width:100%}
-  .domanda-gen{min-height:390px}
+  .domanda-gen{aspect-ratio:1/1}
   .domanda-vuota{flex:1;width:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--grigio);font-size:14px;border:1px dashed var(--bordo);border-radius:10px;padding:14px}
   .domanda-corpo label:first-child{margin-top:0}
   .domanda-corpo .cursore{margin:4px 0 2px}
   .domanda-corpo textarea.note-corta{min-height:44px;height:44px}
   .domanda-corpo label{margin-top:8px}
   .domanda-corpo .cursore-voci{font-size:11px}
-  @media (max-width:900px){.domanda-gen{min-height:0}.domanda-vuota{display:none}}
+  @media (max-width:900px){.domanda-gen{aspect-ratio:auto}.domanda-vuota{display:none}}
   .domanda-corpo .scelte-griglia{grid-template-columns:1fr;gap:6px}
   .domanda-corpo textarea{min-height:90px}
   .domanda-gen .gettone{font-size:12px;padding:4px 9px}
@@ -339,7 +339,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.24.1";
+const VERSION = "2.24.2";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
