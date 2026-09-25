@@ -446,7 +446,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.43.1";
+const VERSION = "2.43.2";
 const $main = document.getElementById("main");
 // Lo stato della pagina. Si ricrea da zero a ogni uscita, cosi' chi entra
 // dopo non ritrova niente di chi c'era prima.
@@ -583,12 +583,10 @@ function registraStoria() {
 }
 window.addEventListener("popstate", (ev) => {
   // Tutorial aperto: Indietro (anche lo scorrimento dal bordo sul telefono)
-  // torna al passo prima invece di chiuderlo.
+  // chiude il tutorial e lascia la pagina com'e'.
   if (tour) {
-    do { tour.i = Math.max(0, tour.i - 1); } while (tour.i > 0 && TOUR[tour.i].facoltativo && !document.querySelector(TOUR[tour.i].sel));
-    tour.attese = 0;
-    history.pushState({ ...statoPagina(), tour: 1 }, "");
-    tourMostra();
+    tourFine();
+    history.replaceState(statoPagina(), "");
     return;
   }
   const st = ev.state;
@@ -2472,7 +2470,8 @@ function tourAvvia() {
   tour = { i: 0 };
   if (S.generaAperta) chiudiGenera();
   S.scheda = "bacheca"; disegna(); window.scrollTo(0, 0);
-  // un passo nella storia: il gesto Indietro resta dentro il tutorial
+  // un passo nella storia: il gesto Indietro chiude il tutorial senza
+  // portare via dalla pagina
   history.pushState({ ...statoPagina(), tour: 1 }, "");
 }
 function tourFine() {
@@ -2545,6 +2544,16 @@ document.addEventListener("click", (ev) => {
   else if (ev.target.closest("[data-tour-avanti]") && tour) { tour.i++; tourMostra(); }
 });
 ["scroll", "resize"].forEach((t) => window.addEventListener(t, () => { if (tour && tour.posiziona) tour.posiziona(); }, { passive: true, capture: true }));
+// Sul telefono uno scorrimento orizzontale col dito, con il tutorial aperto,
+// lo chiude (come il gesto Indietro, che passa dal popstate).
+let tocco = null;
+document.addEventListener("touchstart", (e) => { tocco = tour && e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
+document.addEventListener("touchend", (e) => {
+  if (!tour || !tocco) return;
+  const t = e.changedTouches[0], dx = t.clientX - tocco.x, dy = t.clientY - tocco.y;
+  tocco = null;
+  if (Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy)) tourFine();
+}, { passive: true });
 // Il tutorial non parte piu' da solo: si apre dal pulsante "?".
 function tourSePrimaVolta() {}
 
