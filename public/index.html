@@ -354,7 +354,8 @@
   .scorri-idee{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;flex:1;min-height:0}
   .scorri-idee::-webkit-scrollbar{display:none}
   .idea-slide{flex:0 0 100%;scroll-snap-align:start;min-width:0;display:flex;flex-direction:column;gap:6px;padding-top:8px;overflow:hidden}
-  .testa-slide{gap:6px;flex-wrap:nowrap;overflow:hidden;min-height:22px}
+  .idea .testa-slide{gap:6px;flex-wrap:nowrap;overflow:hidden;min-height:22px}
+  @media (max-width:760px){.testa-bacheca{margin-bottom:16px}.testa-bacheca > .btn{flex:1 1 100%;justify-content:center}}
   .testa-slide .etichetta{overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1}
   .testa-slide .piccolo,.testa-slide .modello-slide{white-space:nowrap;flex-shrink:0}
   .titolo-post{margin:0;font-size:18px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
@@ -402,7 +403,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.32.1";
+const VERSION = "2.32.2";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -1432,7 +1433,7 @@ function bacheca() {
   // Tutte insieme: le mie in blu, quelle degli altri in grigio chiaro.
   const lista = tutte;
   const nomi = (ids) => (ids || []).map((id) => (profilo(id) || {}).nome || (id === "esempio" ? "Un compagno (esempio)" : "?"));
-  box.innerHTML = `<div class="riga"><div><h2>Bacheca</h2>
+  box.innerHTML = `<div class="riga testa-bacheca"><div><h2>Bacheca</h2>
     <p class="sotto">Le idee del master, per tutti o solo per qualche compagno: candidati a quelle che ti interessano.</p></div>
     <span class="spazio"></span><button class="btn primario grande" data-apri-genera data-tour="apri-genera">${icona("idea")} Genera idee</button></div>
     <div class="griglia griglia-bacheca">${lista.map((i) => {
