@@ -45,7 +45,9 @@
     .titolo-proposta{font-size:15px;flex:1 1 60%}
     .azioni-gen .btn{flex:1 1 100%}
     .pulsanti-gen{flex-wrap:nowrap}
-    .pulsanti-gen .btn{flex:1 1 0;min-width:0;justify-content:center;white-space:normal;font-size:14px;padding:11px 8px;text-align:center}
+    .pulsanti-gen{gap:8px}
+    .pulsanti-gen .btn.grande{flex:1 1 0;min-width:0;justify-content:center;white-space:nowrap;font-size:clamp(11px,3.5vw,15px);padding:12px 4px;gap:4px;text-align:center}
+    .pulsanti-gen .btn svg{width:17px;height:17px;flex:none}
     .pulsanti-gen .piccolo{flex:1 1 100%}
     h2{font-size:22px}
   }
@@ -405,7 +407,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.33.0";
+const VERSION = "2.33.1";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
