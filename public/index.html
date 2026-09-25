@@ -445,7 +445,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.40.5";
+const VERSION = "2.41.0";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -2233,7 +2233,7 @@ async function regia(daCache) {
         </dl></div>`).join("") || '<p class="piccolo">Ancora niente in bacheca.</p>')}
     </section>
     ${(() => { const st = sezioneStatistiche(s), [a, resto] = st.split('<h3 style="margin-top:24px">Persone entrate</h3>'), [b, c] = resto.split('<h3 style="margin-top:24px">Registro</h3>');
-      return sezioneRegia("statistiche", a.replace('<h2 style="margin-top:36px">Statistiche</h2>', "")) + sezioneRegia("persone", '<h3 style="margin-top:8px">Persone entrate</h3>' + b) + sezioneRegia("registro", '<h3 style="margin-top:8px">Registro</h3>' + c); })()}`;
+      return sezioneRegia("statistiche", a.replace('<h2 style="margin-top:36px">Statistiche</h2>', "")) + sezioneRegia("persone", boxLinkAccesso() + '<h3 style="margin-top:24px">Persone entrate</h3>' + b) + sezioneRegia("registro", '<h3 style="margin-top:8px">Registro</h3>' + c); })()}`;
   document.getElementById("aggRegia").onclick = () => regia(false);
   document.getElementById("scaricaCsv").onclick = scaricaProfiliCsv;
   document.getElementById("scaricaJson").onclick = () => {
@@ -2633,6 +2633,38 @@ function scaricaProfiliCsv() {
   a.download = "profili-bbs-" + new Date().toISOString().slice(0, 10) + ".csv"; a.click();
 }
 
+// Link d'accesso per chi non ha Google: si sceglie il profilo, si crea il
+// link e lo si manda alla persona. Un link nuovo annulla il precedente.
+function boxLinkAccesso() {
+  const nomi = [...S.dati.profili].sort((a, b) => a.nome.localeCompare(b.nome));
+  return `<div class="carta" style="margin-top:8px"><h3 style="margin-top:0">Link d'accesso senza Google</h3>
+    <p class="piccolo" style="margin-top:0">Per chi non ha un account Google: scegli il suo profilo e mandagli il link. Con quello entra direttamente, per 120 giorni. Se ne crei uno nuovo, il vecchio non vale più.</p>
+    <div class="riga" style="flex-wrap:wrap"><select id="linkProfilo" style="flex:1;min-width:220px"><option value="">Scegli la persona…</option>
+      ${nomi.map((p) => `<option value="${esc(p.id)}">${esc(p.nome)}${p.rivendicato ? " (già collegato)" : ""}</option>`).join("")}</select>
+      <button class="btn primario" data-crea-link>Crea link</button></div>
+    <div id="linkFatto"></div></div>`;
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-crea-link]");
+  if (b) {
+    const id = document.getElementById("linkProfilo").value;
+    if (!id) return avvisa("linkFatto", "Scegli prima la persona.", "info");
+    b.disabled = true;
+    try {
+      const r = await api("link-accesso", { profilo: id });
+      document.getElementById("linkFatto").innerHTML = `<p class="piccolo" style="margin:10px 0 4px">Link per <b>${esc(r.nome)}</b>, vale fino al ${new Date(r.scade).toLocaleDateString("it-IT")}:</p>
+        <div class="riga"><input type="text" readonly value="${esc(r.link)}" style="flex:1" onclick="this.select()"><button class="btn" data-copia-link>Copia</button></div>`;
+    } catch (e) { avvisa("linkFatto", e.message, "male"); }
+    b.disabled = false;
+    return;
+  }
+  const cl = ev.target.closest("[data-copia-link]");
+  if (cl) {
+    const inp = cl.parentElement.querySelector("input");
+    try { await navigator.clipboard.writeText(inp.value); } catch { inp.select(); document.execCommand("copy"); }
+    cl.textContent = "Copiato";
+  }
+});
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-crediti]");
   if (!b) return;
@@ -2765,7 +2797,17 @@ document.addEventListener("click", async (ev) => {
 });
 
 console.log("Squadre BBS v" + VERSION);
-carica();
+// Link d'accesso senza Google (#entra=...): si entra con quello, poi il
+// link sparisce dalla barra dell'indirizzo.
+(async () => {
+  const m = location.hash.match(/^#entra=(.+)$/);
+  if (m) {
+    history.replaceState(null, "", location.pathname + location.search);
+    try { await api("entra", { link: m[1] }); }
+    catch (e) { porta(); return avvisa("msgPorta", e.message, "male"); }
+  }
+  carica();
+})();
 })();
 </script>
 </body>

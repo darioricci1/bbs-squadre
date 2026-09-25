@@ -184,3 +184,16 @@ Parte solo da «Come funziona». Mostra i campi di Genera idee dentro la sua
 finestra, poi bacheca, annuncio, «Le tue idee», la scheda Spunti e il
 profilo: ogni passo apre la sezione di cui parla.
 
+
+## Link d'accesso senza Google
+
+Per chi non ha un account Google: in Regia, linguetta Persone, «Link d'accesso
+senza Google». Si sceglie il profilo, si preme «Crea link» e si manda il link
+alla persona. Aprendolo entra direttamente con quel profilo, senza Google.
+
+Il link è un biglietto firmato con `SESSIONE_SEGRETO` che vale solo per entrare
+(non come sessione) e scade dopo 120 giorni. Contiene un codice salvato anche
+nel profilo: creare un link nuovo per la stessa persona annulla il precedente.
+Se il profilo era già collegato a un account Google, il link entra in
+quell'account; altrimenti crea un utente `link-<id profilo>@squadre-bbs.link`.
+La sessione dura una settimana come le altre: dopo, basta riaprire il link.

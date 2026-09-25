@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.17.3
+// VERSION: 1.18.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -34,7 +34,7 @@
 // I dati stanno su Postgres (Neon), vedi lib/db.js.
 
 import { verificaIdToken, clientDiAccesso } from "../lib/google-id.js";
-import { firma, cookieDaMettere, cookieDaTogliere } from "../lib/sessione.js";
+import { firma, leggi, cookieDaMettere, cookieDaTogliere } from "../lib/sessione.js";
 import {
   esigiAccesso, sonoAmministratore, puoEntrare, corpoDi, nuovoId, tutti, uno, scrivi, scriviMolti,
   togli, ultimi, eventi, conta, ceArchivio, segna, chiaveAzienda, profiloPubblico,
@@ -102,6 +102,7 @@ export default async function handler(req, res) {
       case "scollega": return await scollega(chi, corpo, res);
       case "elimina-profilo": return await eliminaProfilo(chi, corpo, res);
       case "crediti": return await aggiungiCrediti(chi, corpo, res);
+      case "link-accesso": return await linkAccesso(chi, corpo, req, res);
       case "aziende-lavoro": return await aziendeLavoro(res);
       case "azienda-salva": return await aziendaSalva(chi, corpo, res);
       case "azienda-leggi": return await aziendaLeggi(corpo, res);
@@ -122,8 +123,10 @@ async function entra(req, res) {
   const n = await conta("porta:" + ipDi(req), 600);
   if (n > 30) return res.status(429).json({ error: "Troppi tentativi. Riprova fra qualche minuto." });
 
+  const corpo = corpoDi(req);
+  if (corpo.link) return await entraConLink(req, res, corpo.link, segreto);
   let g;
-  try { g = await verificaIdToken(corpoDi(req).credential); }
+  try { g = await verificaIdToken(corpo.credential); }
   catch (e) { return res.status(401).json({ error: "Accesso Google non valido: " + e.message }); }
   if (!puoEntrare(g.email)) {
     await segna(g.email, "rifiutato", { ip: ipDi(req) });
@@ -532,6 +535,39 @@ async function scollega(chi, corpo, res) {
   }
   await segna(chi.email, "scollega", { profilo: p.id, email });
   return res.status(200).json({ ok: true });
+}
+
+// Link d'accesso senza Google, per chi non ha un account Google: lo crea
+// l'amministratore per un profilo e lo manda alla persona. E' un biglietto
+// firmato che vale solo per entrare (inv) e scade dopo 120 giorni. Dentro
+// c'e' un codice che sta anche nel profilo: crearne uno nuovo annulla il
+// vecchio.
+const DURATA_LINK_MS = 120 * 24 * 60 * 60 * 1000;
+async function linkAccesso(chi, corpo, req, res) {
+  const p = await uno("profili", testo(corpo.profilo, 80));
+  if (!p) return res.status(404).json({ error: "Profilo non trovato" });
+  const email = p.email || `link-${p.id}@squadre-bbs.link`.toLowerCase();
+  p.codiceLink = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  await scrivi("profili", p.id, p);
+  const t = await firma({ inv: 1, e: email, n: p.nome, p: p.id, k: p.codiceLink }, process.env.SESSIONE_SEGRETO, { durataMs: DURATA_LINK_MS });
+  const host = (req.headers && (req.headers["x-forwarded-host"] || req.headers.host)) || "bbs-squadre.vercel.app";
+  await segna(chi.email, "link-accesso", { profilo: p.id, nome: p.nome, email });
+  return res.status(200).json({ ok: true, link: `https://${host}/#entra=${t}`, nome: p.nome, scade: new Date(Date.now() + DURATA_LINK_MS).toISOString() });
+}
+async function entraConLink(req, res, token, segreto) {
+  const c = await leggi(String(token), segreto);
+  const p = c && c.inv && c.p ? await uno("profili", String(c.p)) : null;
+  if (!p || !c.k || p.codiceLink !== c.k) return res.status(401).json({ error: "Questo link non vale piu'. Chiedi a Dario di mandartene uno nuovo." });
+  if (p.email && p.email !== c.e) return res.status(409).json({ error: "Questo profilo e' gia' collegato a un altro account. Chiedi a Dario." });
+  const adesso = new Date().toISOString();
+  const prima = await uno("utenti", c.e);
+  const u = { primo: adesso, accessi: 0, ...(prima || {}), email: c.e, nome: p.nome, profilo: p.id, conLink: true, ultimo: adesso };
+  u.accessi = (u.accessi || 0) + 1;
+  if (!p.email) { p.email = c.e; await scrivi("profili", p.id, p); }
+  await scrivi("utenti", c.e, u);
+  await segna(c.e, prima ? "accesso-link" : "primo-accesso-link", { profilo: p.id, nome: p.nome });
+  res.setHeader("Set-Cookie", cookieDaMettere(await firma({ e: c.e, n: p.nome }, segreto)));
+  return res.status(200).json({ email: c.e, nome: p.nome, admin: false });
 }
 
 async function aggiungiCrediti(chi, corpo, res) {
