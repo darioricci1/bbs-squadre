@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.7.0
+// VERSION: 1.8.0
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -23,7 +23,8 @@
 // (l'id del workspace, dalla console Anthropic: Settings > Workspaces).
 
 import Anthropic from "@anthropic-ai/sdk";
-import { esigiAccesso, corpoDi, nuovoId, tutti, uno, scrivi, conta, correggi, segna, aziendaPer, creditiDi, chiaveCrediti, CREDITI_BASE, DIECI_ANNI } from "../lib/bbs.js";
+import { esigiAccesso, corpoDi, nuovoId, tutti, uno, scrivi, ultimi, conta, correggi, segna, aziendaPer, creditiDi, chiaveCrediti, CREDITI_BASE, DIECI_ANNI } from "../lib/bbs.js";
+import { lavoriDi, presentazioneDa } from "../lib/lavori.js";
 
 export const config = { maxDuration: 300 };
 
@@ -47,85 +48,79 @@ function costoDi(modello, u) {
   return { usd: Math.round(usd * 10000) / 10000, input, output, cache: letta + scritta, modello: modello || "", listino: !!chiave };
 }
 
-const SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["idee"],
-  properties: {
-    idee: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["titolo", "fascia", "sintesi", "problema", "soluzione", "clienti", "modello", "settore",
-          "ricavi", "perche_noi", "ruoli", "compagni", "rischi", "primo_passo", "punteggio",
-          "fonte_idea", "differenziazione", "scalabilita", "replicabilita", "sostenibilita",
-          "startup_innovativa", "valutazione", "criteri_startup", "punto_debole", "domande_di_partenza", "slide"],
-        properties: {
-          titolo: { type: "string" },
-          fascia: { type: "string", enum: ["top", "riserva"] },
-          sintesi: { type: "string" },
-          problema: { type: "string" },
-          soluzione: { type: "string" },
-          clienti: { type: "string" },
-          modello: { type: "string", enum: ["B2B", "B2C", "B2B2C"] },
-          settore: { type: "string" },
-          ricavi: { type: "string" },
-          perche_noi: { type: "string" },
-          ruoli: {
-            type: "array",
-            items: {
-              type: "object", additionalProperties: false, required: ["id", "ruolo"],
-              properties: { id: { type: "string" }, ruolo: { type: "string" } },
-            },
-          },
-          compagni: {
-            type: "array",
-            items: {
-              type: "object", additionalProperties: false, required: ["id", "motivo"],
-              properties: { id: { type: "string" }, motivo: { type: "string" } },
-            },
-          },
-          rischi: { type: "string" },
-          primo_passo: { type: "string" },
-          punteggio: { type: "integer" },
-          fonte_idea: { type: "string", enum: ["trend 5-10 anni", "cosa manca", "bisogno di un founder", "modello estero da adattare", "competenza del team"] },
-          differenziazione: { type: "string" },
-          scalabilita: { type: "string" },
-          replicabilita: { type: "string" },
-          sostenibilita: { type: "string" },
-          startup_innovativa: {
-            type: "object", additionalProperties: false, required: ["requisito", "come"],
-            properties: {
-              requisito: { type: "string", enum: ["ricerca e sviluppo 15%", "personale qualificato", "brevetto o software registrato"] },
-              come: { type: "string" },
-            },
-          },
-          criteri_startup: {
-            type: "object", additionalProperties: false, required: ["innovazione", "scalabilita", "replicabilita", "sostenibilita"],
-            properties: { innovazione: { type: "integer" }, scalabilita: { type: "integer" }, replicabilita: { type: "integer" }, sostenibilita: { type: "integer" } },
-          },
-          punto_debole: { type: "string" },
-          domande_di_partenza: {
-            type: "object", additionalProperties: false, required: ["fra_5_10_anni", "cosa_manca", "bisogno_latente", "chi_lo_fa_gia"],
-            properties: { fra_5_10_anni: { type: "string" }, cosa_manca: { type: "string" }, bisogno_latente: { type: "string" }, chi_lo_fa_gia: { type: "string" } },
-          },
-          valutazione: {
-            type: "object", additionalProperties: false, required: ["originalita", "fattibilita", "scalabilita_investibilita"],
-            properties: { originalita: { type: "integer" }, fattibilita: { type: "integer" }, scalabilita_investibilita: { type: "integer" } },
-          },
-          slide: {
-            type: "array",
-            items: {
-              type: "object", additionalProperties: false, required: ["titolo", "punti"],
-              properties: { titolo: { type: "string" }, punti: { type: "array", items: { type: "string" } } },
-            },
-          },
-        },
-      },
+// Tutti i campi di un'idea. La generazione lavora in due passi per spendere
+// meno: il primo propone 5 idee in forma breve (CAMPI_BREVI), il secondo
+// approfondisce solo l'idea che interessa (CAMPI_DETTAGLIO). Il testo scritto
+// da Claude e' la voce piu' cara, e cosi' si scrive per esteso solo cio' che
+// qualcuno leggera' davvero.
+const CAMPI = {
+  titolo: { type: "string" },
+  fascia: { type: "string", enum: ["top", "riserva"] },
+  sintesi: { type: "string" },
+  problema: { type: "string" },
+  soluzione: { type: "string" },
+  clienti: { type: "string" },
+  modello: { type: "string", enum: ["B2B", "B2C", "B2B2C"] },
+  settore: { type: "string" },
+  ricavi: { type: "string" },
+  perche_noi: { type: "string" },
+  ruoli: {
+    type: "array",
+    items: {
+      type: "object", additionalProperties: false, required: ["id", "ruolo"],
+      properties: { id: { type: "string" }, ruolo: { type: "string" } },
+    },
+  },
+  compagni: {
+    type: "array",
+    items: {
+      type: "object", additionalProperties: false, required: ["id", "motivo"],
+      properties: { id: { type: "string" }, motivo: { type: "string" } },
+    },
+  },
+  rischi: { type: "string" },
+  primo_passo: { type: "string" },
+  punteggio: { type: "integer" },
+  fonte_idea: { type: "string", enum: ["trend 5-10 anni", "cosa manca", "bisogno di un founder", "modello estero da adattare", "competenza del team"] },
+  differenziazione: { type: "string" },
+  scalabilita: { type: "string" },
+  replicabilita: { type: "string" },
+  sostenibilita: { type: "string" },
+  startup_innovativa: {
+    type: "object", additionalProperties: false, required: ["requisito", "come"],
+    properties: {
+      requisito: { type: "string", enum: ["ricerca e sviluppo 15%", "personale qualificato", "brevetto o software registrato"] },
+      come: { type: "string" },
+    },
+  },
+  criteri_startup: {
+    type: "object", additionalProperties: false, required: ["innovazione", "scalabilita", "replicabilita", "sostenibilita"],
+    properties: { innovazione: { type: "integer" }, scalabilita: { type: "integer" }, replicabilita: { type: "integer" }, sostenibilita: { type: "integer" } },
+  },
+  punto_debole: { type: "string" },
+  domande_di_partenza: {
+    type: "object", additionalProperties: false, required: ["fra_5_10_anni", "cosa_manca", "bisogno_latente", "chi_lo_fa_gia"],
+    properties: { fra_5_10_anni: { type: "string" }, cosa_manca: { type: "string" }, bisogno_latente: { type: "string" }, chi_lo_fa_gia: { type: "string" } },
+  },
+  valutazione: {
+    type: "object", additionalProperties: false, required: ["originalita", "fattibilita", "scalabilita_investibilita"],
+    properties: { originalita: { type: "integer" }, fattibilita: { type: "integer" }, scalabilita_investibilita: { type: "integer" } },
+  },
+  slide: {
+    type: "array",
+    items: {
+      type: "object", additionalProperties: false, required: ["titolo", "punti"],
+      properties: { titolo: { type: "string" }, punti: { type: "array", items: { type: "string" } } },
     },
   },
 };
+const CAMPI_BREVI = ["titolo", "fascia", "sintesi", "problema", "soluzione", "clienti", "modello", "settore",
+  "perche_noi", "ruoli", "compagni", "punteggio", "fonte_idea", "criteri_startup", "punto_debole"];
+const CAMPI_DETTAGLIO = ["differenziazione", "ricavi", "scalabilita", "replicabilita", "sostenibilita",
+  "startup_innovativa", "valutazione", "domande_di_partenza", "rischi", "primo_passo", "slide"];
+const oggetto = (campi) => ({ type: "object", additionalProperties: false, required: campi, properties: Object.fromEntries(campi.map((c) => [c, CAMPI[c]])) });
+const SCHEMA = { type: "object", additionalProperties: false, required: ["idee"], properties: { idee: { type: "array", items: oggetto(CAMPI_BREVI) } } };
+const SCHEMA_DETTAGLIO = oggetto(CAMPI_DETTAGLIO);
 
 // Le istruzioni seguono le linee guida date da Claudio Venezia (BBS) il
 // 24 settembre 2026: cos'e' una startup, cosa va consegnato il 1 novembre,
@@ -156,36 +151,54 @@ Claudio Venezia chiede di partire da queste domande: ogni idea deve rispondere a
 Parti da una di queste domande e dichiarala in "fonte_idea": come evolvera' questo settore fra 5-10 anni e cosa servira'; cosa manca oggi; quale bisogno personale, anche latente, ha qualcuno del gruppo (molte startup nascono cosi'); quale modello che funziona all'estero (Silicon Valley, Y Combinator, TechCrunch) si puo' adattare; quale competenza rara del team apre un mercato. Le due cause principali di fallimento sono un prodotto senza un bisogno di mercato e una struttura che non si sostiene: evitale.
 
 ## I profili
-Ricevi i profili delle persone: percorso professionale da LinkedIn, azienda con eventuali dati di bilancio AIDA, passioni e preferenze scritte da loro. Ogni idea deve far leva in modo concreto su competenze, settori e contatti di chi e' nel gruppo (scrivi in "perche_noi" cosa porta ciascuno) e rispettare le preferenze dichiarate (B2B/B2C, settori, cose che non vogliono fare). Niente idee generiche ("un'app con l'AI per...") senza un vantaggio specifico del team. Se nelle indicazioni c'e' uno spunto (per esempio un'azienda di Y Combinator), usalo come ispirazione da adattare al contesto italiano ed europeo, non da copiare.
+Ricevi i profili delle persone: percorso professionale da LinkedIn con, per ogni azienda dove hanno lavorato, il settore e cosa fa (dal sito dell'azienda), l'azienda attuale con eventuali dati di bilancio AIDA, passioni e preferenze scritte da loro. Usa settori e aziende per capire quali mercati, clienti e processi ognuno conosce davvero. Ogni idea deve far leva in modo concreto su competenze, settori e contatti di chi e' nel gruppo (scrivi in "perche_noi" cosa porta ciascuno) e rispettare le preferenze dichiarate (B2B/B2C, settori, cose che non vogliono fare). Niente idee generiche ("un'app con l'AI per...") senza un vantaggio specifico del team. Se nelle indicazioni c'e' uno spunto (per esempio un'azienda di Y Combinator), usalo come ispirazione da adattare al contesto italiano ed europeo, non da copiare.
 
-## Cosa produrre
-Esattamente 5 idee in italiano, dalla migliore: le prime 3 con fascia "top" (affini fra loro, pronte per il 1 novembre), le ultime 2 con fascia "riserva" (valide ma piu' deboli o piu' rischiose, anche in ambiti diversi).
-Scrivi asciutto: ogni campo di testo in una o due frasi, senza ripetere in un campo cio' che hai gia' detto in un altro. Le idee di riserva possono essere piu' brevi delle top.
+## Cosa produrre: due passi
+Il lavoro si fa in due passi e il messaggio dice quale stai facendo.
+
+PASSO 1, PROPOSTA. Esattamente 5 idee in italiano, dalla migliore: le prime 3 con fascia "top" (affini fra loro, pronte per il 1 novembre), le ultime 2 con fascia "riserva" (valide ma piu' deboli o piu' rischiose, anche in ambiti diversi). E' una proposta breve: ogni campo di testo in una o due frasi, senza ripetere in un campo cio' che hai gia' detto in un altro. Scegli le idee pensando gia' alle domande di partenza e ai quattro criteri, anche se i dettagli li scriverai solo al passo 2.
+- "punteggio": il tuo giudizio complessivo da 1 a 10 per questo team.
+- In "ruoli" assegna a ciascuna persona del gruppo un ruolo nel progetto, con il suo id.
+
+PASSO 2, APPROFONDIMENTO. Ricevi una delle idee del passo 1 e scrivi i dettagli, coerenti con quello che l'idea dice gia':
 - "differenziazione": come il bisogno e' risolto oggi e cosa cambia con questa idea.
 - "scalabilita", "replicabilita", "sostenibilita": una o due frasi concrete ciascuna, non generiche, coerenti con i voti in "criteri_startup".
-- "valutazione": da 1 a 10 come la vedrebbe la giuria su originalita', fattibilita', scalabilita' e investibilita'. Sii severo: un 8 deve essere meritato. "punteggio" e' il tuo giudizio complessivo per questo team.
+- "valutazione": da 1 a 10 come la vedrebbe la giuria su originalita', fattibilita', scalabilita' e investibilita'. Sii severo: un 8 deve essere meritato.
+- "domande_di_partenza": le risposte alle quattro domande descritte sopra.
 - "slide": 2 o 3 slide per la consegna del 1 novembre, ciascuna con un titolo e 3-5 punti brevi (problema, soluzione, perche' questo team; niente numeri inventati).
 - "ricavi": come potrebbe guadagnare, in modo plausibile, senza cifre.
-- In "ruoli" assegna a ciascuna persona del gruppo un ruolo nel progetto, con il suo id.
+- "rischi" e "primo_passo": una o due frasi ciascuno; il primo passo deve essere concreto e fattibile in poche settimane.
 
 ## La squadra: 7 o 8 persone
 I partecipanti sono circa 60 e i gruppi al massimo 8, quindi ogni squadra deve avere 7 o 8 persone. Nel messaggio trovi quante persone ha gia' il gruppo e quante ne devi proporre ("COMPAGNI DA PROPORRE"). In "compagni" metti esattamente quel numero di persone, scelte dall'elenco del master fra chi non e' nel gruppo, per completare la squadra a 7-8: scegli chi copre le competenze che mancano per quell'idea (finanza, tecnologia, vendite, marketing, operations, settore) e chi ha passioni o preferenze compatibili; per ognuno scrivi il motivo. Poi assegna un ruolo anche a loro in "ruoli". Usa solo id presenti nei dati.`;
 
-function riassunto(p, aziende, lungo) {
+// Una persona in poche righe. "lungo" per chi e' nel gruppo: presentazione,
+// ruoli con settore e attivita' di ogni azienda, formazione. Breve per
+// l'elenco di tutti: ruolo attuale e settori dove ha lavorato.
+function riassunto(p, aziende, siti, lungo) {
   const az = aziendaPer(p.azienda, aziende);
   const x = p.extra || {};
+  const lavori = lavoriDi(p, siti);
+  const settori = [...new Set(lavori.map((l) => l.info.settore).filter(Boolean))].slice(0, 4);
+  const presentazione = presentazioneDa(p.esperienze);
   const righe = [
     `id: ${p.id}`,
     `nome: ${p.nome}`,
     p.titolo && `titolo: ${p.titolo}`,
     (p.ruolo || p.azienda) && `lavoro: ${[p.ruolo, p.azienda].filter(Boolean).join(" @ ")}`,
     az && `azienda (AIDA): ${[az.settore || az.ateco, az.fatturato && "fatturato " + az.fatturato, az.dipendenti && az.dipendenti + " dipendenti", az.citta].filter(Boolean).join(", ")}`,
+    !lungo && settori.length && `settori dove ha lavorato: ${settori.join("; ")}`,
     p.citta && `citta': ${p.citta}`,
     p.competenze && `competenze: ${p.competenze}`,
-    lungo && p.esperienze && `esperienze: ${String(p.esperienze).slice(0, 2500)}`,
-    lungo && p.formazione && `formazione: ${String(p.formazione).slice(0, 600)}`,
-    // il testo del PDF ripete le esperienze: serve solo quando mancano
+    lungo && presentazione && `presentazione: ${presentazione.slice(0, 450)}`,
+    // per ogni lavoro: cosa fa l'azienda e cosa faceva la persona, in breve
+    lungo && lavori.length && "esperienze:\n" + lavori.slice(0, 6).map((l) => `- ${l.ruolo} @ ${l.info.nome || l.azienda} (${l.periodo.replace(/\s*\(.*\)$/, "")})` +
+      (l.info.settore || l.info.descrizione ? `\n  azienda: ${[l.info.settore, l.info.descrizione].filter(Boolean).join(": ")}` : "") +
+      (l.descrizioneRuolo ? `\n  ruolo: ${l.descrizioneRuolo.slice(0, 220)}` : "")).join("\n"),
+    // se il PDF non si lascia leggere a ruoli, il testo cosi' com'e'
+    lungo && !lavori.length && p.esperienze && `esperienze: ${String(p.esperienze).slice(0, 2500)}`,
     lungo && !p.esperienze && p.linkedinTesto && `dal profilo LinkedIn: ${String(p.linkedinTesto).slice(0, 2500)}`,
+    lungo && p.formazione && `formazione: ${String(p.formazione).slice(0, 600)}`,
     x.passioni && `passioni: ${x.passioni}`,
     x.preferenza && `preferisce: ${x.preferenza}`,
     x.settori && `settori che gli interessano: ${x.settori}`,
@@ -197,6 +210,43 @@ function riassunto(p, aziende, lungo) {
   return righe.join("\n");
 }
 
+// Modello ed effort li sceglie l'amministratore in Regia (tabella
+// impostazioni); se non ha scelto, valgono BBS_MODELLO e "medium".
+export const MODELLI = ["claude-opus-5", "claude-sonnet-5"];
+export const EFFORT = ["low", "medium", "high"];
+export async function impostazioniGenera() {
+  const i = (await uno("impostazioni", "genera").catch(() => null)) || {};
+  return {
+    modello: MODELLI.includes(i.modello) ? i.modello : MODELLO,
+    effort: EFFORT.includes(i.effort) ? i.effort : "medium",
+  };
+}
+
+// Il prompt di sistema e l'elenco di tutti sono uguali per ogni richiesta,
+// passo 1 e passo 2: stanno in cache e si pagano un decimo.
+async function chiamaClaude({ modello, effort }, elenco, testo, schema) {
+  const workspace = (process.env.ANTHROPIC_WORKSPACE_ID || "").trim();
+  const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
+  const conFallback = /^claude-(opus-5|fable)/.test(modello);
+  return client.beta.messages.create({
+    model: modello,
+    max_tokens: 16000,
+    ...(conFallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : {}),
+    thinking: { type: "adaptive" },
+    output_config: { effort, format: { type: "json_schema", schema } },
+    system: [
+      { type: "text", text: SISTEMA },
+      { type: "text", text: "## Elenco di tutti i partecipanti del master\n\n" + elenco, cache_control: { type: "ephemeral" } },
+    ],
+    messages: [{ role: "user", content: testo }],
+  });
+}
+
+function erroreClaude(e) {
+  if (/workspace/i.test(String(e.message))) return [502, "La chiave di Claude su Vercel non e' legata a un workspace: crea una chiave dentro un workspace nella console Anthropic, oppure aggiungi su Vercel ANTHROPIC_WORKSPACE_ID con l'id del workspace, poi ridistribuisci."];
+  return [e instanceof Anthropic.RateLimitError ? 429 : 502, "Claude non ha risposto: " + (e.message || e)];
+}
+
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "Metodo non consentito" });
@@ -205,14 +255,22 @@ export default async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) return res.status(501).json({ error: "Manca ANTHROPIC_API_KEY su Vercel." });
 
   const corpo = corpoDi(req);
-  const modo = corpo.modo === "scopri" ? "scopri" : "gruppo";
-  const note = String(corpo.note || "").slice(0, 1500);
+  const modo = corpo.modo === "scopri" ? "scopri" : corpo.modo === "approfondisci" ? "approfondisci" : "gruppo";
 
   const u = await uno("utenti", chi.email);
-  const [profili, aziende] = await Promise.all([tutti("profili"), tutti("aziende")]);
+  const [profili, aziende, siti, imp] = await Promise.all([tutti("profili"), tutti("aziende"), tutti("siti"), impostazioniGenera()]);
   const io = u && u.profilo && profili[u.profilo] && profili[u.profilo].email === chi.email ? profili[u.profilo] : null;
   if (!io) return res.status(400).json({ error: "Prima collega il tuo profilo (scheda Il mio profilo)." });
+  // Elenco breve di tutti, sempre nello stesso ordine: e' la parte che va in cache.
+  const elenco = Object.values(profili).sort((a, b) => a.id.localeCompare(b.id)).map((p) => riassunto(p, aziende, siti, false)).join("\n\n");
+  const nomeDi = (id) => (profili[id] && profili[id].nome) || null;
 
+  if (modo === "approfondisci") return approfondisci(chi, corpo, { profili, aziende, siti, imp, elenco }, res);
+
+  const note = String(corpo.note || "").slice(0, 1500);
+  // Motore 2: chi ha gia' un'idea la scrive, e Claude la sviluppa e cerca i
+  // compagni di strada migliori per farla.
+  const miaIdea = modo === "scopri" ? String(corpo.idea || "").trim().slice(0, 1500) : "";
   const scelti = [...new Set((Array.isArray(corpo.persone) ? corpo.persone : []).map(String))]
     .filter((id) => id !== io.id && profili[id]).slice(0, 7);
   if (modo === "gruppo" && !scelti.length) return res.status(400).json({ error: "Scegli almeno una persona con cui lavorare." });
@@ -231,44 +289,36 @@ export default async function handler(req, res) {
 
   const gruppo = [io, ...scelti.map((id) => profili[id])];
   const idGruppo = new Set(gruppo.map((p) => p.id));
-  // Elenco breve di tutti, sempre nello stesso ordine: e' la parte che va in cache.
-  const elenco = Object.values(profili).sort((a, b) => a.id.localeCompare(b.id)).map((p) => riassunto(p, aziende, false)).join("\n\n");
+
+  // Nessuno resta fuori: si conta quante volte ogni persona e' gia' stata
+  // proposta o scelta, e le meno proposte vanno a Claude come candidate per
+  // l'ultimo posto di ogni squadra. Meno una persona e' uscita, piu' sale.
+  const esposizione = Object.fromEntries(Object.keys(profili).map((id) => [id, 0]));
+  for (const x of await ultimi("generazioni", 1000).catch(() => [])) {
+    for (const id of x.persone || []) if (id in esposizione) esposizione[id]++;
+    for (const i of x.idee || []) for (const c of i.compagni || []) if (c.id in esposizione) esposizione[c.id]++;
+  }
+  const pocoProposte = Object.keys(esposizione).filter((id) => !idGruppo.has(id))
+    .sort((a, b) => esposizione[a] - esposizione[b] || Math.random() - 0.5).slice(0, 12);
 
   // Le squadre sono di 7 o 8: si propongono le persone che mancano.
   const daMin = Math.max(0, 7 - gruppo.length), daMax = Math.max(0, 8 - gruppo.length);
   const testo = [
+    "PASSO 1, PROPOSTA.",
     `MODO: ${modo === "gruppo" ? "gruppo (le persone hanno gia' scelto di lavorare insieme)" : "scopri (una persona cerca idee e compagni di squadra)"}`,
     `IL GRUPPO HA GIA' ${gruppo.length} ${gruppo.length === 1 ? "PERSONA" : "PERSONE"}. COMPAGNI DA PROPORRE PER OGNI IDEA: ${daMin === daMax ? daMax : `da ${daMin} a ${daMax}`}${daMax === 0 ? " (la squadra e' gia' completa: lascia vuoto)" : ""}.`,
     "",
     "## Gruppo",
-    ...gruppo.map((p) => riassunto(p, aziende, true) + "\n"),
+    ...gruppo.map((p) => riassunto(p, aziende, siti, true) + "\n"),
     "Gli altri partecipanti, fra cui scegliere i compagni da proporre, sono tutti quelli dell'elenco del master tranne le persone del gruppo.",
+    daMax > 0 ? `\n## Chi e' stato proposto poco finora\nPerche' nessuno resti fuori dalle squadre: in ogni idea l'ULTIMO compagno proposto deve essere una di queste persone, la piu' compatibile con quell'idea (anche se non e' perfetta, trova il ruolo in cui puo' essere utile e scrivilo nel motivo). Sono in ordine: le prime sono state proposte meno volte, a parita' di compatibilita' preferiscile. Varia la persona fra un'idea e l'altra.\n${pocoProposte.map((id) => `- ${id} ${profili[id].nome} (proposta ${esposizione[id]} volte)`).join("\n")}` : "",
     note ? `## Indicazioni di chi chiede\n${note}` : "",
+    miaIdea ? `## L'idea che ha gia' chi chiede\n${miaIdea}\n\nQuesta persona ha gia' un'idea e cerca i compagni di strada migliori per realizzarla. Le 3 idee top sono questa idea sviluppata al meglio e due sue varianti vicine (un altro cliente, un altro modello di ricavo, un altro mercato); le 2 di riserva possono essere alternative diverse. Valutala con la stessa severita' sui quattro criteri: se ha un punto debole, dillo in "punto_debole" e proponi come rafforzarla. Per ogni idea scegli i compagni che servono davvero a realizzarla.` : "",
   ].join("\n");
 
-  const workspace = (process.env.ANTHROPIC_WORKSPACE_ID || "").trim();
-  const client = new Anthropic(workspace ? { defaultHeaders: { "anthropic-workspace-id": workspace } } : {});
   let risposta;
-  try {
-    risposta = await client.beta.messages.create({
-      model: MODELLO,
-      max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      thinking: { type: "adaptive" },
-      output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-      system: [
-        { type: "text", text: SISTEMA },
-        { type: "text", text: "## Elenco di tutti i partecipanti del master\n\n" + elenco, cache_control: { type: "ephemeral" } },
-      ],
-      messages: [{ role: "user", content: testo }],
-    });
-  } catch (e) {
-    await restituisci();
-    const stato = e instanceof Anthropic.RateLimitError ? 429 : 502;
-    if (/workspace/i.test(String(e.message))) return res.status(502).json({ error: "La chiave di Claude su Vercel non e' legata a un workspace: crea una chiave dentro un workspace nella console Anthropic, oppure aggiungi su Vercel ANTHROPIC_WORKSPACE_ID con l'id del workspace, poi ridistribuisci." });
-    return res.status(stato).json({ error: "Claude non ha risposto: " + (e.message || e) });
-  }
+  try { risposta = await chiamaClaude(imp, elenco, testo, SCHEMA); }
+  catch (e) { await restituisci(); const [st, msg] = erroreClaude(e); return res.status(st).json({ error: msg }); }
   if (risposta.stop_reason === "refusal" || risposta.stop_reason === "max_tokens") await restituisci();
   if (risposta.stop_reason === "refusal") return res.status(422).json({ error: "Claude ha rifiutato questa richiesta. Prova a cambiare le indicazioni." });
   if (risposta.stop_reason === "max_tokens") return res.status(502).json({ error: "Risposta troppo lunga e tagliata: riprova." });
@@ -277,17 +327,67 @@ export default async function handler(req, res) {
   let idee;
   try { idee = JSON.parse(blocco.text).idee; } catch { await restituisci(); return res.status(502).json({ error: "Risposta di Claude non leggibile: riprova." }); }
 
-  const nomeDi = (id) => (profili[id] && profili[id].nome) || null;
   for (const i of idee) {
     i.ruoli = (i.ruoli || []).filter((r) => nomeDi(r.id)).map((r) => ({ ...r, nome: nomeDi(r.id) }));
     i.compagni = (i.compagni || []).filter((c) => nomeDi(c.id) && !idGruppo.has(c.id)).slice(0, daMax).map((c) => ({ ...c, nome: nomeDi(c.id) }));
   }
 
   const costo = costoDi(risposta.model, risposta.usage);
-  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idee, modello: risposta.model, costo };
+  const g = { id: nuovoId("g"), quando: new Date().toISOString(), chi: chi.email, autore: io.id, autoreNome: io.nome, modo, persone: scelti, note, idea: miaIdea || undefined, idee, modello: risposta.model, effort: imp.effort, costo, costoProposta: costo };
   await scrivi("generazioni", g.id, g);
   await segna(chi.email, "generazione", { modo, persone: scelti, titoli: idee.map((i) => i.titolo), usd: costo.usd });
   const perUtente = { ...g, crediti: chi.admin ? null : await creditiDi(chi.email, u) };
-  if (!chi.adminVero) delete perUtente.costo;   // i costi li vede solo l'amministratore
+  if (!chi.adminVero) { delete perUtente.costo; delete perUtente.costoProposta; }   // i costi li vede solo l'amministratore
   return res.status(200).json(perUtente);
+}
+
+// Passo 2: i dettagli di una sola idea (differenziazione, criteri spiegati,
+// domande di partenza, slide...). Non costa crediti: fa parte della
+// generazione. Ogni idea si approfondisce una volta, poi resta salvata.
+async function approfondisci(chi, corpo, { profili, aziende, siti, imp, elenco }, res) {
+  const g = await uno("generazioni", String(corpo.generazione || ""));
+  if (!g || (g.chi !== chi.email && !chi.adminVero)) return res.status(404).json({ error: "Generazione non trovata." });
+  const n = Number(corpo.indice);
+  const idea = g.idee && g.idee[n];
+  if (!idea) return res.status(404).json({ error: "Idea non trovata." });
+  const pulita = (x) => { if (!chi.adminVero) { const { costo, costoProposta, ...r } = x; return r; } return x; };
+  if (idea.approfondita) return res.status(200).json(pulita(g));
+
+  const gruppo = [g.autore, ...(g.persone || [])].map((id) => profili[id]).filter(Boolean);
+  const breve = Object.fromEntries(Object.entries(idea).filter(([k]) => ["titolo", "fascia", "sintesi", "problema", "soluzione", "clienti", "modello", "settore", "perche_noi", "fonte_idea", "criteri_startup", "punto_debole"].includes(k)));
+  breve.ruoli = (idea.ruoli || []).map((r) => `${r.nome}: ${r.ruolo}`);
+  breve.compagni_proposti = (idea.compagni || []).map((c) => `${c.nome}: ${c.motivo}`);
+  const testo = [
+    "PASSO 2, APPROFONDIMENTO dell'idea qui sotto.",
+    "",
+    // qui basta la forma breve: l'idea dice gia' chi porta cosa
+    "## Gruppo",
+    ...gruppo.map((p) => riassunto(p, aziende, siti, false) + "\n"),
+    g.note ? `## Indicazioni di chi chiede\n${g.note}\n` : "",
+    g.idea ? `## L'idea che aveva gia' chi chiede\n${g.idea}\n` : "",
+    "## L'idea da approfondire",
+    JSON.stringify(breve, null, 1),
+  ].join("\n");
+
+  let risposta;
+  try { risposta = await chiamaClaude(imp, elenco, testo, SCHEMA_DETTAGLIO); }
+  catch (e) { const [st, msg] = erroreClaude(e); return res.status(st).json({ error: msg }); }
+  if (risposta.stop_reason === "refusal") return res.status(422).json({ error: "Claude ha rifiutato questa richiesta." });
+  if (risposta.stop_reason === "max_tokens") return res.status(502).json({ error: "Risposta troppo lunga e tagliata: riprova." });
+  let dettagli;
+  try { dettagli = JSON.parse(risposta.content.find((b) => b.type === "text").text); }
+  catch { return res.status(502).json({ error: "Risposta di Claude non leggibile: riprova." }); }
+
+  // Si rilegge la generazione appena prima di scrivere: se nel frattempo e'
+  // stata approfondita un'altra idea, non la si perde.
+  const fresca = (await uno("generazioni", g.id)) || g;
+  const costo = costoDi(risposta.model, risposta.usage);
+  Object.assign(fresca.idee[n], dettagli, { approfondita: true, costoApprofondimento: costo.usd });
+  const somma = (a, b) => Math.round(((Number(a) || 0) + (Number(b) || 0)) * 10000) / 10000;
+  fresca.costo = { ...(fresca.costo || {}), usd: somma(fresca.costo && fresca.costo.usd, costo.usd),
+    input: (fresca.costo?.input || 0) + costo.input, output: (fresca.costo?.output || 0) + costo.output, cache: (fresca.costo?.cache || 0) + costo.cache };
+  fresca.approfondimenti = (fresca.approfondimenti || 0) + 1;
+  await scrivi("generazioni", fresca.id, fresca);
+  await segna(chi.email, "approfondimento", { generazione: g.id, titolo: idea.titolo, usd: costo.usd });
+  return res.status(200).json(pulita(fresca));
 }

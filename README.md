@@ -11,16 +11,25 @@ Chi usa la piattaforma vede due schede.
 - **Bacheca** (la home). In alto i post del master: ognuno contiene da 1 a 5
   idee, scritte a mano o generate, ed e' visibile a tutti oppure solo alle
   persone scelte da chi lo pubblica. Ci si candida con «Voglio partecipare» e
-  l'autore accoglie chi vuole nella squadra. Sotto ci sono i due motori:
-  - **motore 1**: idee per me e le persone che scelgo (campo con
-    completamento del nome, oppure «Sfoglia tutte le persone»);
-  - **motore 2**: idee per me, con i compagni suggeriti da Claude.
+  l'autore accoglie chi vuole nella squadra. Sotto si generano le idee,
+  partendo da una di tre strade:
+  - **ho un'idea** e cerco le persone giuste: la scrivo, Claude la sviluppa
+    (con due varianti e due alternative) e propone i compagni di strada;
+  - **ho delle persone** ma non un'idea: le scelgo (elenco con caselle o
+    «Sfoglia tutte le persone») e Claude genera idee compatibili;
+  - **proposta completa**: Claude parte dal mio profilo e propone idee e
+    squadre.
+  Le squadre sono di 7 o 8: Claude completa quelle piu' piccole. Perche'
+  nessuno resti fuori, l'ultimo posto di ogni squadra va a una delle persone
+  proposte meno volte finora (la piu' compatibile fra loro).
   Le istruzioni a Claude (`SISTEMA` in `api/genera.js`) seguono le linee
   guida del 24 settembre 2026: startup innovativa, scalabile, replicabile e
   sostenibile, requisito di startup innovativa, criteri della giuria, 3 idee
   grezze e affini per il 1 novembre con la bozza di 2-3 slide ciascuna.
-  Ogni generazione propone 5 idee (3 top e 2 di riserva) e costa **1
-  credito**: ognuno ne ha 10 (`BBS_CREDITI`), l'amministratore ne aggiunge da
+  Ogni generazione propone 5 idee brevi (3 top e 2 di riserva) e costa **1
+  credito**; su ogni idea «Approfondisci» fa scrivere a Claude domande di
+  partenza, criteri spiegati e bozza delle slide (compreso nel credito).
+  Ognuno ha 10 crediti (`BBS_CREDITI`), l'amministratore ne aggiunge da
   Statistiche. Il credito si restituisce se la generazione fallisce. Le idee
   si selezionano (da 1 a 5) e si condividono con un clic.
 - **Spunti**: circa 3.500 aziende di Y Combinator (attive o acquisite dal
@@ -32,7 +41,10 @@ Chi usa la piattaforma vede due schede.
   raccolte fondi dai feed RSS pubblici (`api/spunti-tc.js`, in cache per
   un'ora), con ricerca e filtro per tema; anche qui «Usa come spunto».
 - **Il mio profilo**: dati LinkedIn (anche dal PDF «Salva come PDF») piu'
-  passioni, preferenza B2B/B2C, settori, ruolo nel team, idee, vincoli.
+  passioni, preferenza B2B/B2C, settori, ruolo nel team, idee, vincoli. Sotto,
+  **le mie esperienze** una per una: per ogni lavoro cosa fa l'azienda
+  (sito, settore, descrizione, condivisi con i colleghi che ci hanno
+  lavorato) e cosa faceva la persona (dal testo del PDF), tutto modificabile.
 
 Al primo accesso il profilo si collega da solo se il nome Google corrisponde
 a un solo profilo libero; se no la prima schermata chiede «Chi sei?» con
@@ -45,6 +57,15 @@ Solo per l'amministratore (`AMMINISTRATORI`):
 - **Regia**: tutte le idee generate da tutti, chi ha scelto chi, i compagni
   suggeriti da Claude, e ogni post con chi e' stato invitato, chi e' in
   squadra e chi si e' candidato. Filtro per persona o idea.
+- **Aziende**: tutte le aziende dove hanno lavorato le persone. Sito,
+  settore e attivita' li ha cercati Claude una volta sola sui siti
+  (`lib/siti-trovati.js`, con grado di fiducia); quelle senza sito o con un
+  dubbio stanno in cima, da sistemare a mano, con «Leggi dal sito» che
+  riempie la descrizione dalla pagina (senza costi). Si modificano anche le
+  descrizioni dei ruoli. Le correzioni vanno nella tabella `siti`.
+- **Regia → Costi e modello**: modello (Opus 5 o Sonnet 5) ed effort delle
+  generazioni, con il costo medio reale di proposta e approfondimento e la
+  proiezione su 500 generazioni.
 - **Statistiche**: coppie che si formano, persone piu' cercate, settori,
   B2B/B2C, accessi, crediti per persona (con «+5 crediti»), registro,
   esportazione CSV e JSON.
@@ -66,7 +87,7 @@ lib/                accesso Google, cookie firmato, database Neon, funzioni comu
 ```
 
 I dati stanno su Postgres (Neon): le tabelle `profili`, `aziende`, `bacheca`,
-`utenti`, `generazioni`, `eventi` e `contatori` si creano da sole alla prima
+`utenti`, `generazioni`, `siti`, `impostazioni`, `eventi` e `contatori` si creano da sole alla prima
 richiesta (vedi `lib/db.js`). Nel repo, che è pubblico, non c'è nessun dato
 delle persone. Le funzioni girano a Francoforte (`vercel.json`), vicino al
 database.
@@ -93,10 +114,15 @@ Se c'è l'email, al primo accesso con quell'account il profilo si collega da sol
 
 ## Costi delle generazioni
 
-Ogni generazione chiama Claude una volta; il costo si legge in Regia. Per
-tenerlo basso: l'elenco breve di tutti i partecipanti sta nel prompt di
-sistema con la cache dei prompt (chi genera entro 5 minuti da un altro paga
-quella parte un decimo), del gruppo si mandano le esperienze una volta sola e
-tagliate, e Claude scrive i campi in modo asciutto. La voce che pesa di piu'
-e' il testo scritto da Claude: per risparmiare ancora si puo' mettere
-`BBS_MODELLO=claude-sonnet-5` su Vercel (circa il 60% in meno a token).
+La generazione lavora in due passi. Il passo 1 propone 5 idee brevi (1
+credito); il passo 2 approfondisce solo le idee che qualcuno apre. Il testo
+scritto da Claude e' la voce piu' cara, e cosi' si scrive per esteso solo
+quello che verra' letto. Il prompt di sistema e l'elenco breve di tutti i
+partecipanti sono uguali per ogni richiesta e stanno nella cache dei prompt
+(chi genera entro 5 minuti da un altro paga quella parte un decimo). Le
+informazioni sulle aziende si cercano una volta sola e si salvano: a ogni
+generazione aggiungono poche righe di testo gia' pronte.
+
+Modello ed effort si scelgono in Regia → Costi e modello, dove c'e' anche il
+costo medio reale. `BBS_MODELLO` resta il modello di partenza se in Regia non
+si e' scelto nulla.

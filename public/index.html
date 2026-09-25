@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Squadre BBS</title>
+<link rel="icon" type="image/png" href="/logo-bbs.png">
 <meta name="robots" content="noindex">
 <!--
   public/index.html
@@ -32,7 +33,9 @@
   a{color:var(--accento)}
   header{position:sticky;top:0;z-index:5;background:var(--carta);border-bottom:1px solid var(--bordo)}
   .barra{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .marchio{font-weight:700;letter-spacing:-.01em;font-size:17px}
+  .marchio{font-weight:700;letter-spacing:-.01em;font-size:17px;display:flex;align-items:center;gap:8px}
+  .marchio img{width:32px;height:32px;display:block}
+  @media (max-width:760px){.marchio small{display:none}}
   .marchio small{color:var(--grigio);font-weight:500;font-size:12px;margin-left:6px}
   nav{display:flex;gap:4px;flex-wrap:wrap;flex:1}
   nav button{background:none;border:0;padding:7px 11px;border-radius:8px;color:var(--grigio);font:inherit;cursor:pointer}
@@ -163,6 +166,23 @@
   @media (max-width:760px){.filtri-spunti,.filtri-spunti.due{grid-template-columns:1fr}.criterio{grid-template-columns:110px 1fr 24px}}
   .spunto{display:flex;flex-direction:column;gap:6px}
   .spunto-uno{font-weight:600}
+  .lavoro{border-top:1px solid var(--bordo);padding:12px 0}
+  .lavoro:first-of-type{border-top:0}
+  .lavoro .due{gap:10px}
+  .lavoro textarea{min-height:64px}
+  .stato-az{font-size:12px;padding:2px 8px;border-radius:99px}
+  .stato-az.mancante{background:#fde8e8;color:#b42318}
+  .stato-az.dubbio{background:var(--ambra-chiaro);color:var(--ambra)}
+  .stato-az.trovata,.stato-az.verificata{background:var(--verde-chiaro);color:var(--verde)}
+  .stato-az.ignorata{background:var(--sfondo);color:var(--grigio);border:1px solid var(--bordo)}
+  .persona-lavoro{margin:6px 0 0;padding-left:10px;border-left:3px solid var(--bordo)}
+  .approfondisci{margin-top:10px;width:100%}
+  .motore h3{font-size:18px}
+  .percorsi{display:grid;grid-template-columns:repeat(3,1fr);gap:22px 12px;margin:22px 0 12px}
+  @media (max-width:760px){.percorsi{grid-template-columns:1fr}}
+  .percorso{position:relative;text-align:left;background:var(--carta,#fff);border:2px solid var(--bordo);border-radius:14px;padding:22px 16px 14px;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px}
+  .percorso:hover{border-color:var(--accento)}
+  .percorso.scelto{border-color:var(--accento);background:var(--accento-chiaro)}
   .fonti{display:inline-flex;border:1px solid var(--bordo);border-radius:99px;padding:3px;margin:0 0 12px;background:var(--sfondo)}
   .fonti button{border:0;background:none;padding:6px 14px;border-radius:99px;cursor:pointer;font:inherit;color:var(--grigio)}
   .fonti button.attiva{background:var(--accento);color:#fff}
@@ -184,7 +204,7 @@
 </head>
 <body>
 <header><div class="barra">
-  <div class="marchio">Squadre BBS <small>project work</small></div>
+  <div class="marchio"><img src="/logo-bbs.png" alt="Bologna Business School">Squadre BBS <small>project work</small></div>
   <nav id="nav"></nav>
   <div class="chi" id="chi"></div>
 </div></header>
@@ -194,7 +214,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.5.0";
+const VERSION = "2.6.0";
 const $main = document.getElementById("main");
 const S = { aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -237,6 +257,7 @@ function porta() {
   document.getElementById("nav").innerHTML = "";
   document.getElementById("chi").innerHTML = "";
   $main.innerHTML = `<div class="porta carta">
+    <img src="/logo-bbs.png" alt="Bologna Business School" style="width:84px;height:84px;display:block;margin:0 auto 10px">
     <h2>Squadre BBS</h2>
     <p class="sotto">Trova con chi fare il project work e genera idee di startup a partire dai profili del master.</p>
     <div id="pulsante"></div><div id="msgPorta"></div>
@@ -261,8 +282,8 @@ function porta() {
 // due motori che generano le idee) e il proprio profilo. L'amministratore ha
 // in piu' Regia e Statistiche; Importa si apre da /#importa.
 const SCHEDE = [["bacheca", "Bacheca"], ["spunti", "Spunti"], ["profilo", "Il mio profilo"]];
-const SCHEDE_ADMIN = [["regia", "Regia"], ["statistiche", "Statistiche"]];
-const SOLO_ADMIN = ["regia", "statistiche", "importa"];
+const SCHEDE_ADMIN = [["regia", "Regia"], ["aziende", "Aziende"], ["statistiche", "Statistiche"]];
+const SOLO_ADMIN = ["regia", "aziende", "statistiche", "importa"];
 
 function disegna() {
   const d = S.dati;
@@ -276,7 +297,7 @@ function disegna() {
     ${d.io.adminVero ? `<button class="btn piccolo" id="modoUtente" title="Usa la piattaforma come un collega qualsiasi">${d.io.admin ? "Vedi come utente" : "Torna amministratore"}</button>` : ""}
     <button class="btn piccolo" id="aiuto" title="Rivedi il tutorial">?</button>
     <span class="solo-largo">${esc(d.io.email)}</span><button class="btn piccolo" id="esci">Esci</button>`;
-  const viste = { bacheca: () => home(false), genera: () => home(true), persone, spunti, profilo: schedaProfilo, regia, statistiche, importa };
+  const viste = { bacheca: () => home(false), genera: () => home(true), persone, spunti, profilo: schedaProfilo, regia, aziende, statistiche, importa };
   (viste[S.scheda] || viste.bacheca)();
   if (S.comeUtente) $main.insertAdjacentHTML("afterbegin", `<div class="avviso info riga" style="margin-top:0">
     <span>Stai usando la piattaforma <b>come un utente qualsiasi</b>: niente Regia, bacheca e crediti come li vedono i colleghi.</span>
@@ -416,7 +437,11 @@ function rigaPersona(p) {
       ${az ? dett("Azienda (AIDA)", [az.settore || az.ateco, az.fatturato && "fatturato " + az.fatturato, az.dipendenti && az.dipendenti + " dipendenti"].filter(Boolean).join(" · ")) : ""}
       ${dett("Competenze", p.competenze)}${dett("Passioni", x.passioni)}${dett("Settori", x.settori)}
       ${dett("Ruolo nel team", x.ruoloNelTeam)}${dett("Cosa cerca", x.cosaCerco)}${dett("Idee", x.ideeMie)}
-      ${dett("Esperienze", (p.esperienze || "").slice(0, 600) + ((p.esperienze || "").length > 600 ? "…" : ""))}
+      ${p.lavori && p.lavori.length ? `<dt>Esperienze</dt><dd>${p.lavori.slice(0, 8).map((l) => `<div class="persona-lavoro"><b>${esc(l.ruolo)}</b> @ ${l.sito ? `<a href="${esc(l.sito)}" target="_blank" rel="noopener">${esc(l.azienda)}</a>` : esc(l.azienda)}
+          <span class="piccolo">${esc(l.periodo.replace(/\s*\(.*\)$/, ""))}${l.settore ? " · " + esc(l.settore) : ""}</span>
+          ${l.descrizioneAzienda ? `<div class="piccolo">${esc(l.descrizioneAzienda)}</div>` : ""}
+          ${l.descrizioneRuolo ? `<div class="piccolo">${esc(l.descrizioneRuolo.slice(0, 280))}${l.descrizioneRuolo.length > 280 ? "…" : ""}</div>` : ""}</div>`).join("")}</dd>`
+        : dett("Esperienze", (p.esperienze || "").slice(0, 600) + ((p.esperienze || "").length > 600 ? "…" : ""))}
       ${dett("Formazione", p.formazione)}
     </dl>` : ""}
   </div>`;
@@ -497,33 +522,47 @@ function testoCrediti() {
 }
 function senzaCrediti() { const c = S.dati.io.crediti; return !!c && c.restano <= 0; }
 
+// Tre strade per generare: dall'idea che hai, dalle persone che hai scelto,
+// oppure solo dal tuo profilo.
+const PERCORSI = [
+  ["idea", "Ho un'idea e vorrei trovare le persone giuste con cui svilupparla", "Scrivi l'idea: Claude la sviluppa e ti propone i compagni di strada migliori."],
+  ["persone", "Ci sono persone con cui mi piacerebbe lavorare, ma non ho ancora un'idea", "Sceglile: Claude genera idee compatibili con i vostri profili."],
+  ["profilo", "Vorrei una proposta sia di idee sia di compagni di squadra", "Claude parte dal tuo profilo e ti propone idee e squadre."],
+];
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-percorso]");
+  if (!b) return;
+  S.percorso = b.dataset.percorso; genera();
+  if (tour) setTimeout(tourMostra, 30);
+});
+
 function genera() {
   const box = sezione("secGenera");
   const io = mio();
   const blocca = !io || S.generando || senzaCrediti();
   box.innerHTML = `<div class="riga"><div><h2>Genera idee</h2>
-      <p class="sotto">Claude legge i profili (LinkedIn, aziende, passioni) e propone cinque idee: le tre migliori e due di riserva. Ogni generazione costa 1 credito.</p></div>
+      <p class="sotto">Claude legge i profili (LinkedIn, aziende dove avete lavorato, passioni) e propone cinque idee in breve: le tre migliori e due di riserva. Su quelle che ti interessano premi <b>Approfondisci</b> per avere domande di partenza, criteri spiegati e bozza delle slide. Ogni generazione costa 1 credito, gli approfondimenti sono compresi.</p></div>
       <span class="spazio"></span><span data-tour="crediti">${testoCrediti()}</span></div>
     ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano qui sotto; se te ne servono altri, chiedi a Dario.</div>' : ""}
-    <div class="due">
-      <div class="carta motore" data-tour="motore1">
-        <div class="motore-n">1</div>
-        <h3>Con le persone che scelgo</h3>
-        <p class="piccolo">Scegli con chi vorresti lavorare: le squadre sono di <b>7 o 8 persone</b>. Se ne scegli meno, Claude propone chi aggiungere per completarla.</p>
+    <p style="margin:4px 0 8px"><b>Da dove parti?</b></p>
+    <div class="percorsi" data-tour="percorsi">${PERCORSI.map(([k, t, sotto], n) => `<button class="percorso ${S.percorso === k ? "scelto" : ""}" data-percorso="${k}">
+      <span class="motore-n">${n + 1}</span><b>${t}</b><span class="piccolo">${sotto}</span></button>`).join("")}</div>
+    ${S.percorso === "idea" ? `<div class="carta motore">
+        <label style="margin-top:0">La tua idea <small>(due o tre righe: cosa, per chi, perché)</small></label>
+        <textarea id="miaIdea" placeholder="Es. una piattaforma che mette in contatto le aziende agricole dell'Emilia con i ristoranti, per vendere l'invenduto">${esc(S.miaIdea || "")}</textarea>
+        <p class="piccolo">Claude la sviluppa (con due varianti vicine e due alternative) e per ognuna ti propone la squadra di 7-8 persone più adatta a realizzarla.</p>
+        <button class="btn primario" id="gIdea" ${blocca || !(S.miaIdea || "").trim() ? "disabled" : ""}>Sviluppa la mia idea e trova i compagni</button></div>` : ""}
+    ${S.percorso === "persone" ? `<div class="carta motore">
+        <p class="piccolo" style="margin-top:0">Scegli con chi vorresti lavorare: Claude genera idee compatibili con i vostri profili. Le squadre sono di <b>7 o 8 persone</b>: se ne scegli meno, propone chi aggiungere per completarla.</p>
         <div id="pickGruppo"></div>
         <p class="piccolo" id="contaGruppo" style="margin:6px 0 0"></p>
         <p class="piccolo" style="margin:6px 0 0"><a href="#" data-scheda="persone">Sfoglia tutte le persone</a></p>
-        <button class="btn primario" id="gGruppo" style="margin-top:12px" ${blocca || !S.scelti.size ? "disabled" : ""}>Genera per il gruppo</button>
-      </div>
-      <div class="carta motore" data-tour="motore2">
-        <div class="motore-n">2</div>
-        <h3>Idee per me, e con chi farle</h3>
-        <p class="piccolo">Parte dal tuo profilo e per ogni idea ti propone una squadra completa di 7-8 persone, scelte fra quelle del master.</p>
-        <button class="btn primario" id="gScopri" style="margin-top:12px" ${blocca ? "disabled" : ""}>Genera idee e compagni</button>
-      </div>
-    </div>
-    <label>Indicazioni in più <small>(facoltativo: un settore, un vincolo, un'idea da cui partire)</small></label>
-    <textarea id="note" placeholder="Es. qualcosa legato al food, B2B, che si possa validare in due mesi">${esc(S.note || "")}</textarea>
+        <button class="btn primario" id="gGruppo" style="margin-top:12px" ${blocca || !S.scelti.size ? "disabled" : ""}>Genera idee per il gruppo</button></div>` : ""}
+    ${S.percorso === "profilo" ? `<div class="carta motore">
+        <p class="piccolo" style="margin-top:0">Claude parte dal tuo profilo (esperienze, aziende, passioni, preferenze) e propone cinque idee; per ognuna ti suggerisce la squadra di 7-8 persone più adatta fra quelle del master.</p>
+        <button class="btn primario" id="gScopri" ${blocca ? "disabled" : ""}>Proponi idee e compagni</button></div>` : ""}
+    ${S.percorso ? `<label>Indicazioni in più <small>(facoltativo: un settore, un vincolo, uno spunto da cui partire)</small></label>
+    <textarea id="note" placeholder="Es. qualcosa legato al food, B2B, che si possa validare in due mesi">${esc(S.note || "")}</textarea>` : ""}
     <div id="msgGen"></div>
     <div id="risultati">${S.ultima ? risultati(S.ultima) : ""}</div>
     ${S.dati.generazioni.filter((g) => !S.ultima || g.id !== S.ultima.id).length ? `<h3 style="margin-top:28px">Le tue generazioni precedenti</h3>
@@ -535,19 +574,28 @@ function genera() {
       ? `Squadra di <b>${n}</b>: completa.`
       : `Squadra di <b>${n}</b> con te: Claude proporrà ${7 - n === 8 - n ? 7 - n : `da ${7 - n} a ${8 - n}`} persone per arrivare a 7-8.`;
   };
-  pickerPersone(document.getElementById("pickGruppo"), S.scelti, () => {
-    const b = document.getElementById("gGruppo");
-    if (b) b.disabled = blocca || !S.scelti.size;
+  const pick = document.getElementById("pickGruppo");
+  if (pick) {
+    pickerPersone(pick, S.scelti, () => {
+      const b = document.getElementById("gGruppo");
+      if (b) b.disabled = blocca || !S.scelti.size;
+      contaGruppo();
+    }, "Clicca per vedere tutti, o scrivi un nome…", 7);
     contaGruppo();
-  }, "Clicca per vedere tutti, o scrivi un nome…", 7);
-  contaGruppo();
-  document.getElementById("note").addEventListener("input", (e) => { S.note = e.target.value; });
-  const vai = (modo) => async () => {
+  }
+  const note = document.getElementById("note");
+  if (note) note.addEventListener("input", (e) => { S.note = e.target.value; });
+  const idea = document.getElementById("miaIdea");
+  if (idea) idea.addEventListener("input", (e) => {
+    S.miaIdea = e.target.value;
+    document.getElementById("gIdea").disabled = blocca || !S.miaIdea.trim();
+  });
+  const vai = (modo, conIdea) => async () => {
     S.generando = true; genera();
     avvisa("msgGen", "Claude sta leggendo i profili e scrivendo le idee: di solito ci vuole meno di un minuto…");
     document.getElementById("msgGen").scrollIntoView({ behavior: "smooth", block: "center" });
     try {
-      const g = await api("", { modo, persone: [...S.scelti], note: S.note || "" }, "/api/genera");
+      const g = await api("", { modo, persone: modo === "gruppo" ? [...S.scelti] : [], note: S.note || "", idea: conIdea ? S.miaIdea || "" : "" }, "/api/genera");
       if (g.crediti) S.dati.io.crediti = g.crediti;
       S.ultima = g;
       S.dati.generazioni.unshift(g);
@@ -558,8 +606,10 @@ function genera() {
       try { S.dati = await api("dati"); } catch {}
     }
   };
-  document.getElementById("gGruppo").onclick = vai("gruppo");
-  document.getElementById("gScopri").onclick = vai("scopri");
+  const bott = (id, f) => { const b = document.getElementById(id); if (b) b.onclick = f; };
+  bott("gGruppo", vai("gruppo"));
+  bott("gScopri", vai("scopri"));
+  bott("gIdea", vai("scopri", true));
   box.querySelectorAll("details[data-gen]").forEach((d) => d.addEventListener("toggle", () => {
     const dentro = d.querySelector("div");
     if (d.open && !dentro.innerHTML) dentro.innerHTML = risultati(S.dati.generazioni.find((g) => g.id === d.dataset.gen), true);
@@ -592,7 +642,7 @@ function risultati(g, vecchia) {
         <dt>Soluzione</dt><dd>${esc(i.soluzione)}</dd>
         ${i.differenziazione ? `<dt>Cosa cambia</dt><dd>${esc(i.differenziazione)}</dd>` : ""}
         <dt>Clienti</dt><dd>${esc(i.clienti)}</dd>
-        <dt>Ricavi</dt><dd>${esc(i.ricavi)}</dd>
+        ${i.ricavi ? `<dt>Ricavi</dt><dd>${esc(i.ricavi)}</dd>` : ""}
         ${i.scalabilita ? `<dt>Scalabile</dt><dd>${esc(i.scalabilita)}</dd>` : ""}
         ${i.replicabilita ? `<dt>Replicabile</dt><dd>${esc(i.replicabilita)}</dd>` : ""}
         ${i.sostenibilita ? `<dt>Sostenibile</dt><dd>${esc(i.sostenibilita)}</dd>` : ""}
@@ -600,9 +650,10 @@ function risultati(g, vecchia) {
         <dt>Perché voi</dt><dd>${esc(i.perche_noi)}</dd>
         ${i.ruoli && i.ruoli.length ? `<dt>Ruoli</dt><dd>${i.ruoli.map((r) => `<b>${esc(r.nome)}</b>: ${esc(r.ruolo)}`).join("<br>")}</dd>` : ""}
         ${i.compagni && i.compagni.length ? `<dt>Per completare la squadra</dt><dd>${i.compagni.map((c) => `<b>${esc(c.nome)}</b> <a href="#" data-scegli="${esc(c.id)}" class="piccolo">${S.scelti.has(c.id) ? "nel gruppo ✓" : "+ gruppo"}</a><br><span class="piccolo">${esc(c.motivo)}</span>`).join("<br>")}</dd>` : ""}
-        <dt>Rischi</dt><dd>${esc(i.rischi)}</dd>
-        <dt>Primo passo</dt><dd>${esc(i.primo_passo)}</dd>
+        ${i.rischi ? `<dt>Rischi</dt><dd>${esc(i.rischi)}</dd>` : ""}
+        ${i.primo_passo ? `<dt>Primo passo</dt><dd>${esc(i.primo_passo)}</dd>` : ""}
       </dl>
+      ${!i.approfondita && !i.slide ? `<button class="btn approfondisci" data-approfondisci="${k}">Approfondisci: domande di partenza, criteri spiegati, bozza slide</button>` : ""}
       ${i.slide && i.slide.length ? `<details class="slide-bozza"><summary>Bozza delle slide per il 1 novembre (${i.slide.length})</summary>
         ${i.slide.map((sl, k) => `<div class="slide"><div class="piccolo">Slide ${k + 1}</div><b>${esc(sl.titolo)}</b><ul>${(sl.punti || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</details>` : ""}
       <div class="riga" style="margin-top:10px">
@@ -621,6 +672,25 @@ function barreCriteri(titolo, voci) {
   }).join("")}</div>`;
 }
 
+// Passo 2: i dettagli di una sola idea, scritti da Claude quando servono.
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-approfondisci]");
+  if (!b) return;
+  const [gid, n] = b.dataset.approfondisci.split("|");
+  b.disabled = true; b.textContent = "Claude sta approfondendo l'idea: una ventina di secondi…";
+  try {
+    const g = await api("", { modo: "approfondisci", generazione: gid, indice: Number(n) }, "/api/genera");
+    const k = S.dati.generazioni.findIndex((x) => x.id === gid);
+    if (k >= 0) S.dati.generazioni[k] = g;
+    if (S.ultima && S.ultima.id === gid) S.ultima = g;
+    const y = window.scrollY;
+    genera();
+    const d = document.querySelector(`details[data-gen="${gid}"]`);
+    if (d) { d.open = true; d.querySelector("div").innerHTML = risultati(g, true); }
+    window.scrollTo(0, y);
+  } catch (e) { b.disabled = false; b.textContent = "Non è andata: " + e.message + " Riprova"; }
+});
+
 function ideaGenerata(k) {
   const [gid, n] = k.split("|");
   const g = S.dati.generazioni.find((x) => x.id === gid) || (S.ultima && S.ultima.id === gid ? S.ultima : null);
@@ -629,14 +699,14 @@ function ideaGenerata(k) {
   return {
     titolo: i.titolo, modello: i.modello, settore: i.settore, generata: true, generazione: gid,
     descrizione: [i.sintesi, "", "Problema: " + i.problema, "Soluzione: " + i.soluzione,
-      i.differenziazione && "Cosa cambia: " + i.differenziazione, "Clienti: " + i.clienti, "Ricavi: " + i.ricavi,
+      i.differenziazione && "Cosa cambia: " + i.differenziazione, "Clienti: " + i.clienti, i.ricavi && "Ricavi: " + i.ricavi,
       i.scalabilita && "Scalabile: " + i.scalabilita, i.replicabilita && "Replicabile: " + i.replicabilita,
       i.startup_innovativa && "Startup innovativa: " + i.startup_innovativa.requisito + " (" + i.startup_innovativa.come + ")",
       i.criteri_startup && `Criteri startup: innovazione ${i.criteri_startup.innovazione}, scalabilità ${i.criteri_startup.scalabilita}, replicabilità ${i.criteri_startup.replicabilita}, sostenibilità ${i.criteri_startup.sostenibilita} (su 10)`,
       i.punto_debole && "Punto debole: " + i.punto_debole,
       i.domande_di_partenza && ["", "Fra 5-10 anni: " + i.domande_di_partenza.fra_5_10_anni, "Cosa manca: " + i.domande_di_partenza.cosa_manca,
         "Bisogno latente: " + i.domande_di_partenza.bisogno_latente, "Chi lo fa già: " + i.domande_di_partenza.chi_lo_fa_gia, ""].join("\n"),
-      "Perché noi: " + i.perche_noi, "Primo passo: " + i.primo_passo,
+      "Perché noi: " + i.perche_noi, i.primo_passo && "Primo passo: " + i.primo_passo,
       i.slide && i.slide.length ? "\nBozza slide:\n" + i.slide.map((sl, k) => `${k + 1}. ${sl.titolo}\n` + (sl.punti || []).map((x) => "   - " + x).join("\n")).join("\n") : ""]
       .filter((x) => x !== undefined && x !== null && x !== false).join("\n"),
     compagni: (i.compagni || []).map((c) => c.id),
@@ -941,6 +1011,7 @@ function schedaProfilo() {
         ${campo("disponibilita", "Disponibilità", x.disponibilita, false, "(es. weekend, sera, in presenza a Bologna)")}
       </div>
     </div>
+    <div class="carta" style="margin-top:14px" id="mieiLavori">${editorLavori(p)}</div>
     <div id="msgProf"></div>
     <div class="riga" style="margin-top:14px"><button class="btn primario" id="salvaProf">Salva profilo</button>
       <span class="spazio"></span><button class="btn pericolo" id="lasciaProf">Questo non è il mio profilo</button></div>`;
@@ -975,6 +1046,44 @@ function schedaProfilo() {
     } catch (e) { avvisa("msgProf", "Non riesco a leggere questo PDF: " + e.message, "male"); }
   };
 }
+
+// Le esperienze una per una: per ognuna cosa fa l'azienda (condivisa con i
+// colleghi che ci hanno lavorato) e cosa facevi tu. Claude le legge per
+// capire come ognuno puo' contribuire al progetto.
+function editorLavori(p) {
+  const L = p.lavori || [];
+  if (!L.length) return `<h3 style="margin-top:0">Le mie esperienze</h3><p class="piccolo">Non riesco a leggere le esperienze dal tuo profilo LinkedIn: caricalo dal PDF qui sopra e salva.</p>`;
+  return `<div class="riga"><h3 style="margin:0">Le mie esperienze</h3><span class="spazio"></span><span class="piccolo">${L.length} lavori</span></div>
+    <p class="piccolo">Per ogni lavoro: cosa fa l'azienda e cosa facevi tu. I dati dell'azienda li abbiamo cercati sul suo sito; se sono sbagliati correggili (li vedono anche i colleghi che ci hanno lavorato).</p>
+    ${L.map((l, n) => `<div class="lavoro" data-lavoro="${esc(l.id)}">
+      <div class="riga"><b>${esc(l.ruolo)}</b> @ <b>${esc(l.azienda)}</b><span class="piccolo">${esc(l.periodo.replace(/\s*\(.*\)$/, ""))}${l.luogo ? " · " + esc(l.luogo) : ""}</span>
+        <span class="spazio"></span>${l.stato === "mancante" || l.stato === "dubbio" ? '<span class="stato-az dubbio">da controllare</span>' : ""}</div>
+      <div class="due">
+        <div><label>Settore dell'azienda</label><input type="text" data-campo="settore" value="${esc(l.settore)}" placeholder="es. packaging alimentare"></div>
+        <div><label>Sito</label><input type="text" data-campo="sito" value="${esc(l.sito)}" placeholder="https://…"></div>
+      </div>
+      <label>Cosa fa l'azienda</label><textarea data-campo="descrizioneAzienda" placeholder="Cosa produce o vende, a chi (aziende o consumatori), quanto è grande">${esc(l.descrizioneAzienda)}</textarea>
+      <label>Cosa facevi tu</label><textarea data-campo="descrizioneRuolo" placeholder="Responsabilità, team, risultati: due o tre righe bastano">${esc(l.descrizioneRuolo)}</textarea>
+    </div>`).join("")}
+    <div id="msgLav"></div>
+    <button class="btn primario" id="salvaLav" style="margin-top:8px">Salva le esperienze</button>`;
+}
+document.addEventListener("click", async (ev) => {
+  if (ev.target.id !== "salvaLav") return;
+  const box = ev.target.closest("#mieiLavori");
+  const lavori = [...box.querySelectorAll("[data-lavoro]")].map((d) => {
+    const x = { id: d.dataset.lavoro };
+    d.querySelectorAll("[data-campo]").forEach((c) => { x[c.dataset.campo] = c.value; });
+    return x;
+  });
+  ev.target.disabled = true;
+  try {
+    await api("lavori", { lavori });
+    S.dati = await api("dati");
+    avvisa("msgLav", "Esperienze salvate.", "bene");
+  } catch (e) { avvisa("msgLav", e.message, "male"); }
+  ev.target.disabled = false;
+});
 
 // "Chi sei?": la prima cosa che vede chi entra e non e' stato riconosciuto
 // dal nome Google. Si scrive il nome e il menu completa, come nella mappa del
@@ -1168,6 +1277,7 @@ document.addEventListener("click", (ev) => {
   if (!b || !S.tc) return;
   const a = S.tc.articoli[Number(b.dataset.spuntoTc)];
   S.note = `Spunto da TechCrunch: "${a.titolo}" (${a.link}). ${a.sintesi || ""} Parti da questa notizia: quale bisogno o tendenza rivela? Proponi idee che la adattino al nostro gruppo e al mercato italiano o europeo.`.trim();
+  S.percorso = S.percorso || "profilo";   // lo spunto va nelle indicazioni, che si vedono dopo la scelta
   S.scheda = "genera"; disegna();
   setTimeout(() => { const n = document.getElementById("note"); if (n) { n.scrollIntoView({ block: "center" }); n.classList.add("evidenzia"); } }, 350);
 });
@@ -1176,6 +1286,7 @@ document.addEventListener("click", (ev) => {
   if (!b || !S.yc) return;
   const x = S.yc.aziende[Number(b.dataset.spunto)];
   S.note = `Spunto da Y Combinator: ${x.n} (${x.b}) — ${x.o}. ${x.d || ""} Proponi idee che adattino questo modello al nostro gruppo e al mercato italiano o europeo.`.trim();
+  S.percorso = S.percorso || "profilo";   // lo spunto va nelle indicazioni, che si vedono dopo la scelta
   S.scheda = "genera"; disegna();
   setTimeout(() => { const n = document.getElementById("note"); if (n) { n.scrollIntoView({ block: "center" }); n.classList.add("evidenzia"); } }, 350);
 });
@@ -1209,6 +1320,7 @@ async function regia(daCache) {
       <div class="carta"><div class="num">${usd(s.spesa ? s.spesa.totale : 0)}</div><div class="piccolo">spesi in generazioni${s.spesa && s.spesa.generazioni ? ` · media ${usd(s.spesa.media, 3)}` : ""}</div></div>
     </div>
     ${s.spesa && s.spesa.perPersona.length ? `<p class="piccolo" style="margin-top:8px"><b>Spesa per persona:</b> ${s.spesa.perPersona.map((x) => `${esc(x.nome)} ${usd(x.usd)}`).join(" · ")}${s.spesa.senzaDato ? ` · ${s.spesa.senzaDato} generazioni precedenti senza dato di costo` : ""}</p>` : ""}
+    ${pannelloCosti(s)}
     <div class="riga" style="margin:16px 0 10px">
       <button class="btn ${vista === "generate" ? "primario" : ""}" data-vista-regia="generate">Idee generate (${gen.length})</button>
       <button class="btn ${vista === "condivise" ? "primario" : ""}" data-vista-regia="condivise">Condivisioni e inviti (${post.length})</button>
@@ -1245,6 +1357,40 @@ async function regia(daCache) {
   const c = document.getElementById("cercaRegia");
   c.oninput = () => { S.filtroRegia = c.value; clearTimeout(S.tRegia); S.tRegia = setTimeout(() => ridisegnaRegia(c.selectionStart), 200); };
 }
+// Come genera Claude e quanto costa: modello ed effort si cambiano qui, e la
+// tabella dice quanto e' costata in media ogni generazione con ciascuna scelta
+// (proposta + approfondimenti), con la proiezione su 500 generazioni.
+const NOMI_MODELLI = { "claude-opus-5": "Claude Opus 5 (il più bravo)", "claude-sonnet-5": "Claude Sonnet 5 (circa 60% in meno)" };
+const NOMI_EFFORT = { low: "basso (ragiona poco, costa meno)", medium: "medio", high: "alto (ragiona di più, costa di più)" };
+function pannelloCosti(s) {
+  const i = s.impostazioni;
+  if (!i) return "";
+  const sel = (id, voci, nomi, v) => `<select id="${id}">${voci.map((x) => `<option value="${x}" ${x === v ? "selected" : ""}>${esc(nomi[x] || x)}</option>`).join("")}</select>`;
+  const righe = (s.costiMedi || []).sort((a, b) => b.generazioni - a.generazioni);
+  return `<details class="carta" style="margin-top:12px" ${S.costiAperti ? "open" : ""} id="pannelloCosti"><summary><b>Costi e modello</b> <span class="piccolo">· ora: ${esc(NOMI_MODELLI[i.modello] || i.modello)}, effort ${esc(i.effort)}</span></summary>
+    <div class="due" style="margin-top:10px">
+      <div><label>Modello</label>${sel("impModello", i.modelli, NOMI_MODELLI, i.modello)}</div>
+      <div><label>Effort (quanto ragiona prima di scrivere)</label>${sel("impEffort", i.livelli || ["low", "medium", "high"], NOMI_EFFORT, i.effort)}</div>
+    </div>
+    <div class="riga" style="margin-top:8px"><button class="btn primario" id="salvaImp">Salva</button><span class="piccolo" id="msgImp"></span></div>
+    <p class="piccolo" style="margin-top:12px">Costo medio reale per generazione, dai token che riporta l'API. La proposta è il passo 1 (5 idee brevi, 1 credito); gli approfondimenti si pagano solo sulle idee aperte.</p>
+    ${righe.length ? `<table><tr><th>Modello · effort</th><th>Generazioni</th><th>Proposta</th><th>Approfondimento</th><th>Media totale</th><th>500 generazioni</th></tr>
+      ${righe.map((r) => `<tr><td>${esc(r.chiave)}</td><td>${r.generazioni}</td><td>${usd(r.mediaProposta, 3)}</td>
+        <td>${r.mediaApprofondimento == null ? "—" : usd(r.mediaApprofondimento, 3) + ` <span class="piccolo">× ${String(r.approfondimentiPerGenerazione).replace(".", ",")}</span>`}</td>
+        <td><b>${usd(r.mediaTotale, 3)}</b></td><td>${usd(r.mediaTotale * 500, 0)}</td></tr>`).join("")}</table>`
+      : '<p class="piccolo">Ancora nessuna generazione con il dato di costo.</p>'}
+  </details>`;
+}
+document.addEventListener("toggle", (ev) => { if (ev.target.id === "pannelloCosti") S.costiAperti = ev.target.open; }, true);
+document.addEventListener("click", async (ev) => {
+  if (ev.target.id !== "salvaImp") return;
+  const m = document.getElementById("msgImp");
+  try {
+    const r = await api("impostazioni", { modello: document.getElementById("impModello").value, effort: document.getElementById("impEffort").value });
+    S.stat.impostazioni = { ...S.stat.impostazioni, ...r };
+    m.textContent = " Salvato: le prossime generazioni useranno " + (NOMI_MODELLI[r.modello] || r.modello) + ", effort " + r.effort + ".";
+  } catch (e) { m.textContent = " " + e.message; }
+});
 function ridisegnaRegia(pos) {
   regia(true).then(() => {
     const c = document.getElementById("cercaRegia");
@@ -1254,6 +1400,95 @@ function ridisegnaRegia(pos) {
 document.addEventListener("click", (ev) => {
   const b = ev.target.closest("[data-vista-regia]");
   if (b) { S.vistaRegia = b.dataset.vistaRegia; ridisegnaRegia(0); }
+});
+
+// ---------------------------------------------------------------- aziende
+// Solo amministratore: tutte le aziende dove hanno lavorato le persone. Quelle
+// senza sito o con dubbi stanno in cima, da sistemare a mano. Per ognuna:
+// sito, settore, cosa fa; per ogni persona che ci ha lavorato, cosa faceva.
+const STATI_AZ = { mancante: "senza sito", dubbio: "dubbio", trovata: "trovata", verificata: "verificata", ignorata: "non è un'azienda" };
+async function aziende(daCache) {
+  let d = daCache && S.aziende;
+  if (!d) {
+    $main.innerHTML = '<div class="caricamento">Carico le aziende…</div>';
+    try { d = S.aziende = await api("aziende-lavoro"); } catch (e) { $main.innerHTML = `<div class="avviso male">${esc(e.message)}</div>`; return; }
+  }
+  const F = S.filtroAz = S.filtroAz || { stato: "sistemare", q: "", quanti: 40 };
+  const conta = (f) => d.aziende.filter(f).length;
+  const daSistemare = (a) => a.stato === "mancante" || a.stato === "dubbio";
+  const q = senzaAccenti(F.q);
+  const lista = d.aziende.filter((a) => (F.stato === "tutte" || (F.stato === "sistemare" ? daSistemare(a) : a.stato === F.stato)) &&
+    (!q || senzaAccenti([a.nome, a.scritto, a.settore, a.persone.map((x) => x.nome + " " + x.ruolo).join(" ")].join(" ")).includes(q)));
+  const bott = (k, t, n) => `<button class="btn ${F.stato === k ? "primario" : ""}" data-filtro-az="${k}">${t} (${n})</button>`;
+  $main.innerHTML = `<div class="riga"><div><h2>Aziende</h2><p class="sotto">Le aziende dove hanno lavorato le persone, con sito, settore e cosa fanno: Claude le legge per capire come ognuno può contribuire. Le ho cercate io sui siti; quelle <b>senza sito</b> o con un <b>dubbio</b> sono qui da sistemare a mano.</p></div>
+      <span class="spazio"></span><button class="btn" id="aggAz">Aggiorna</button></div>
+    <div class="riga" style="margin-bottom:10px">
+      ${bott("sistemare", "Da sistemare", conta(daSistemare))}${bott("trovata", "Trovate", conta((a) => a.stato === "trovata"))}
+      ${bott("verificata", "Sistemate a mano", conta((a) => a.stato === "verificata"))}${bott("ignorata", "Non aziende", conta((a) => a.stato === "ignorata"))}
+      ${bott("tutte", "Tutte", d.aziende.length)}
+      <span class="spazio"></span><input type="search" id="cercaAz" placeholder="Cerca azienda, persona, settore…" value="${esc(F.q)}" style="max-width:280px"></div>
+    ${lista.slice(0, F.quanti).map((a) => `<div class="carta" style="margin-bottom:10px" data-az="${esc(a.chiave)}">
+      <div class="riga"><b>${esc(a.scritto)}</b>${a.nome && a.nome !== a.scritto ? `<span class="piccolo">(${esc(a.nome)})</span>` : ""}
+        <span class="stato-az ${a.stato}">${STATI_AZ[a.stato]}</span>${a.fiducia && !a.manuale ? `<span class="piccolo">fiducia ${esc(a.fiducia)}</span>` : ""}
+        ${a.manuale ? '<span class="piccolo">modificata a mano</span>' : ""}<span class="spazio"></span>
+        ${a.sito ? `<a class="piccolo" href="${esc(a.sito)}" target="_blank" rel="noopener">apri il sito</a>` : `<a class="piccolo" href="https://www.google.com/search?q=${encodeURIComponent(a.scritto)}" target="_blank" rel="noopener">cerca su Google</a>`}</div>
+      ${a.nota ? `<div class="piccolo" style="color:var(--ambra)">${esc(a.nota)}</div>` : ""}
+      <div class="due" style="margin-top:6px">
+        <div><label>Nome</label><input type="text" data-c="nome" value="${esc(a.nome || a.scritto)}"></div>
+        <div><label>Sito</label><div class="riga" style="flex-wrap:nowrap"><input type="text" data-c="sito" value="${esc(a.sito || "")}" placeholder="https://…"><button class="btn piccolo" data-leggi-sito>Leggi dal sito</button></div></div>
+      </div>
+      <label>Settore</label><input type="text" data-c="settore" value="${esc(a.settore || "")}" placeholder="es. macchine per il packaging">
+      <label>Cosa fa l'azienda</label><textarea data-c="descrizione" placeholder="Cosa produce o vende, a chi, quanto è grande">${esc(a.descrizione || "")}</textarea>
+      <details style="margin-top:8px" ${daSistemare(a) ? "open" : ""}><summary class="piccolo">Chi ci ha lavorato (${a.persone.length}) e cosa faceva</summary>
+        ${a.persone.map((x) => `<div class="persona-lavoro" data-ruolo="${esc(x.id)}" data-profilo="${esc(x.profilo)}"><b>${esc(x.nome)}</b> · ${esc(x.ruolo)} <span class="piccolo">${esc(x.periodo.replace(/\s*\(.*\)$/, ""))}</span>
+          <textarea data-c="descrizioneRuolo" placeholder="Cosa faceva in questo ruolo">${esc(x.descrizioneRuolo || "")}</textarea></div>`).join("")}</details>
+      <div class="riga" style="margin-top:8px"><button class="btn primario" data-salva-az>Salva</button>
+        ${a.stato !== "ignorata" ? '<button class="btn" data-ignora-az>Non è un\'azienda</button>' : ""}
+        ${a.manuale ? '<button class="btn" data-ripristina-az title="Torna ai dati trovati in automatico">Ripristina</button>' : ""}
+        <span class="spazio"></span><span class="piccolo" data-msg-az></span></div>
+    </div>`).join("") || '<p class="piccolo">Niente da mostrare con questo filtro.</p>'}
+    ${lista.length > F.quanti ? '<div style="text-align:center"><button class="btn" id="altreAz">Mostra altre</button></div>' : ""}`;
+  document.getElementById("aggAz").onclick = () => aziende(false);
+  const c = document.getElementById("cercaAz");
+  c.oninput = () => { F.q = c.value; clearTimeout(S.tAz); S.tAz = setTimeout(() => { const pos = c.selectionStart; aziende(true).then(() => { const n = document.getElementById("cercaAz"); n.focus(); n.setSelectionRange(pos, pos); }); }, 250); };
+  const altre = document.getElementById("altreAz");
+  if (altre) altre.onclick = () => { F.quanti += 40; const y = window.scrollY; aziende(true).then(() => window.scrollTo(0, y)); };
+}
+document.addEventListener("click", async (ev) => {
+  const f = ev.target.closest("[data-filtro-az]");
+  if (f) { S.filtroAz.stato = f.dataset.filtroAz; S.filtroAz.quanti = 40; aziende(true); return; }
+  const carta = ev.target.closest("[data-az]");
+  if (!carta) return;
+  const chiave = carta.dataset.az, msg = carta.querySelector("[data-msg-az]");
+  const val = (k) => carta.querySelector(`[data-c="${k}"]`).value;
+  const a = S.aziende.aziende.find((x) => x.chiave === chiave);
+  if (ev.target.closest("[data-leggi-sito]")) {
+    msg.textContent = "Leggo il sito…";
+    try {
+      const r = await api("azienda-leggi", { url: val("sito") });
+      if (r.errore) { msg.textContent = r.errore; return; }
+      carta.querySelector('[data-c="sito"]').value = r.url;
+      const d = carta.querySelector('[data-c="descrizione"]');
+      if (r.descrizione && !d.value.trim()) d.value = r.descrizione;
+      msg.textContent = r.titolo ? "Dal sito: «" + r.titolo + "»" + (r.descrizione ? "" : " (nessuna descrizione nella pagina)") : "Letto.";
+    } catch (e) { msg.textContent = e.message; }
+    return;
+  }
+  const stato = ev.target.closest("[data-salva-az]") ? "verificata" : ev.target.closest("[data-ignora-az]") ? "ignorata" : ev.target.closest("[data-ripristina-az]") ? "ripristina" : null;
+  if (!stato) return;
+  msg.textContent = "Salvo…";
+  try {
+    await api("azienda-salva", { chiave, stato, nome: val("nome"), sito: val("sito"), settore: val("settore"), descrizione: val("descrizione") });
+    // le descrizioni dei ruoli cambiate, profilo per profilo
+    const perProfilo = {};
+    carta.querySelectorAll("[data-ruolo]").forEach((r) => {
+      const t = r.querySelector("textarea").value, prima = (a.persone.find((x) => x.id === r.dataset.ruolo && x.profilo === r.dataset.profilo) || {}).descrizioneRuolo || "";
+      if (t !== prima) (perProfilo[r.dataset.profilo] = perProfilo[r.dataset.profilo] || []).push({ id: r.dataset.ruolo, descrizioneRuolo: t });
+    });
+    for (const [profilo, lavori] of Object.entries(perProfilo)) await api("lavori", { profilo, lavori });
+    S.aziende = await api("aziende-lavoro");
+    const y = window.scrollY; await aziende(true); window.scrollTo(0, y);
+  } catch (e) { msg.textContent = e.message; }
 });
 
 // Dollari: due decimali, tre per i costi piccoli di una singola generazione.
@@ -1270,9 +1505,7 @@ const TOUR = [
   { sel: '#passioni', testo: "Poi aggiungi <b>passioni, settori e preferenze</b>: servono a Claude per proporti le idee giuste e i compagni adatti. Alla fine ricordati <b>Salva profilo</b>." },
   { sel: '[data-scheda="bacheca"]', azione: true, testo: "Ora andiamo alla home: <b>clicca «Bacheca»</b>." },
   { sel: '[data-tour="nuova"]', testo: "Qui pubblichi un'idea, o un gruppo fino a 5. Decidi tu se la vede <b>tutto il master</b> o <b>solo i compagni che scegli</b>." },
-  { sel: '[data-tour="motore1"]', testo: "Sotto la bacheca ci sono i due motori. Il <b>motore 1</b> genera idee per te e le persone con cui vorresti lavorare. Le squadre sono di <b>7 o 8</b>: se ne scegli meno, Claude propone chi aggiungere." },
-  { sel: '#pickGruppo [data-tour="pick"]', testo: "Clicca qui: si apre l'elenco di tutti in ordine alfabetico. <b>Spunta chi vuoi</b>, oppure scrivi un nome per filtrare." },
-  { sel: '[data-tour="motore2"]', testo: "Il <b>motore 2</b> parte solo da te: propone idee e ti suggerisce con chi farle." },
+  { sel: '[data-tour="percorsi"]', testo: "Sotto la bacheca generi le idee con Claude. Scegli da dove parti: <b>hai già un'idea</b> e cerchi le persone giuste, <b>hai già delle persone</b> e cercate un'idea, oppure vuoi <b>una proposta completa</b> basata sul tuo profilo. Le squadre sono di <b>7 o 8</b>." },
   { sel: '[data-scheda="spunti"]', testo: "Cerchi ispirazione? Nella scheda <b>Spunti</b> ci sono migliaia di startup di Y Combinator e le ultime notizie di TechCrunch: con <b>Usa come spunto</b> Claude parte da lì per le tue idee." },
   { sel: '[data-tour="crediti"]', testo: "Ogni generazione costa <b>1 credito</b>. Usali con calma: prima completa il profilo, le idee vengono meglio." },
   { testo: "<b>Fatto!</b> Quando Claude ti propone le idee, selezionane da 1 a 5 e premi <b>Condividi</b>.<br>Il tutorial lo ritrovi dal pulsante <b>?</b> in alto." },

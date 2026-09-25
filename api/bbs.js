@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.6.0
+// VERSION: 1.7.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -17,11 +17,18 @@
 //   POST idea-elimina {id}
 //   POST interesse {id,on} -> "mi interessa / voglio partecipare"
 //   POST membro {id,profilo,on} -> l'autore accoglie (o toglie) qualcuno
+//   POST lavori {lavori:[...]}  -> descrizioni dei miei lavori (ruolo e azienda);
+//                                  l'amministratore puo' passare {profilo}
 //   Solo amministratori:
 //   GET  statistiche
 //   POST importa-profili {righe}   POST importa-aziende {righe}
 //   POST crediti {email, piu}      -> aggiunge crediti a una persona
 //   POST scollega {id}              POST elimina-profilo {id}
+//   GET  aziende-lavoro            -> tutte le aziende dove hanno lavorato le
+//                                     persone, con sito, settore e stato
+//   POST azienda-salva {chiave, nome, sito, settore, descrizione, stato}
+//   POST azienda-leggi {url}       -> titolo e descrizione letti dal sito
+//   POST impostazioni {modello, effort} -> come genera Claude
 //
 // I dati stanno su Postgres (Neon), vedi lib/db.js.
 
@@ -32,6 +39,9 @@ import {
   togli, ultimi, eventi, conta, ceArchivio, segna, chiaveAzienda, profiloPubblico,
   creditiDi, vedeIdea,
 } from "../lib/bbs.js";
+import { lavoriDi, lavoriPubblici, infoAzienda, chiaveAziendaNome, idLavoro } from "../lib/lavori.js";
+import { lavoriDa } from "../lib/esperienze.js";
+import { MODELLI, EFFORT, impostazioniGenera } from "./genera.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
 
@@ -66,7 +76,7 @@ export default async function handler(req, res) {
     const corpo = corpoDi(req);
 
     if (a === "dati") return await dati(chi, res);
-    if (req.method !== "POST" && a !== "statistiche") return res.status(405).json({ error: "Metodo non consentito" });
+    if (req.method !== "POST" && a !== "statistiche" && a !== "aziende-lavoro") return res.status(405).json({ error: "Metodo non consentito" });
 
     switch (a) {
       case "rivendica": return await rivendica(chi, corpo, res);
@@ -77,6 +87,7 @@ export default async function handler(req, res) {
       case "idea-elimina": return await ideaElimina(chi, corpo, res);
       case "interesse": return await interesse(chi, corpo, res);
       case "membro": return await membro(chi, corpo, res);
+      case "lavori": return await salvaLavori(chi, corpo, res);
     }
 
     if (!chi.admin) return res.status(403).json({ error: "Riservato all'amministratore." });
@@ -87,6 +98,10 @@ export default async function handler(req, res) {
       case "scollega": return await scollega(chi, corpo, res);
       case "elimina-profilo": return await eliminaProfilo(chi, corpo, res);
       case "crediti": return await aggiungiCrediti(chi, corpo, res);
+      case "aziende-lavoro": return await aziendeLavoro(res);
+      case "azienda-salva": return await aziendaSalva(chi, corpo, res);
+      case "azienda-leggi": return await aziendaLeggi(corpo, res);
+      case "impostazioni": return await salvaImpostazioni(chi, corpo, res);
     }
     return res.status(404).json({ error: "Azione sconosciuta" });
   } catch (e) {
@@ -161,9 +176,9 @@ export function profiloPerNome(nome, profili) {
 }
 
 async function dati(chi, res) {
-  const [profili, aziende, bacheca, generazioni, letto] = await Promise.all([
+  const [profili, aziende, bacheca, generazioni, letto, siti] = await Promise.all([
     tutti("profili"), tutti("aziende"), tutti("bacheca"), ultimi("generazioni", 300),
-    uno("utenti", chi.email),
+    uno("utenti", chi.email), tutti("siti"),
   ]);
   const u = letto || { email: chi.email, nome: chi.nome, profilo: null };
   // Chi e' entrato prima che il suo profilo esistesse: si collega adesso.
@@ -182,7 +197,13 @@ async function dati(chi, res) {
   const crediti = chi.admin ? null : await creditiDi(chi.email, u);
   return res.status(200).json({
     io: { email: chi.email, nome: chi.nome, admin: chi.admin, adminVero: chi.adminVero, profilo: io, foto: u && u.foto, crediti },
-    profili: Object.values(profili).map((p) => profiloPubblico(p, aziende, chi.admin))
+    profili: Object.values(profili).map((p) => {
+      // i testi dei ruoli per intero solo nel proprio profilo, che si modifica
+      const lavori = lavoriPubblici(p, siti).map((l) => p.id === io || l.descrizioneRuolo.length <= 300 ? l : { ...l, descrizioneRuolo: l.descrizioneRuolo.slice(0, 300) + "…" });
+      const out = { ...profiloPubblico(p, aziende, chi.admin), lavori };
+      delete out.lavoriMiei;
+      return out;
+    })
       .sort((x, y) => String(x.nome).localeCompare(String(y.nome))),
     bacheca: Object.values(bacheca).filter((i) => vedeIdea(i, io, chi.admin))
       .sort((x, y) => String(y.creata).localeCompare(String(x.creata))),
@@ -407,6 +428,110 @@ async function eliminaProfilo(chi, corpo, res) {
   return res.status(200).json({ ok: true });
 }
 
+// ---------------------------------------------------------------- lavori
+// Le descrizioni di un lavoro: cosa faceva la persona (nel suo profilo) e cosa
+// fa l'azienda (tabella siti, condivisa con chi ci ha lavorato). Ognuno
+// modifica i suoi; l'amministratore anche quelli degli altri.
+async function salvaLavori(chi, corpo, res) {
+  const idProfilo = chi.admin && corpo.profilo ? String(corpo.profilo) : (await mioProfilo(chi.email) || {}).id;
+  const [p, siti] = await Promise.all([idProfilo ? uno("profili", idProfilo) : null, tutti("siti")]);
+  if (!p) return res.status(404).json({ error: "Profilo non trovato: collega prima il tuo profilo." });
+  const miei = Object.fromEntries(lavoriDi(p, siti).map((l) => [l.id, l]));
+  const nuoviSiti = [];
+  p.lavoriMiei = p.lavoriMiei || {};
+  for (const x of Array.isArray(corpo.lavori) ? corpo.lavori.slice(0, 60) : []) {
+    const l = miei[String(x.id)];
+    if (!l) continue;
+    if (typeof x.descrizioneRuolo === "string") p.lavoriMiei[l.id] = { descrizioneRuolo: testo(x.descrizioneRuolo, 1500) };
+    // l'azienda si tocca solo se nel corpo ci sono i suoi campi
+    const prima = l.info;
+    if (!["sito", "settore", "descrizioneAzienda"].some((k) => typeof x[k] === "string")) continue;
+    const az = {
+      sito: typeof x.sito === "string" ? testo(x.sito, 300) : prima.sito || "",
+      settore: typeof x.settore === "string" ? testo(x.settore, 120) : prima.settore || "",
+      descrizione: typeof x.descrizioneAzienda === "string" ? testo(x.descrizioneAzienda, 600) : prima.descrizione || "",
+    };
+    if (az.sito && !/^https?:\/\//i.test(az.sito)) az.sito = "https://" + az.sito;
+    if (az.sito !== (prima.sito || "") || az.settore !== (prima.settore || "") || az.descrizione !== (prima.descrizione || "")) {
+      nuoviSiti.push([l.chiave, { ...(siti[l.chiave] || {}), nome: prima.nome || l.azienda, ...az, stato: "verificata", da: chi.email, quando: new Date().toISOString() }]);
+    }
+  }
+  await scrivi("profili", p.id, p);
+  if (nuoviSiti.length) await scriviMolti("siti", nuoviSiti.map(([id, dati]) => ({ id, dati })));
+  await segna(chi.email, "lavori", { profilo: p.id, aziende: nuoviSiti.map(([k]) => k) });
+  return res.status(200).json({ ok: true, lavori: lavoriPubblici(p, { ...siti, ...Object.fromEntries(nuoviSiti) }) });
+}
+
+// Tutte le aziende dove hanno lavorato le persone, per la sezione Aziende:
+// quelle da sistemare (dubbio, mancante) in cima.
+async function aziendeLavoro(res) {
+  const [profili, siti] = await Promise.all([tutti("profili"), tutti("siti")]);
+  const elenco = {};
+  for (const p of Object.values(profili)) {
+    for (const l of lavoriDa(p.esperienze)) {
+      const chiave = chiaveAziendaNome(l.azienda);
+      if (!chiave) continue;
+      const e = elenco[chiave] || (elenco[chiave] = { chiave, scritto: l.azienda, ...infoAzienda(chiave, l.azienda, siti), manuale: !!siti[chiave], persone: [] });
+      const id = idLavoro(chiave, l.ruolo), mio = (p.lavoriMiei || {})[id];
+      e.persone.push({ profilo: p.id, nome: p.nome, id, ruolo: l.ruolo, periodo: l.periodo,
+        descrizioneRuolo: mio && typeof mio.descrizioneRuolo === "string" ? mio.descrizioneRuolo : l.descrizioneRuolo || "" });
+    }
+  }
+  const ordine = { mancante: 0, dubbio: 1, trovata: 2, verificata: 3, ignorata: 4 };
+  const lista = Object.values(elenco).sort((a, b) => (ordine[a.stato] - ordine[b.stato]) || b.persone.length - a.persone.length || String(a.nome || a.scritto).localeCompare(String(b.nome || b.scritto)));
+  return res.status(200).json({ aziende: lista });
+}
+
+async function aziendaSalva(chi, corpo, res) {
+  const chiave = testo(corpo.chiave, 200);
+  if (!chiave) return res.status(400).json({ error: "Azienda mancante." });
+  if (corpo.stato === "ripristina") { await togli("siti", chiave); return res.status(200).json({ ok: true }); }
+  const stato = corpo.stato === "ignorata" ? "ignorata" : "verificata";
+  let sito = testo(corpo.sito, 300);
+  if (sito && !/^https?:\/\//i.test(sito)) sito = "https://" + sito;
+  const r = { nome: testo(corpo.nome, 200), sito, settore: testo(corpo.settore, 120), descrizione: testo(corpo.descrizione, 600), stato, da: chi.email, quando: new Date().toISOString() };
+  await scrivi("siti", chiave, r);
+  await segna(chi.email, "azienda", { chiave, stato });
+  return res.status(200).json({ ok: true, azienda: r });
+}
+
+// Legge titolo e descrizione dalla pagina di un sito, per riempire i campi
+// senza chiamare Claude (costo zero).
+async function aziendaLeggi(corpo, res) {
+  let url = testo(corpo.url, 300);
+  if (!url) return res.status(400).json({ error: "Scrivi l'indirizzo del sito." });
+  if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+  let host;
+  try { host = new URL(url).hostname; } catch { return res.status(400).json({ error: "Indirizzo non valido." }); }
+  if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(host) || host.endsWith(".internal")) return res.status(400).json({ error: "Indirizzo non valido." });
+  try {
+    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Squadre BBS)" }, redirect: "follow", signal: AbortSignal.timeout(8000) });
+    const html = (await r.text()).slice(0, 400000);
+    const meta = (nome) => {
+      const m = html.match(new RegExp(`<meta[^>]+(?:name|property)=["']${nome}["'][^>]*>`, "i"));
+      const c = m && m[0].match(/content=["']([^"']*)["']/i);
+      return c ? c[1] : "";
+    };
+    const pulito = (t) => String(t || "").replace(/&amp;/g, "&").replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim();
+    const titolo = pulito(meta("og:site_name") || (html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]);
+    const descrizione = pulito(meta("description") || meta("og:description"));
+    return res.status(200).json({ url: r.url || url, stato: r.status, titolo: titolo.slice(0, 200), descrizione: descrizione.slice(0, 600) });
+  } catch (e) {
+    return res.status(200).json({ url, errore: "Il sito non risponde (" + (e.name === "TimeoutError" ? "troppo lento" : e.message) + ")." });
+  }
+}
+
+async function salvaImpostazioni(chi, corpo, res) {
+  const attuali = await impostazioniGenera();
+  const nuove = {
+    modello: MODELLI.includes(corpo.modello) ? corpo.modello : attuali.modello,
+    effort: EFFORT.includes(corpo.effort) ? corpo.effort : attuali.effort,
+  };
+  await scrivi("impostazioni", "genera", { ...nuove, da: chi.email, quando: new Date().toISOString() });
+  await segna(chi.email, "impostazioni", nuove);
+  return res.status(200).json(nuove);
+}
+
 async function statistiche(res) {
   const [profili, utenti, bacheca, generazioni, registro, aziende] = await Promise.all([
     tutti("profili"), tutti("utenti"), tutti("bacheca"),
@@ -479,5 +604,26 @@ async function statistiche(res) {
       .map((i) => ({ ...i, membriNomi: (i.membri || []).map(nomeDi), interessatiNomi: (i.interessati || []).map(nomeDi),
         destinatariNomi: (i.destinatari || []).map(nomeDi) })),
     eventi: registro.slice(0, 400),
+    impostazioni: { ...(await impostazioniGenera()), modelli: MODELLI, livelli: EFFORT },
+    // Costi medi per modello ed effort: proposta (passo 1) e approfondimento
+    // (passo 2), per stimare quanto costeranno le prossime generazioni.
+    costiMedi: (() => {
+      const gruppi = {};
+      for (const g of generazioni) {
+        if (!g.costo) continue;
+        const k = (g.modello || g.costo.modello || "?") + " · " + (g.effort || "medium") + (g.costoProposta ? "" : " · una sola passata");
+        const x = gruppi[k] || (gruppi[k] = { chiave: k, generazioni: 0, proposta: 0, approfondimenti: 0, costoApprofondimenti: 0 });
+        x.generazioni++;
+        x.proposta += (g.costoProposta || g.costo).usd || 0;
+        for (const i of g.idee || []) if (i.costoApprofondimento) { x.approfondimenti++; x.costoApprofondimenti += i.costoApprofondimento; }
+      }
+      return Object.values(gruppi).map((x) => ({
+        chiave: x.chiave, generazioni: x.generazioni,
+        mediaProposta: Math.round((x.proposta / x.generazioni) * 1000) / 1000,
+        approfondimentiPerGenerazione: Math.round((x.approfondimenti / x.generazioni) * 10) / 10,
+        mediaApprofondimento: x.approfondimenti ? Math.round((x.costoApprofondimenti / x.approfondimenti) * 1000) / 1000 : null,
+        mediaTotale: Math.round(((x.proposta + x.costoApprofondimenti) / x.generazioni) * 1000) / 1000,
+      }));
+    })(),
   });
 }
