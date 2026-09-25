@@ -70,12 +70,18 @@
   textarea{min-height:80px;resize:vertical}
   label{display:block;font-size:13px;font-weight:600;margin:12px 0 4px}
   label small{font-weight:400;color:var(--grigio)}
-  .btn{border:1px solid var(--bordo);background:var(--carta);color:var(--testo);padding:8px 13px;border-radius:9px;font:inherit;cursor:pointer;white-space:nowrap}
+  .btn{border:1px solid transparent;background:var(--accento-chiaro);color:var(--accento);padding:8px 16px;border-radius:999px;font:inherit;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s,transform .1s}
   .btn:hover{border-color:var(--accento)}
-  .btn.primario{background:var(--accento);border-color:var(--accento);color:#fff;font-weight:600}
-  .btn.piccolo{padding:4px 9px;font-size:13px}
-  .btn.pericolo{color:var(--rosso)}
-  .btn:disabled{opacity:.5;cursor:default}
+  .btn:active{transform:translateY(1px)}
+  .btn.primario{background:var(--accento);border-color:var(--accento);color:#fff;box-shadow:0 2px 8px rgba(31,94,255,.25)}
+  .btn.primario:hover{box-shadow:0 4px 14px rgba(31,94,255,.35)}
+  .btn.piccolo{padding:4px 12px;font-size:13px}
+  .btn.piccolo:not(.primario):not(.pericolo){color:var(--accento)}
+  .btn.piccolo.primario{color:#fff}
+  .btn.pericolo{background:var(--rosso-chiaro);color:var(--rosso)}
+  .btn.pericolo:hover{border-color:var(--rosso)}
+  .btn:disabled{opacity:.5;cursor:default;box-shadow:none;transform:none}
+  #secBacheca .idea.mia .btn:not(.primario):not(.pericolo),.domanda-gen.aperta .btn:not(.primario){background:rgba(31,94,255,.14)}
   .etichetta{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--accento-chiaro);color:var(--accento);margin:2px 4px 2px 0}
   .etichetta.verde{background:var(--verde-chiaro);color:var(--verde)}
   .etichetta.ambra{background:var(--ambra-chiaro);color:var(--ambra)}
@@ -376,7 +382,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.30.2";
+const VERSION = "2.30.3";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };

@@ -1,6 +1,6 @@
 {
   "name": "bbs-squadre",
-  "version": "2.30.2",
+  "version": "2.30.3",
   "private": true,
   "type": "module",
   "description": "Piattaforma per formare i gruppi del project work BBS e generare idee di startup",
