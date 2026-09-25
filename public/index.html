@@ -446,7 +446,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.42.0";
+const VERSION = "2.42.1";
 const $main = document.getElementById("main");
 const S = { selezInit: {}, linguette: {}, tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -593,7 +593,7 @@ document.addEventListener("click", async (ev) => {
   }
   const mc = ev.target.closest("[data-clic]");
   if (mc) { document.getElementById("testata").classList.remove("menu-aperto"); const t = document.getElementById(mc.dataset.clic); if (t) t.click(); return; }
-  if (ev.target.id === "esci") api("esci", {}).then(porta);
+  if (ev.target.id === "esci") { memoria("bbs_benvenuto", null); api("esci", {}).then(porta); }
   if (ev.target.id === "aiuto") tourAvvia();
   if (ev.target.closest("#modoUtente") || ev.target.closest("[data-torna-admin]")) {
     S.comeUtente = !S.comeUtente;
@@ -616,8 +616,13 @@ function home(vaiAGenera) {
   if (vaiAGenera || S.generaAperta) apriGenera();
   else if (!S.benvenutoVisto && !tour) benvenuto();
 }
+// Il popup d'ingresso compare una volta al giorno: non a ogni ricarica ne'
+// tornando alla bacheca. Chi esce e rientra lo rivede.
+const giornoBenvenuto = () => new Date().toISOString().slice(0, 10);
 function benvenuto() {
   S.benvenutoVisto = true;
+  if (memoria("bbs_benvenuto") === giornoBenvenuto()) return;
+  memoria("bbs_benvenuto", giornoBenvenuto());
   if (document.getElementById("veloBenvenuto")) return;
   document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloBenvenuto"><div class="finestra finestra-benvenuto" role="dialog" aria-modal="true">
     <h2>Cosa vuoi fare?</h2>
