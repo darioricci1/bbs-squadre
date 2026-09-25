@@ -299,7 +299,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.17.0";
+const VERSION = "2.17.1";
 const $main = document.getElementById("main");
 const S = { tolti: {}, risposte: { idea: false, compagni: false, paletti: false }, opz: { modello: "", perno: "", settore: "" }, aperti: new Set(), dati: null, scheda: "bacheca", scelti: new Set(), selezione: new Set(), filtro: "", ultima: null,
   stat: null, generando: false, comeUtente: memoria("bbs-come-utente") === "1" };
@@ -654,7 +654,7 @@ function genera() {
       ${domanda("compagni", "persone", R.idea ? "Hai compagni con cui la vuoi sviluppare?" : "Hai compagni con cui vuoi lavorare?", "", `
         <div id="pickGruppo"></div>
         <p class="piccolo" id="contaGruppo" style="margin:6px 0 0"></p>
-        <p class="piccolo" style="margin:6px 0 0"><a href="#" data-scheda="persone">Sfoglia tutte le persone</a></p>`)}
+`)}
       ${domanda("paletti", "paletti", "Vuoi dare più paletti all'AI?", "Se no, decide l'AI: tipo di startup e punto di partenza li scrive comunque su ogni idea.", `
         <div class="scelte-griglia">
           <div><label style="margin-top:0">Modello di business</label>
@@ -669,10 +669,10 @@ function genera() {
         <label>Indicazioni in più <small>(testo libero: un vincolo, un mercato, uno spunto, quello che vuoi)</small></label>
         <textarea id="note" placeholder="Es. qualcosa che si possa validare in due mesi">${esc(S.note || "")}</textarea>`)}
       </div>
-      <div class="riga pulsanti-gen">
-        ${R.idea ? `<button class="btn grande" data-pubblica-idea>Pubblica l'idea in bacheca</button>` : ""}
-        <button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} Genera con l'AI</button>
-        <span class="piccolo">${R.idea ? "Pubblica: la vedono tutti, così com'è. " : ""}Genera: ${nomeGenera.toLowerCase()}, 1 credito.</span></div>
+      <p class="piccolo" style="margin:16px 0 6px"><b>Pubblica</b>: la tua idea va in bacheca così com'è e la vedono tutti. <b>Genera con l'AI</b>: ${nomeGenera.toLowerCase()}, 1 credito.</p>
+      <div class="riga pulsanti-gen" style="margin-top:0">
+        <button class="btn primario grande" data-pubblica-idea>Pubblica l'idea in bacheca</button>
+        <button class="btn primario grande" id="gVai" ${blocca ? "disabled" : ""}>${icona("idea")} Genera con l'AI</button></div>
     </div>
     <div id="msgGen"></div>
     <div id="risultati">${S.ultima ? risultati(S.ultima) : ""}</div>
@@ -703,7 +703,11 @@ function genera() {
   // Pubblica subito in bacheca, per tutti.
   if (pubb) pubb.onclick = async (e) => {
     e.preventDefault(); leggi();
-    if (!(S.miaIdea || "").trim()) { avvisa("msgGen", "Prima scrivi la tua idea.", "male"); return; }
+    if (!R.idea || !(S.miaIdea || "").trim()) {
+      R.idea = true; genera();
+      const t = document.getElementById("miaIdea"); if (t) t.focus();
+      avvisa("msgGen", "Scrivi la tua idea qui sopra, poi premi di nuovo Pubblica.", "info"); return;
+    }
     pubb.disabled = true;
     try {
       await api("idea", { titolo: titoloIdea(), idee: [{ titolo: titoloIdea(), descrizione: S.miaIdea.trim() }], visibilita: "tutti" });
