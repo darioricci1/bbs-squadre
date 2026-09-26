@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.20.0
+// VERSION: 1.21.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -92,6 +92,7 @@ export default async function handler(req, res) {
       case "idea-elimina": return await ideaElimina(chi, corpo, res);
       case "interesse": return await interesse(chi, corpo, res);
       case "commento": return await commento(chi, corpo, res);
+      case "riservata": return await rendiRiservata(chi, corpo, res);
       case "commento-elimina": return await commentoElimina(chi, corpo, res);
       case "membro": return await membro(chi, corpo, res);
       case "lavori": return await salvaLavori(chi, corpo, res);
@@ -524,6 +525,23 @@ async function commentoElimina(chi, corpo, res) {
   if (!i) return res.status(404).json({ error: "Commento non trovato" });
   await segna(chi.email, "commento-tolto", { idea: i.id });
   return res.status(200).json({ ok: true, commenti: i.commenti });
+}
+
+// Un'idea pubblica diventa riservata alla sua squadra: la vedono solo chi
+// l'ha pubblicata e chi e' in squadra (lo propone la pagina dopo "accogli").
+async function rendiRiservata(chi, corpo, res) {
+  const io = await mioProfilo(chi.email);
+  let vietato = false;
+  const i = await aggiorna("bacheca", testo(corpo.id, 80), (x) => {
+    if (!chi.admin && (!io || x.autore !== io.id)) { vietato = true; return null; }
+    const squadra = (x.membri || []).filter((id) => id !== x.autore);
+    if (!squadra.length) return null;
+    return Object.assign(x, { visibilita: "scelti", destinatari: squadra, proposti: [], aggiornata: new Date().toISOString() });
+  });
+  if (vietato) return res.status(403).json({ error: "Solo chi ha pubblicato l'idea ne cambia la visibilita'." });
+  if (!i) return res.status(404).json({ error: "Idea non trovata o squadra vuota." });
+  await segna(chi.email, "idea-riservata", { idea: i.id, titolo: i.titolo, destinatari: i.destinatari });
+  return res.status(200).json({ ok: true });
 }
 
 async function membro(chi, corpo, res) {

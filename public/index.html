@@ -420,7 +420,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.46.0";
+const VERSION = "2.47.0";
 const $main = document.getElementById("main");
 // Lo stato della pagina. Si ricrea da zero a ogni uscita, cosi' chi entra
 // dopo non ritrova niente di chi c'era prima.
@@ -1605,9 +1605,34 @@ document.addEventListener("click", async (ev) => {
   try {
     if (t.dataset.elimina) { if (!confirm("Eliminare questo post?")) return; await api("idea-elimina", { id: t.dataset.elimina }); }
     else if (t.dataset.interesse) { const [id, on] = t.dataset.interesse.split("|"); await api("interesse", { id, on: on === "1" }); }
-    else if (t.dataset.membro) { ev.preventDefault(); const [id, p, on] = t.dataset.membro.split("|"); await api("membro", { id, profilo: p, on: on === "1" }); }
+    else if (t.dataset.membro) { ev.preventDefault(); const [id, p, on] = t.dataset.membro.split("|"); await api("membro", { id, profilo: p, on: on === "1" }); if (on === "1") S.accolto = id; }
     S.dati = await api("dati"); bacheca();
+    // dopo "accogli" su un'idea pubblica: renderla riservata alla squadra?
+    const acc = S.accolto && S.dati.bacheca.find((x) => x.id === S.accolto);
+    S.accolto = null;
+    if (acc && acc.visibilita !== "scelti") chiediRiservata(acc);
   } catch (e) { alert(e.message); }
+});
+
+function chiediRiservata(i) {
+  const d = document.getElementById("veloDettagli"); if (d) d.remove();
+  const squadra = (i.membri || []).map((id) => (profilo(id) || {}).nome).filter(Boolean);
+  document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloRiservata"><div class="finestra" style="width:min(460px,100%)" role="dialog" aria-modal="true">
+    <h3 style="margin-top:0">Rendere l'idea riservata alla squadra?</h3>
+    <p>In squadra ora ci siete: <b>${squadra.map(esc).join(", ")}</b>.</p>
+    <p class="piccolo">Adesso «${esc(i.titolo)}» la vede tutto l'EMBA. Se la rendi riservata la vedete solo voi (e chi aggiungerai alla squadra).</p>
+    <div class="riga" style="margin-top:14px;flex-wrap:wrap;gap:8px"><button class="btn" data-riservata-no>Lasciala pubblica</button><span class="spazio"></span>
+      <button class="btn primario" data-riservata-si="${esc(i.id)}">Rendila riservata</button></div></div></div>`);
+}
+document.addEventListener("click", async (ev) => {
+  const si = ev.target.closest("[data-riservata-si]");
+  if (!si && !ev.target.closest("[data-riservata-no]") && ev.target.id !== "veloRiservata") return;
+  if (si) {
+    si.disabled = true;
+    try { await api("riservata", { id: si.dataset.riservataSi }); S.dati = await api("dati"); bacheca(); }
+    catch (e) { si.disabled = false; return alert(e.message); }
+  }
+  const v = document.getElementById("veloRiservata"); if (v) v.remove();
 });
 
 // ---------------------------------------------------------------- PDF di LinkedIn
