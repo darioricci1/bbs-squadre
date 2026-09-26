@@ -139,6 +139,8 @@
   .finestra-genera .sotto{margin:2px 0 0;font-size:14px}
   .finestra-genera .percorso-gen{margin-top:8px;padding:14px}
   .finestra-genera .domande-riga{margin-top:0}
+  html.cucina-aperta,html.cucina-aperta body{overflow:hidden;overscroll-behavior:none;touch-action:none}
+  body.genera-pagina .cucina{position:fixed;left:0;right:0;bottom:0;top:0;border-radius:0;background:var(--sfondo);backdrop-filter:none;z-index:30}
   .cucina{position:absolute;inset:0;z-index:5;border-radius:inherit;background:rgba(255,255,255,.93);backdrop-filter:blur(3px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
   .padella{font-size:72px;animation:salta 1.1s ease-in-out infinite;transform-origin:50% 80%}
   @keyframes salta{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(-18px) rotate(-12deg)}60%{transform:translateY(0) rotate(8deg)}}
@@ -368,6 +370,13 @@
   .titolo-post{margin:0;font-size:18px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .frase-post{margin:0;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
   .frase-post.corta{-webkit-line-clamp:3}
+  .interessati-post{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .link-commenti{margin-right:12px}
+  .commento{border-top:1px solid var(--bordo);padding:8px 0}
+  .commento:first-of-type{border-top:0}
+  .testo-commento{white-space:pre-wrap;margin-top:2px}
+  .togli-commento{margin-left:8px;color:var(--grigio)}
+  #testoCommento{width:100%;resize:vertical}
   .problema-post,.problema-card{margin:0;background:#fff4e5;border-left:3px solid #f0a040;border-radius:6px;padding:5px 8px;font-size:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .problema-card{font-size:12.5px;-webkit-line-clamp:2}
   .piede-post{margin-top:auto;padding-top:8px}
@@ -411,7 +420,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.45.0";
+const VERSION = "2.46.0";
 const $main = document.getElementById("main");
 // Lo stato della pagina. Si ricrea da zero a ogni uscita, cosi' chi entra
 // dopo non ritrova niente di chi c'era prima.
@@ -804,6 +813,14 @@ function mostraCucina() {
     <div class="frase-cucina" id="fraseCucina">${FRASI_CUCINA[0]}</div>
     <div class="barra-cucina"><span></span></div>
     <div class="piccolo">Di solito ci vuole meno di un minuto. Tieni aperta questa pagina e lo schermo acceso.</div></div>`);
+  // Sul telefono Genera e' una pagina lunga: la padella copre lo schermo sotto
+  // la testata, con la pagina ferma (niente da scorrere, niente sotto).
+  if (document.body.classList.contains("genera-pagina")) {
+    window.scrollTo(0, 0);
+    document.documentElement.classList.add("cucina-aperta");
+    const c = document.getElementById("cucina");
+    c.style.top = Math.max(0, document.getElementById("testata").getBoundingClientRect().bottom) + "px";
+  }
   let k = 0;
   if (FRASI_CUCINA.length > 1) S.timerCucina = setInterval(() => {
     const el = document.getElementById("fraseCucina");
@@ -815,6 +832,7 @@ function mostraCucina() {
 function togliCucina() {
   clearInterval(S.timerCucina);
   const c = document.getElementById("cucina"); if (c) c.remove();
+  document.documentElement.classList.remove("cucina-aperta");
 }
 function genera() {
   if (!S.dati) return;
@@ -1481,11 +1499,12 @@ function bacheca() {
           <div class="piccolo squadra-post">${(i.proposti || []).length
             ? `<b>Squadra proposta:</b> ${nomi([i.autore, ...i.proposti]).map(esc).join(", ")}`
             : `<b>Squadra:</b> ${nomi(i.membri).map(esc).join(", ")}`}${i.cerco ? ` · <b>cerca:</b> ${esc(i.cerco)}` : ""}</div>
-          ${(mia || S.dati.io.admin) && (i.interessati || []).length ? `<div class="piccolo"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${(i.interessati || []).length}</div>` : ""}
+          ${(i.interessati || []).length ? `<div class="piccolo interessati-post"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${nomi(i.interessati).map(esc).join(", ")}</div>` : ""}
           <div class="riga" style="margin-top:8px;flex-wrap:nowrap">
             ${mia ? `<button class="btn piccolo" data-modifica="${i.id}">Modifica</button><button class="btn piccolo pericolo" data-elimina="${i.id}">Elimina</button>`
               : io ? `<button class="btn piccolo ${interessato ? "" : "primario"}" data-interesse="${i.id}|${interessato ? 0 : 1}" ${dentro ? "disabled" : ""}>${dentro ? "Sei nella squadra" : interessato ? "Ti interessa ✓" : "Mi interessa"}</button>` : ""}
-            <span class="spazio"></span><a href="#" class="piccolo" data-dettagli-post="${i.id}">Dettagli</a>
+            <span class="spazio"></span><a href="#" class="piccolo link-commenti" data-dettagli-post="${i.id}" data-ai-commenti>${(i.commenti || []).length ? (i.commenti.length === 1 ? "1 commento" : i.commenti.length + " commenti") : "Commenta"}</a>
+            <a href="#" class="piccolo" data-dettagli-post="${i.id}">Dettagli</a>
           </div>
         </div>
       </div>`;
@@ -1531,12 +1550,49 @@ document.addEventListener("click", (ev) => {
     ${vistaIdea(strutturaIdea(x), false)}
     ${strutturaIdea(x).squadra ? `<p class="descr piccolo">${esc(strutturaIdea(x).squadra)}</p>` : ""}
     ${i.visibilita === "scelti" && !mia && i.motivi && i.motivi[io] ? `<div class="perche-te"><b>Perché sei stato proposto:</b> ${esc(i.motivi[io])}</div>` : ""}
-    ${(mia || S.dati.io.admin) && (i.interessati || []).length ? `<p class="piccolo"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${(i.interessati || []).map((id) => `${esc(nome(id))}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</p>` : ""}
+    ${(i.interessati || []).length ? `<p class="piccolo"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${(i.interessati || []).map((id) => `${esc(nome(id))}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1">accogli</a>` : ""}`).join(", ")}</p>` : ""}
     ${mia && (i.membri || []).filter((m) => m !== io).length ? `<p class="piccolo">${(i.membri || []).filter((m) => m !== io).map((m) => `<a href="#" data-membro="${i.id}|${m}|0">togli ${esc(nome(m))}</a>`).join(" · ")}</p>` : ""}
     ${i.visibilita === "scelti" && (mia || S.dati.io.admin) ? `<div class="piccolo"><b>Chi la vede${i.motivi && Object.keys(i.motivi).length ? " e perché" : ""}:</b>${(i.destinatari || []).map((id) => `<div>${esc(nome(id))}${i.motivi && i.motivi[id] ? ": " + esc(i.motivi[id]) : ""}</div>`).join("")}</div>` : ""}
-    ${!mia && io ? `<p class="piccolo">«Mi interessa» lo vede solo chi ha pubblicato l'idea.</p>` : ""}
     ${i.esempio ? `<div class="avviso info" style="margin:8px 0 0">È un <b>esempio</b>: lo vedi solo tu, per capire come appare l'idea di un compagno. ${S.dati.io.admin ? `<button class="btn piccolo" data-elimina="${i.id}">Elimina l'esempio</button>` : ""}</div>` : ""}`;
-  document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloDettagli"><div class="finestra" data-dettagli-bacheca><div class="riga"><h3 style="margin:0">${esc(x.titolo)}</h3><span class="spazio"></span><button class="btn piccolo" data-chiudi-dettagli>×</button></div>${corpo}</div></div>`);
+  document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloDettagli"><div class="finestra" data-dettagli-bacheca><div class="riga"><h3 style="margin:0">${esc(x.titolo)}</h3><span class="spazio"></span><button class="btn piccolo" data-chiudi-dettagli>×</button></div>${corpo}<div id="commentiPost">${sezioneCommenti(i)}</div></div></div>`);
+  if (d.hasAttribute("data-ai-commenti")) {
+    const t = document.getElementById("testoCommento");
+    if (t) { t.scrollIntoView({ block: "center" }); t.focus({ preventScroll: true }); }
+  }
+});
+// I commenti sotto un'idea, in fondo ai Dettagli: chi l'ha scritto, quando, e
+// il campo per aggiungerne uno.
+function sezioneCommenti(i) {
+  const io = S.dati.io.profilo, cc = i.commenti || [];
+  return `<h4 style="margin:18px 0 6px">Commenti${cc.length ? ` <span class="piccolo">${cc.length}</span>` : ""}</h4>
+    ${cc.map((c) => `<div class="commento"><div class="piccolo"><b>${esc((profilo(c.autore) || {}).nome || "?")}</b> · ${quando(c.quando)}
+      ${c.autore === io || i.autore === io || S.dati.io.admin ? `<a href="#" class="togli-commento" data-togli-commento="${i.id}|${c.id}">togli</a>` : ""}</div>
+      <div class="testo-commento">${esc(c.testo)}</div></div>`).join("") || '<p class="piccolo" style="margin:0 0 6px">Ancora nessun commento: scrivi cosa ne pensi, una domanda o un consiglio.</p>'}
+    ${io ? `<textarea id="testoCommento" rows="2" maxlength="1000" placeholder="Scrivi un commento"></textarea>
+    <div class="riga" style="margin-top:6px"><span class="spazio"></span><button class="btn primario piccolo" data-commenta="${i.id}">Commenta</button></div>` : ""}`;
+}
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-commenta],[data-togli-commento]");
+  if (!b) return;
+  ev.preventDefault();
+  const [id, cid] = (b.dataset.commenta || b.dataset.togliCommento).split("|");
+  const i = S.dati.bacheca.find((x) => x.id === id);
+  if (!i) return;
+  try {
+    let r;
+    if (b.dataset.commenta) {
+      const t = document.getElementById("testoCommento");
+      if (!t.value.trim()) return t.focus();
+      b.disabled = true;
+      r = await api("commento", { id, testo: t.value });
+    } else {
+      if (!confirm("Togliere questo commento?")) return;
+      r = await api("commento-elimina", { id, commento: cid });
+    }
+    i.commenti = r.commenti;
+    document.getElementById("commentiPost").innerHTML = sezioneCommenti(i);
+    bacheca();
+  } catch (e) { b.disabled = false; alert(e.message); }
 });
 document.addEventListener("click", async (ev) => {
   const t = ev.target.closest("[data-modifica],[data-elimina],[data-interesse],[data-membro]");
@@ -2276,7 +2332,7 @@ const TOUR = [
   { genera: true, sel: "#secGenera .domanda-gen:nth-child(2)", testo: "<b>I compagni</b>: seleziona le persone con cui ti piacerebbe lavorare. L'AI completa la squadra fino a 7-8." },
   { genera: true, sel: "#secGenera .domanda-gen:nth-child(3)", testo: "<b>Più indicazioni</b>, se vuoi: B2B o B2C, su quale competenza basarla, il settore. Se no decide l'AI." },
   { genera: true, sel: "#secGenera .pulsanti-gen", testo: "<b>Pubblica in bacheca</b> mette subito la tua idea così com'è. <b>Sviluppa con l'AI</b> ti propone cinque idee con la squadra; ogni generazione costa <b>1 credito</b>." },
-  { sel: ".griglia-bacheca", testo: "La <b>bacheca</b>: le idee di tutti. Le tue sono in blu, quelle private in giallo. Se un post ha più idee, scorri coi puntini; con <b>Mi interessa</b> ti candidi, e lo vede solo chi l'ha pubblicata." },
+  { sel: ".griglia-bacheca", testo: "La <b>bacheca</b>: le idee di tutti. Le tue sono in blu, quelle private in giallo. Se un post ha più idee, scorri coi puntini; con <b>Mi interessa</b> ti candidi e lo vedono tutti; sotto ogni idea puoi lasciare un <b>commento</b>." },
   { sel: ".annuncio-riga", testo: "Hai una direzione ma non ancora un'idea? Scrivila qui: la vedono tutti nella sezione <b>Annunci</b>." },
   { sel: ".precedenti", apri: ".precedenti", facoltativo: true, testo: "In fondo alla bacheca, in <b>Le tue idee</b>, ritrovi tutte le proposte che l'AI ha scritto per te." },
   { scheda: "spunti", sel: "[data-spunto]", testo: "Cerchi ispirazione? Questa è la scheda <b>Spunti</b>: migliaia di startup e le ultime notizie. Con <b>Usa come spunto</b> l'AI parte da lì per le tue idee." },

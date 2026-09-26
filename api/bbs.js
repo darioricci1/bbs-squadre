@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.19.1
+// VERSION: 1.20.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -91,6 +91,8 @@ export default async function handler(req, res) {
       case "idea": return await idea(chi, corpo, res);
       case "idea-elimina": return await ideaElimina(chi, corpo, res);
       case "interesse": return await interesse(chi, corpo, res);
+      case "commento": return await commento(chi, corpo, res);
+      case "commento-elimina": return await commentoElimina(chi, corpo, res);
       case "membro": return await membro(chi, corpo, res);
       case "lavori": return await salvaLavori(chi, corpo, res);
     }
@@ -233,9 +235,8 @@ async function dati(chi, res) {
       return out;
     })
       .sort((x, y) => String(x.nome).localeCompare(String(y.nome))),
-    // chi ha detto "mi interessa" lo vede solo l'autore (e l'amministratore)
+    // chi ha detto "mi interessa" e i commenti li vede chiunque vede l'idea
     bacheca: Object.values(bacheca).filter((i) => vedeIdea(i, io, chi.admin))
-      .map((i) => chi.admin || i.autore === io ? i : { ...i, interessati: (i.interessati || []).filter((x) => x === io) })
       .sort((x, y) => String(y.creata).localeCompare(String(x.creata))),
     scelte: { settori: SETTORI, tipi: TIPI, fonti: FONTI },
     generazioni: generazioni
@@ -487,6 +488,42 @@ async function interesse(chi, corpo, res) {
   if (!i) return res.status(404).json({ error: "Idea non trovata" });
   await segna(chi.email, corpo.on ? "interesse" : "interesse-tolto", { idea: i.id, titolo: i.titolo, autore: i.autore });
   return res.status(200).json({ ok: true });
+}
+
+// Commenti sotto un'idea: li scrive e li legge chi vede l'idea. Toglie un
+// commento chi l'ha scritto, chi ha pubblicato l'idea o l'amministratore.
+async function commento(chi, corpo, res) {
+  const io = await mioProfilo(chi.email);
+  if (!io) return res.status(404).json({ error: "Prima collega il tuo profilo." });
+  const t = testo(corpo.testo, 1000);
+  if (!t) return res.status(400).json({ error: "Scrivi il commento." });
+  if (!chi.admin && await conta("commenti:" + chi.email, 3600) > 60) return res.status(429).json({ error: "Troppi commenti in poco tempo: riprova piu' tardi." });
+  const c = { id: nuovoId("c"), autore: io.id, testo: t, quando: new Date().toISOString() };
+  const i = await aggiorna("bacheca", testo(corpo.id, 80), (x) => {
+    if (!vedeIdea(x, io.id, chi.admin)) return null;
+    x.commenti = [...(x.commenti || []), c].slice(-200);
+    return x;
+  });
+  if (!i) return res.status(404).json({ error: "Idea non trovata" });
+  await segna(chi.email, "commento", { idea: i.id, titolo: i.titolo, autore: i.autore });
+  return res.status(200).json({ ok: true, commenti: i.commenti });
+}
+
+async function commentoElimina(chi, corpo, res) {
+  const io = await mioProfilo(chi.email);
+  const cid = testo(corpo.commento, 80);
+  let vietato = false;
+  const i = await aggiorna("bacheca", testo(corpo.id, 80), (x) => {
+    const c = (x.commenti || []).find((y) => y.id === cid);
+    if (!c) return null;
+    if (!chi.admin && !(io && (c.autore === io.id || x.autore === io.id))) { vietato = true; return null; }
+    x.commenti = x.commenti.filter((y) => y.id !== cid);
+    return x;
+  });
+  if (vietato) return res.status(403).json({ error: "Puoi togliere solo i tuoi commenti o quelli sulle tue idee." });
+  if (!i) return res.status(404).json({ error: "Commento non trovato" });
+  await segna(chi.email, "commento-tolto", { idea: i.id });
+  return res.status(200).json({ ok: true, commenti: i.commenti });
 }
 
 async function membro(chi, corpo, res) {

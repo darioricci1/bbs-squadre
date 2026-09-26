@@ -215,3 +215,12 @@ Sito, settore e descrizione di un'azienda corretti dal profilo restano di
 quella persona (`profilo.lavoriMiei[id].azienda`): chi ha lavorato nella
 stessa azienda tiene la sua versione. La tabella `siti` resta la base comune,
 corretta dall'amministratore nella sezione Aziende.
+
+## Interessati e commenti
+
+Chi ha cliccato «Mi interessa» su un'idea lo vede chiunque vede l'idea: i nomi
+stanno sulla card e nei Dettagli. Sotto ogni idea, nei Dettagli, si possono
+lasciare commenti (azioni `commento` e `commento-elimina`, fino a 1000
+caratteri, 60 all'ora). Un commento lo toglie chi l'ha scritto, chi ha
+pubblicato l'idea o l'amministratore. I commenti stanno nella riga dell'idea
+(`commenti`) e si scrivono con `aggiorna()`, come «Mi interessa».
