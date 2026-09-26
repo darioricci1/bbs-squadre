@@ -232,8 +232,8 @@ l'AI completa), un numero fisso da 5 a 8, oppure «Solo quelle che ho scelto»
 (l'AI non aggiunge nessuno e costruisce le idee sulle loro competenze).
 Arriva a `api/genera.js` come `dimensione`.
 
-Sulle card si parla di «Persone proposte», non di squadra: le squadre vere si
+Sulle card si parla di «Possibile gruppo», non di squadra: le squadre vere si
 formano piu' avanti. L'autore puo' «proporre» chi ha cliccato «Mi interessa»;
-chi e' proposto legge «Sei tra i proposti». Pubblicando con delle persone
+chi e' proposto legge «Ti ha proposto». Pubblicando con delle persone
 scelte si decide se l'idea la vede tutto l'EMBA (con i loro nomi) o solo loro;
 dai risultati dell'AI si possono tenere accese solo le persone scelte da te.
