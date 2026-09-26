@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.21.0
+// VERSION: 1.21.1
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -559,7 +559,7 @@ async function membro(chi, corpo, res) {
     return x;
   });
   if (esito === "vietato") return res.status(403).json({ error: "Solo chi ha pubblicato l'idea sceglie la squadra." });
-  if (esito === "piena") return res.status(409).json({ error: "La squadra e' al completo." });
+  if (esito === "piena") return res.status(409).json({ error: "Hai gia' proposto il numero massimo di persone per questa idea." });
   if (!i) return res.status(404).json({ error: "Idea non trovata" });
   await segna(chi.email, corpo.on ? "membro-aggiunto" : "membro-tolto", { idea: i.id, titolo: i.titolo, profilo: pid });
   return res.status(200).json({ ok: true });

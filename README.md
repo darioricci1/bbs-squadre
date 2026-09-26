@@ -224,3 +224,16 @@ lasciare commenti (azioni `commento` e `commento-elimina`, fino a 1000
 caratteri, 60 all'ora). Un commento lo toglie chi l'ha scritto, chi ha
 pubblicato l'idea o l'amministratore. I commenti stanno nella riga dell'idea
 (`commenti`) e si scrivono con `aggiorna()`, come «Mi interessa».
+
+## Persone proposte e dimensione del gruppo
+
+In Genera, sotto i compagni scelti, «Quante persone in tutto»: 7 o 8 (default,
+l'AI completa), un numero fisso da 5 a 8, oppure «Solo quelle che ho scelto»
+(l'AI non aggiunge nessuno e costruisce le idee sulle loro competenze).
+Arriva a `api/genera.js` come `dimensione`.
+
+Sulle card si parla di «Persone proposte», non di squadra: le squadre vere si
+formano piu' avanti. L'autore puo' «proporre» chi ha cliccato «Mi interessa»;
+chi e' proposto legge «Sei tra i proposti». Pubblicando con delle persone
+scelte si decide se l'idea la vede tutto l'EMBA (con i loro nomi) o solo loro;
+dai risultati dell'AI si possono tenere accese solo le persone scelte da te.
