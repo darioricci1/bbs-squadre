@@ -16,9 +16,9 @@ Chi usa la piattaforma vede due schede.
   nella finestra Dettagli, che mostra l'idea a sezioni (barre dei criteri,
   problema, soluzione, clienti, perche' voi). «Modifica» ha la stessa vista,
   con un pennino accanto a ogni parte per cambiarla. Le idee pubblicate prima
-  si ricavano dal loro testo. Con «Mi interessa» ci si candida: lo vede
-  solo chi ha pubblicato l'idea (e l'amministratore), che accoglie chi vuole
-  nella squadra. L'amministratore vede due esempi (una proposta a un gruppo e
+  si ricavano dal loro testo. Con «Mi interessa» ci si candida: lo vedono
+  tutti, e chi ha pubblicato l'idea puo' «proporre» chi vuole nel possibile
+  gruppo (chi e' proposto puo' togliersi con «toglimi»). L'amministratore vede due esempi (una proposta a un gruppo e
   un'idea per tutti) che nessun altro vede. Le mie sono in blu, le altre in
   grigio. Le idee si generano in una finestra che sta tutta nello schermo, con tre
   box quadrati sempre aperti e tutti facoltativi: **hai un'idea?** (si puo'
@@ -32,8 +32,9 @@ Chi usa la piattaforma vede due schede.
   telefono Genera idee e' la prima pagina (niente finestra), le schede stanno
   nel menu ☰ in alto a sinistra e «Vai alla bacheca» compare quando in
   bacheca c'e' qualcosa.
-  Le squadre sono di 7 o 8: l'AI completa quelle piu' piccole, con una
-  riga di motivo per ogni persona proposta. La squadra e' una sola per
+  Il possibile gruppo e' di solito di 7 o 8 persone (o quante ne sceglie chi
+  genera, da 5 a 8, o solo quelle scelte): l'AI lo completa, con una
+  riga di motivo per ogni persona proposta. Il gruppo e' uno solo per
   tutte le cinque proposte della stessa generazione. I risultati stanno in
   una schermata: cinque card affiancate, tutte selezionate all'inizio (un
   clic ne toglie una, Dettagli apre il testo intero), sotto la squadra come
@@ -50,7 +51,7 @@ Chi usa la piattaforma vede due schede.
   I risultati di ogni generazione: in cima **le persone** (io, chi avevo
   scelto e chi propone Claude, con ruolo, motivo e per quali idee), poi **le
   proposte** una per riga, da aprire e selezionare (fino a 5). Si condivide
-  **con tutti, senza nomi**, oppure **con le persone selezionate**: chi si
+  **con tutti, con i nomi del possibile gruppo**, oppure **con le persone selezionate**: chi si
   toglie non vede l'idea e sparisce anche dal testo. Un'idea scritta a mano
   si pubblica in bacheca con un clic, visibile a tutti.
   Le istruzioni a Claude (`SISTEMA` in `api/genera.js`) seguono le linee
@@ -85,8 +86,8 @@ Chi usa la piattaforma vede due schede.
 Al primo accesso il profilo si collega da solo se il nome Google corrisponde
 a un solo profilo libero; se no la prima schermata chiede «Chi sei?» con
 completamento del nome. Chi sbaglia si scollega con «Questo non è il mio
-profilo». Un **tutorial a fumetti** parte da solo la prima volta: i passi che
-chiedono un'azione vanno avanti quando la persona la fa. Si rivede da **?**.
+profilo». Un **tutorial a fumetti** si apre da **Come funziona**; il gesto Indietro o
+uno scorrimento orizzontale lo chiudono.
 
 Solo per l'amministratore (`AMMINISTRATORI`):
 

@@ -1,5 +1,5 @@
 // api/bbs.js
-// VERSION: 1.21.1
+// VERSION: 1.22.0
 // La piattaforma dei gruppi per il project work del master BBS: un'unica
 // funzione con dentro tutte le azioni, scelte con ?a=... (su Vercel Hobby le
 // funzioni sono contate, meglio non spenderne una per azione).
@@ -38,7 +38,7 @@ import { firma, leggi, cookieDaMettere, cookieDaTogliere } from "../lib/sessione
 import {
   esigiAccesso, sonoAmministratore, puoEntrare, corpoDi, nuovoId, tutti, uno, scrivi, aggiorna, scriviMolti,
   togli, ultimi, eventi, conta, ceArchivio, segna, chiaveAzienda, profiloPubblico,
-  creditiDi, vedeIdea,
+  creditiDi, vedeIdea, gruppoDi, MAX_GRUPPO,
 } from "../lib/bbs.js";
 import { lavoriDi, lavoriPubblici, infoAzienda, chiaveAziendaNome, idLavoro } from "../lib/lavori.js";
 import { descriviAzienda, leggiPagina } from "../lib/leggi-sito.js";
@@ -260,7 +260,7 @@ function esempiBacheca(io, profili) {
   const [autore, cfo, vendite, ingegnere, autrice2] = ["alessio sisi", "leming", "matteo magri", "andrea allegro", "sara saltini"].map(trova);
   const nome = (p, r) => (p ? p.nome : r);
   const ora = new Date().toISOString();
-  const squadra = (ruoloMio) => `La squadra proposta:\n- ${nome(autore, "Chi l'ha generata")}: prodotto e ingegneria\n- ${nome(ingegnere, "Un ingegnere")}: processi e automazione\n- ${nome(cfo, "Una persona di finanza")}: finanza e modello di ricavo\n- ${nome(vendite, "Una persona di vendite")}: vendite B2B\n- ${profili[io] ? profili[io].nome : "Tu"}: ${ruoloMio}`;
+  const squadra = (ruoloMio) => `Il possibile gruppo:\n- ${nome(autore, "Chi l'ha generata")}: prodotto e ingegneria\n- ${nome(ingegnere, "Un ingegnere")}: processi e automazione\n- ${nome(cfo, "Una persona di finanza")}: finanza e modello di ricavo\n- ${nome(vendite, "Una persona di vendite")}: vendite B2B\n- ${profili[io] ? profili[io].nome : "Tu"}: ${ruoloMio}`;
   const gruppo = [cfo, vendite, ingegnere].filter(Boolean).map((p) => p.id);
   const idea = (titolo, settore, frase, problema, soluzione, clienti, tipo, conNomi) => ({
     titolo, modello: "B2B", settore, generata: true,
@@ -444,13 +444,15 @@ async function idea(chi, corpo, res) {
     modello: idee.length === 1 ? idee[0].modello : "",
     settore: idee.length === 1 ? idee[0].settore : "",
     cerco: testo(corpo.cerco, 1000),
-    posti: Number(corpo.posti) === 7 ? 7 : 8,   // squadre da 7 o 8 persone
+    posti: [5, 6, 7, 8].includes(Number(corpo.posti)) ? Number(corpo.posti) : 8,   // persone nel possibile gruppo
     origine: idee.some((x) => x.generata) ? "generata" : "manuale",
     generazione: testo(corpo.generazione, 80) || i.generazione || "",
     aggiornata: new Date().toISOString(),
   };
   // idea riservata: chi non e' piu' fra i destinatari esce anche dalla squadra
   const applica = (x) => {
+    // da riservata a pubblica: chi era proposto resta nel possibile gruppo
+    if (visibilita === "tutti") x.membri = gruppoDi(x);
     Object.assign(x, campi);
     if (visibilita === "scelti") x.membri = (x.membri || []).filter((id) => id === x.autore || destinatari.includes(id));
     return x;
@@ -527,19 +529,21 @@ async function commentoElimina(chi, corpo, res) {
   return res.status(200).json({ ok: true, commenti: i.commenti });
 }
 
-// Un'idea pubblica diventa riservata alla sua squadra: la vedono solo chi
-// l'ha pubblicata e chi e' in squadra (lo propone la pagina dopo "accogli").
+// Un'idea pubblica diventa riservata al suo possibile gruppo: la vedono solo
+// chi l'ha pubblicata e chi e' nel gruppo (lo propone la pagina dopo "proponi").
 async function rendiRiservata(chi, corpo, res) {
   const io = await mioProfilo(chi.email);
-  let vietato = false;
+  let vietato = false, gia = false;
   const i = await aggiorna("bacheca", testo(corpo.id, 80), (x) => {
     if (!chi.admin && (!io || x.autore !== io.id)) { vietato = true; return null; }
-    const squadra = (x.membri || []).filter((id) => id !== x.autore);
-    if (!squadra.length) return null;
-    return Object.assign(x, { visibilita: "scelti", destinatari: squadra, proposti: [], aggiornata: new Date().toISOString() });
+    if (x.visibilita === "scelti") { gia = true; return null; }   // gia' riservata: non si tocca
+    const gruppo = gruppoDi(x).filter((id) => id !== x.autore);
+    if (!gruppo.length) return null;
+    return Object.assign(x, { visibilita: "scelti", destinatari: gruppo, membri: [x.autore, ...gruppo], proposti: [], aggiornata: new Date().toISOString() });
   });
   if (vietato) return res.status(403).json({ error: "Solo chi ha pubblicato l'idea ne cambia la visibilita'." });
-  if (!i) return res.status(404).json({ error: "Idea non trovata o squadra vuota." });
+  if (gia) return res.status(200).json({ ok: true });
+  if (!i) return res.status(404).json({ error: "Idea non trovata, o nel possibile gruppo non c'e' ancora nessuno." });
   await segna(chi.email, "idea-riservata", { idea: i.id, titolo: i.titolo, destinatari: i.destinatari });
   return res.status(200).json({ ok: true });
 }
@@ -547,19 +551,24 @@ async function rendiRiservata(chi, corpo, res) {
 async function membro(chi, corpo, res) {
   const io = await mioProfilo(chi.email);
   const pid = testo(corpo.profilo, 80);
+  if (corpo.on && !(await uno("profili", pid))) return res.status(404).json({ error: "Persona non trovata" });
   let esito = "nessuna";
   const i = await aggiorna("bacheca", testo(corpo.id, 80), (x) => {
-    if (!chi.admin && (!io || x.autore !== io.id)) { esito = "vietato"; return null; }
-    const s = new Set(x.membri || []);
+    // l'autore propone e toglie; chi e' stato proposto puo' togliersi da solo
+    const seStesso = io && !corpo.on && pid === io.id;
+    if (!chi.admin && !seStesso && (!io || x.autore !== io.id)) { esito = "vietato"; return null; }
     if (corpo.on) {
-      if (s.size >= (x.posti || 5) && !s.has(pid)) { esito = "piena"; return null; }
-      s.add(pid);
-    } else if (pid !== x.autore) s.delete(pid);
-    x.membri = [...s];
+      const g = gruppoDi(x);
+      if (g.length >= Math.min(MAX_GRUPPO, x.posti || MAX_GRUPPO) && !g.includes(pid)) { esito = "piena"; return null; }
+      x.membri = [...new Set([...(x.membri || []), pid])];
+    } else if (pid !== x.autore) {
+      x.membri = (x.membri || []).filter((id) => id !== pid);
+      x.proposti = (x.proposti || []).filter((id) => id !== pid);
+    }
     return x;
   });
-  if (esito === "vietato") return res.status(403).json({ error: "Solo chi ha pubblicato l'idea sceglie la squadra." });
-  if (esito === "piena") return res.status(409).json({ error: "Hai gia' proposto il numero massimo di persone per questa idea." });
+  if (esito === "vietato") return res.status(403).json({ error: "Solo chi ha pubblicato l'idea decide il possibile gruppo." });
+  if (esito === "piena") return res.status(409).json({ error: "Il possibile gruppo e' gia' completo: puoi alzare il numero di persone da Modifica." });
   if (!i) return res.status(404).json({ error: "Idea non trovata" });
   await segna(chi.email, corpo.on ? "membro-aggiunto" : "membro-tolto", { idea: i.id, titolo: i.titolo, profilo: pid });
   return res.status(200).json({ ok: true });
@@ -719,8 +728,12 @@ async function salvaLavori(chi, corpo, res) {
     }
     // l'azienda corretta resta di questa persona: chi ha lavorato nella
     // stessa azienda tiene la sua versione
-    if (az.sito !== (prima.sito || "") || az.settore !== (prima.settore || "") || az.descrizione !== (prima.descrizione || "")) {
-      p.lavoriMiei[l.id] = { ...(p.lavoriMiei[l.id] || {}), azienda: { ...az, da: chi.email, quando: new Date().toISOString() } };
+    // si salvano solo i campi cambiati: gli altri seguono la base comune,
+    // anche quando l'amministratore la corregge dopo
+    const cambiati = Object.fromEntries(["sito", "settore", "descrizione"].filter((k) => az[k] !== (prima[k] || "")).map((k) => [k, az[k]]));
+    if (Object.keys(cambiati).length) {
+      const mioPrima = (p.lavoriMiei[l.id] || {}).azienda || {};
+      p.lavoriMiei[l.id] = { ...(p.lavoriMiei[l.id] || {}), azienda: { ...mioPrima, ...cambiati, da: chi.email, quando: new Date().toISOString() } };
       cambiate.push(l.chiave);
     }
   }
@@ -871,7 +884,7 @@ async function statistiche(res) {
         perPersona: Object.entries(perPersona).sort((a, b) => b[1] - a[1]).map(([nome, usd]) => ({ nome, usd: Math.round(usd * 100) / 100 })) };
     })(),
     bacheca: Object.values(bacheca).sort((x, y) => String(y.creata).localeCompare(String(x.creata)))
-      .map((i) => ({ ...i, membriNomi: (i.membri || []).map(nomeDi), interessatiNomi: (i.interessati || []).map(nomeDi),
+      .map((i) => ({ ...i, membriNomi: gruppoDi(i).map(nomeDi), interessatiNomi: (i.interessati || []).map(nomeDi),
         destinatariNomi: (i.destinatari || []).map(nomeDi) })),
     eventi: registro.slice(0, 400),
     impostazioni: { ...(await impostazioniGenera()), modelli: MODELLI, livelli: EFFORT },

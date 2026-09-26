@@ -1,5 +1,5 @@
 // api/genera.js
-// VERSION: 1.15.0
+// VERSION: 1.15.1
 // Genera cinque idee di business per il project work (tre forti e due di
 // riserva) partendo dai profili delle persone. Due modi:
 //   modo "gruppo": io piu' le persone che ho scelto -> idee su misura per noi
@@ -176,8 +176,8 @@ PASSO 2, APPROFONDIMENTO. Ricevi una delle idee del passo 1 e scrivi i dettagli,
 - "ricavi": come potrebbe guadagnare, in modo plausibile, senza cifre.
 - "rischi" e "primo_passo": una o due frasi ciascuno; il primo passo deve essere concreto e fattibile in poche settimane.
 
-## La squadra: 7 o 8 persone
-I partecipanti sono circa 60 e i gruppi al massimo 8, quindi ogni squadra deve avere 7 o 8 persone. Nel messaggio trovi quante persone ha gia' il gruppo e quante ne devi proporre ("COMPAGNI DA PROPORRE"): quel numero vince su tutto il resto. Puo' essere zero, quando chi chiede vuole lavorare solo con le persone che ha scelto (allora costruisci le idee sulle loro competenze), o dare una squadra piu' piccola di 7, se chi chiede la vuole cosi'. La squadra e' UNA SOLA per tutte e 5 le idee: le stesse 7-8 persone devono poter lavorare su ognuna, quindi scegli le idee anche pensando a questa squadra. In "compagni" (fuori dalle idee) metti esattamente quel numero di persone, scelte dall'elenco del master fra chi non e' nel gruppo, per completare la squadra a 7-8: scegli chi copre le competenze che mancano (finanza, tecnologia, vendite, marketing, operations, settore) e chi ha passioni o preferenze compatibili. Per ognuno scrivi in "motivo" una riga breve (al massimo 15 parole) che dica cosa porta alla squadra, con un fatto concreto del suo profilo (un'azienda, un ruolo, una passione): la leggera' anche la persona proposta. In "ruoli" (fuori dalle idee) assegna un ruolo a ciascuna persona della squadra, gruppo compreso, con il suo id. Usa solo id presenti nei dati.`;
+## Il possibile gruppo: di solito 7 o 8 persone
+I partecipanti sono circa 60 e i gruppi al massimo 8, quindi di solito ogni gruppo ha 7 o 8 persone. E' un possibile gruppo: le squadre vere si formano piu' avanti. Nel messaggio trovi quante persone ha gia' il gruppo e quante ne devi proporre ("COMPAGNI DA PROPORRE"): quel numero vince su tutto il resto. Puo' essere zero, quando chi chiede vuole lavorare solo con le persone che ha scelto (allora costruisci le idee sulle loro competenze), o dare una squadra piu' piccola di 7, se chi chiede la vuole cosi'. La squadra e' UNA SOLA per tutte e 5 le idee: le stesse 7-8 persone devono poter lavorare su ognuna, quindi scegli le idee anche pensando a questa squadra. In "compagni" (fuori dalle idee) metti esattamente quel numero di persone, scelte dall'elenco del master fra chi non e' nel gruppo, per arrivare al numero di persone richiesto: scegli chi copre le competenze che mancano (finanza, tecnologia, vendite, marketing, operations, settore) e chi ha passioni o preferenze compatibili. Per ognuno scrivi in "motivo" una riga breve (al massimo 15 parole) che dica cosa porta al gruppo, con un fatto concreto del suo profilo (un'azienda, un ruolo, una passione): la leggera' anche la persona proposta. In "ruoli" (fuori dalle idee) assegna un ruolo a ciascuna persona della squadra, gruppo compreso, con il suo id. Usa solo id presenti nei dati.`;
 
 // Una persona in poche righe. "lungo" per chi e' nel gruppo: presentazione,
 // ruoli con settore e attivita' di ogni azienda, formazione. Breve per
@@ -340,7 +340,7 @@ export default async function handler(req, res) {
   const testo = [
     "PASSO 1, PROPOSTA.",
     `MODO: ${modo === "gruppo" ? "gruppo (le persone hanno gia' scelto di lavorare insieme)" : "scopri (una persona cerca idee e compagni di squadra)"}`,
-    `IL GRUPPO HA GIA' ${gruppo.length} ${gruppo.length === 1 ? "PERSONA" : "PERSONE"}. COMPAGNI DA PROPORRE PER OGNI IDEA: ${daMin === daMax ? daMax : `da ${daMin} a ${daMax}`}${daMax === 0 ? " (la squadra e' gia' completa: lascia vuoto)" : ""}.`,
+    `IL GRUPPO HA GIA' ${gruppo.length} ${gruppo.length === 1 ? "PERSONA" : "PERSONE"}. COMPAGNI DA PROPORRE (lo stesso gruppo vale per tutte le idee): ${daMin === daMax ? daMax : `da ${daMin} a ${daMax}`}${daMax === 0 ? " (la squadra e' gia' completa: lascia vuoto)" : ""}.`,
     "",
     "## Gruppo",
     ...gruppo.map((p) => riassunto(p, aziende, siti, true) + "\n"),

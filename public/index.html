@@ -420,7 +420,7 @@
 <script>
 (function(){
 "use strict";
-const VERSION = "2.48.1";
+const VERSION = "2.49.0";
 const $main = document.getElementById("main");
 // Lo stato della pagina. Si ricrea da zero a ogni uscita, cosi' chi entra
 // dopo non ritrova niente di chi c'era prima.
@@ -451,6 +451,8 @@ function avvisa(dove, testo, tipo) {
 }
 // Un indirizzo da mettere in un href: solo http(s), mai "javascript:".
 const urlSicuro = (v) => { v = String(v || "").trim(); return /^https?:\/\//i.test(v) ? v : "https://" + v.replace(/^[a-z][a-z0-9+.-]*:\/*/i, ""); };
+// Il possibile gruppo di un'idea: autore, proposti e aggiunti dopo (come gruppoDi sul server).
+const gruppoDi = (i) => [...new Set([i.autore, ...(i.proposti || []), ...(i.membri || [])].filter(Boolean))];
 const profilo = (id) => S.dati.profili.find((p) => p.id === id);
 const mio = () => S.dati.io.profilo && profilo(S.dati.io.profilo);
 // Il profilo aperto nella scheda: il mio, o quello di un altro che
@@ -473,6 +475,7 @@ async function carica() {
 
 function porta() {
   chiudiBenvenuto();
+  document.documentElement.classList.remove("cucina-aperta");
   // via tutto quello che era di chi stava usando il sito (il tasto Indietro
   // non deve rimostrarlo); restano solo gli spunti, che sono di tutti
   const { yc, tc, contiYc } = S;
@@ -567,6 +570,7 @@ window.addEventListener("popstate", (ev) => {
   S.daStoria = true;
   try {
     document.querySelectorAll(".velo:not(#veloGenera)").forEach((v) => v.remove());
+    if (!document.querySelector(".velo")) document.body.classList.remove("bloccato");   // l'editor bloccava lo scorrimento
     document.getElementById("testata").classList.remove("menu-aperto");
     S.scheda = st.scheda; S.profiloAltrui = st.altrui; S.tabRegia = st.tab; S.profAperto = null;
     if (!st.genera && S.generaAperta) chiudiGenera();
@@ -655,6 +659,7 @@ function apriGenera() {
 }
 function chiudiGenera() {
   S.generaAperta = false;
+  document.documentElement.classList.remove("cucina-aperta");   // la padella blocca la pagina: via anche lei
   if (S.scheda === "genera") S.scheda = "bacheca";
   const v = document.getElementById("veloGenera");
   if (v) v.remove();
@@ -850,7 +855,7 @@ function genera() {
     return;
   }
   box.innerHTML = `<div><h2>Genera idee</h2>
-      <p class="sotto">Compila quello che vuoi, anche niente, e premi Sviluppa: l'AI legge i profili (LinkedIn, aziende dove avete lavorato, passioni) e propone cinque idee brevi, ognuna con la squadra di 7-8 persone. Ogni generazione costa 1 credito.</p></div>
+      <p class="sotto">Compila quello che vuoi, anche niente, e premi Sviluppa: l'AI legge i profili (LinkedIn, aziende dove avete lavorato, passioni) e propone cinque idee brevi, ognuna con un possibile gruppo. Ogni generazione costa 1 credito.</p></div>
     <div class="riga riga-crediti">${S.dati.bacheca.length ? `<button class="btn piccolo" data-chiudi-genera data-vai-bacheca>Vai alla bacheca →</button>` : ""}
       <span class="spazio"></span><span data-tour="crediti">${testoCrediti()}</span></div>
     ${senzaCrediti() ? '<div class="avviso info">Hai usato tutti i crediti. Le idee già generate restano in fondo alla bacheca; se te ne servono altri, chiedi a Dario.</div>' : ""}
@@ -1170,7 +1175,8 @@ function strutturaIdea(x) {
     sintesi: "", problema: "", soluzione: "", differenziazione: "", clienti: "", ricavi: "", perche: "", punto_debole: "", primo_passo: "",
     tipo_startup: "", fonte_idea: "", altro: "", squadra: "", criteri: null };
   let t = String(x.descrizione || "");
-  const k = t.indexOf("La squadra proposta:");
+  let k = t.indexOf("La squadra proposta:");
+  if (k < 0) k = t.indexOf("Il possibile gruppo:");
   if (k >= 0) { st.squadra = t.slice(k).trim(); t = t.slice(0, k); }
   const sint = [], altro = [];
   let visto = false;
@@ -1249,7 +1255,7 @@ function ideeDaPubblicare(idee, visibilita, proposta, destinatari) {
     if (i.generata && proposta.length) {
       // "Perche' voi" e la squadra solo se la vedono le persone della proposta
       st.perche = visibilita === "scelti" && st.perche ? senzaEsclusi(st.perche) : visibilita === "scelti" ? st.perche : "";
-      st.squadra = visibilita === "scelti" && squadra.length ? "La squadra proposta:\n" + squadra.join("\n") : "";
+      st.squadra = visibilita === "scelti" && squadra.length ? "Il possibile gruppo:\n" + squadra.join("\n") : "";
     }
     return { ...st, descrizione: descrizioneDa(st) };
   });
@@ -1270,7 +1276,9 @@ document.addEventListener("click", (ev) => {
   if (!g) return;
   const tolti = toltiDa(g.id);
   personeGen(g).forEach((x) => { if (!x.io && !x.scelto) tolti.add(x.id); else tolti.delete(x.id); });
-  genera();
+  // si ridisegna solo il blocco (in Genera o in «Le tue idee» in bacheca)
+  const blocco = b.closest("[data-gen-blocco]");
+  if (blocco) blocco.outerHTML = risultati(g, true, !!blocco.querySelector("[data-torna-domande]"));
 });
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-condividi-gen]");
@@ -1314,7 +1322,9 @@ function apriEditor(post) {
   // tutto il master senza nomi.
   const proposta = post.proposta || Object.entries(post.motivi || {}).map(([id, motivo]) => ({ id, motivo }));
   const conProposta = proposta.length > 0;
-  const destinatari = new Set(post.destinatari || (post.id ? [] : proposta.map((x) => x.id)));
+  // modificando un post pubblico si parte dal suo possibile gruppo
+  const destinatari = new Set(post.destinatari && post.destinatari.length ? post.destinatari
+    : post.id ? gruppoDi(post).filter((id) => id !== post.autore) : proposta.map((x) => x.id));
   let visibilita = post.visibilita || (conProposta ? "scelti" : "tutti");
   const velo = document.createElement("div");
   velo.className = "velo";
@@ -1345,17 +1355,17 @@ function apriEditor(post) {
       ${idee.length < 5 ? `<button class="btn" data-aggiungi-idea style="margin-top:10px">+ Aggiungi un'altra idea (${idee.length}/5)</button>` : '<p class="piccolo">Hai raggiunto 5 idee, il massimo per un post.</p>'}
       <h3 style="margin-bottom:4px">Chi la vede</h3>
       ${conProposta ? `<label class="spunta"><input type="radio" name="vis" value="scelti" ${visibilita === "scelti" ? "checked" : ""}> Solo le persone della proposta <small>(togli chi vuoi, o aggiungi altri)</small></label>
-        <label class="spunta"><input type="radio" name="vis" value="tutti" ${visibilita === "tutti" ? "checked" : ""}> Tutto il master, senza nomi <small>(si vede solo l'idea)</small></label>`
+        <label class="spunta"><input type="radio" name="vis" value="tutti" ${visibilita === "tutti" ? "checked" : ""}> Tutto il master <small>(con il possibile gruppo)</small></label>`
       : `<label class="spunta"><input type="radio" name="vis" value="tutti" ${visibilita === "tutti" ? "checked" : ""}> Tutto il master</label>
         <label class="spunta"><input type="radio" name="vis" value="scelti" ${visibilita === "scelti" ? "checked" : ""}> Solo le persone che scelgo</label>`}
       ${conProposta && visibilita === "scelti" ? `<div class="proposta-persone">${proposta.map((x) => `<label class="spunta voce-proposta">
           <input type="checkbox" data-dest="${x.id}" ${destinatari.has(x.id) ? "checked" : ""}>
           <span><b>${esc((profilo(x.id) || {}).nome || "?")}</b>${x.scelto ? ' <span class="etichetta grigia">scelto da te</span>' : ""}${x.motivo ? `<br><span class="piccolo">${esc(x.motivo)}</span>` : ""}</span></label>`).join("")}
-        <p class="piccolo" style="margin:6px 0 0">Non serve arrivare a 7 o 8: puoi condividerla anche solo con alcune di queste persone. Chi togli non la vedrà e sparisce anche dal testo dell'idea; gli altri vedranno la riga sul perché sono stati proposti.</p></div>` : ""}
+        <p class="piccolo" style="margin:6px 0 0">Non serve includerle tutte: puoi condividerla anche solo con alcune di queste persone. Chi togli non la vedrà e sparisce anche dal testo dell'idea; gli altri vedranno la riga sul perché sono stati proposti.</p></div>` : ""}
       <div id="ePick" style="${visibilita === "scelti" ? "" : "display:none"}"></div>
       ${!conProposta && visibilita === "scelti" && (post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).length ? `<p class="piccolo">Suggeriti dall'AI: ${(post.suggeriti || []).filter((id) => !destinatari.has(id) && profilo(id)).map((id) => `<a href="#" data-sugg-dest="${id}">+ ${esc(profilo(id).nome)}</a>`).join(" · ")}</p>` : ""}
       <div class="due"><div><label>Cosa cerchi <small>(competenze, ruoli, un messaggio)</small></label><input type="text" id="eCerco" value="${esc(post.cerco || "")}"></div>
-      <div><label>Persone nella squadra, te compreso</label><select id="ePosti">${[8, 7].map((n) => `<option value="${n}" ${Number(post.posti) === n ? "selected" : ""}>${n} persone</option>`).join("")}</select></div></div>
+      <div><label>Persone nel possibile gruppo, te compreso</label><select id="ePosti">${[8, 7, 6, 5].map((n) => `<option value="${n}" ${Number(post.posti) === n ? "selected" : ""}>${n} persone</option>`).join("")}</select></div></div>
       <div id="msgEd"></div>
       <div class="riga" style="margin-top:14px"><span class="spazio"></span><button class="btn" data-chiudi>Annulla</button>
         <button class="btn primario" id="ePubblica">${post.id ? "Salva" : "Pubblica"}</button></div>
@@ -1494,11 +1504,11 @@ function bacheca() {
     ${mioAnnuncioRiga()}
     <div class="griglia griglia-bacheca">${lista.map((i) => {
       const mia = i.autore === io;
-      const dentro = (i.membri || []).includes(io) && !(i.proposti || []).includes(io);
+      const gruppo = gruppoDi(i), dentro = !!io && gruppo.includes(io) && i.autore !== io;
       const interessato = (i.interessati || []).includes(io);
       const idee = ideeDelPost(i);
       const riservata = i.visibilita === "scelti";
-      const proposto = riservata && !mia && i.motivi && i.motivi[io];
+      const proposto = dentro;
       // Card quadrata: le idee del post scorrono in orizzontale, i puntini in
       // alto dicono dove sei. Il testo lungo sta nella finestra Dettagli.
       const n = Math.min(S.linguette[i.id] || 0, idee.length - 1);
@@ -1519,12 +1529,12 @@ function bacheca() {
         }).join("")}</div>
         <div class="piede-post">
           <div class="piccolo squadra-post">${(i.proposti || []).length
-            ? `<b>Possibile gruppo:</b> ${nomi([i.autore, ...i.proposti]).map(esc).join(", ")}`
-            : `<b>Possibile gruppo:</b> ${nomi(i.membri).map(esc).join(", ")}`}${i.cerco ? ` · <b>cerca:</b> ${esc(i.cerco)}` : ""}</div>
-          ${(i.interessati || []).length ? `<div class="piccolo interessati-post"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${nomi(i.interessati).map(esc).join(", ")}</div>` : ""}
+            ? `<b>Possibile gruppo:</b> ${nomi(gruppo).map(esc).join(", ")}`
+            : `<b>Possibile gruppo:</b> ${nomi(gruppo).map(esc).join(", ")}`}${i.cerco ? ` · <b>cerca:</b> ${esc(i.cerco)}` : ""}</div>
+          ${(i.interessati || []).length ? `<div class="piccolo interessati-post"><b>Interessati:</b> ${nomi(i.interessati).map(esc).join(", ")}</div>` : ""}
           <div class="riga" style="margin-top:8px;flex-wrap:nowrap">
             ${mia ? `<button class="btn piccolo" data-modifica="${i.id}">Modifica</button><button class="btn piccolo pericolo" data-elimina="${i.id}">Elimina</button>`
-              : io ? `<button class="btn piccolo ${interessato ? "" : "primario"}" data-interesse="${i.id}|${interessato ? 0 : 1}" ${dentro ? "disabled" : ""}>${dentro ? "Ti ha proposto" : interessato ? "Ti interessa ✓" : "Mi interessa"}</button>` : ""}
+              : io ? `<button class="btn piccolo ${interessato ? "" : "primario"}" data-interesse="${i.id}|${interessato ? 0 : 1}">${interessato ? "Ti interessa ✓" : "Mi interessa"}</button>` : ""}
             <span class="spazio"></span><a href="#" class="piccolo link-commenti" data-dettagli-post="${i.id}" data-ai-commenti>${(i.commenti || []).length ? (i.commenti.length === 1 ? "1 commento" : i.commenti.length + " commenti") : "Commenta"}</a>
             <a href="#" class="piccolo" data-dettagli-post="${i.id}">Dettagli</a>
           </div>
@@ -1572,8 +1582,9 @@ document.addEventListener("click", (ev) => {
     ${vistaIdea(strutturaIdea(x), false)}
     ${strutturaIdea(x).squadra ? `<p class="descr piccolo">${esc(strutturaIdea(x).squadra)}</p>` : ""}
     ${i.visibilita === "scelti" && !mia && i.motivi && i.motivi[io] ? `<div class="perche-te"><b>Perché sei stato proposto:</b> ${esc(i.motivi[io])}</div>` : ""}
-    ${(i.interessati || []).length ? `<p class="piccolo"><b>${(i.proposti || []).length ? "Hanno confermato" : "Interessati"}:</b> ${(i.interessati || []).map((id) => `${esc(nome(id))}${mia && !(i.membri || []).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1" title="Secondo te è adatto a questa idea: lo aggiungi al possibile gruppo">proponi</a>` : ""}`).join(", ")}</p>` : ""}
-    ${mia && (i.membri || []).filter((m) => m !== io).length ? `<p class="piccolo">${(i.membri || []).filter((m) => m !== io).map((m) => `<a href="#" data-membro="${i.id}|${m}|0">togli ${esc(nome(m))}</a>`).join(" · ")}</p>` : ""}
+    <p class="piccolo"><b>Possibile gruppo:</b> ${gruppoDi(i).map((id) => esc(nome(id))).join(", ")}${gruppoDi(i).includes(io) && !mia ? ` · <a href="#" data-membro="${i.id}|${io}|0" title="Non ti interessa far parte di questo possibile gruppo">toglimi</a>` : ""}</p>
+    ${(i.interessati || []).length ? `<p class="piccolo"><b>Interessati:</b> ${(i.interessati || []).map((id) => `${esc(nome(id))}${mia && !gruppoDi(i).includes(id) ? ` <a href="#" data-membro="${i.id}|${id}|1" title="Secondo te è adatto a questa idea: lo aggiungi al possibile gruppo">proponi</a>` : ""}`).join(", ")}</p>` : ""}
+    ${mia && gruppoDi(i).filter((m) => m !== io).length ? `<p class="piccolo">${gruppoDi(i).filter((m) => m !== io).map((m) => `<a href="#" data-membro="${i.id}|${m}|0">togli ${esc(nome(m))}</a>`).join(" · ")}</p>` : ""}
     ${i.visibilita === "scelti" && (mia || S.dati.io.admin) ? `<div class="piccolo"><b>Chi la vede${i.motivi && Object.keys(i.motivi).length ? " e perché" : ""}:</b>${(i.destinatari || []).map((id) => `<div>${esc(nome(id))}${i.motivi && i.motivi[id] ? ": " + esc(i.motivi[id]) : ""}</div>`).join("")}</div>` : ""}
     ${i.esempio ? `<div class="avviso info" style="margin:8px 0 0">È un <b>esempio</b>: lo vedi solo tu, per capire come appare l'idea di un compagno. ${S.dati.io.admin ? `<button class="btn piccolo" data-elimina="${i.id}">Elimina l'esempio</button>` : ""}</div>` : ""}`;
   document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloDettagli"><div class="finestra" data-dettagli-bacheca><div class="riga"><h3 style="margin:0">${esc(x.titolo)}</h3><span class="spazio"></span><button class="btn piccolo" data-chiudi-dettagli>×</button></div>${corpo}<div id="commentiPost">${sezioneCommenti(i)}</div></div></div>`);
@@ -1658,11 +1669,11 @@ function sceltaVisibilita(persone) {
 }
 function chiediRiservata(i) {
   const d = document.getElementById("veloDettagli"); if (d) d.remove();
-  const squadra = (i.membri || []).map((id) => (profilo(id) || {}).nome).filter(Boolean);
+  const squadra = gruppoDi(i).map((id) => (profilo(id) || {}).nome).filter(Boolean);
   document.body.insertAdjacentHTML("beforeend", `<div class="velo" id="veloRiservata"><div class="finestra" style="width:min(460px,100%)" role="dialog" aria-modal="true">
     <h3 style="margin-top:0">Rendere l'idea riservata al possibile gruppo?</h3>
     <p>Possibile gruppo: <b>${squadra.map(esc).join(", ")}</b>.</p>
-    <p class="piccolo">Adesso «${esc(i.titolo)}» la vede tutto l'EMBA. Se la rendi riservata la vedete solo voi (e chi proporrai in seguito).</p>
+    <p class="piccolo">Adesso «${esc(i.titolo)}» la vede tutto l'EMBA. Se la rendi riservata la vedete solo voi: chi ha cliccato «Mi interessa» senza essere nel possibile gruppo non la vedrà più.</p>
     <div class="riga" style="margin-top:14px;flex-wrap:wrap;gap:8px"><button class="btn" data-riservata-no>Lasciala pubblica</button><span class="spazio"></span>
       <button class="btn primario" data-riservata-si="${esc(i.id)}">Rendila riservata</button></div></div></div>`);
 }
@@ -2206,7 +2217,7 @@ async function regia(daCache) {
         ${ideeDelPost(i).length > 1 ? `<div class="piccolo">${ideeDelPost(i).map((x, k) => `${k + 1}. ${esc(x.titolo)}`).join(" · ")}</div>` : ""}
         <dl class="rp-dettagli" style="padding-left:0">
           ${i.visibilita === "scelti" ? `<dt>Invitati</dt><dd>${esc((i.destinatariNomi || []).join(", "))}</dd>` : ""}
-          <dt>Squadra</dt><dd>${esc((i.membriNomi || []).join(", "))}</dd>
+          <dt>Possibile gruppo</dt><dd>${esc((i.membriNomi || []).join(", "))}</dd>
           <dt>Candidati</dt><dd>${esc((i.interessatiNomi || []).join(", ")) || "—"}</dd>
           ${i.cerco ? `<dt>Cerca</dt><dd>${esc(i.cerco)}</dd>` : ""}
         </dl></div>`).join("") || '<p class="piccolo">Ancora niente in bacheca.</p>')}
@@ -2398,7 +2409,7 @@ const TOUR = [
   { genera: true, sel: "#secGenera .domanda-gen:nth-child(1)", testo: "<b>Hai un problema da risolvere?</b> Scrivilo qui, con la tua soluzione se ce l'hai. Il problema resta separato e compare su ogni idea. Se non hai niente, lascia vuoto: pensa a tutto l'AI." },
   { genera: true, sel: "#secGenera .domanda-gen:nth-child(2)", testo: "<b>I compagni</b>: seleziona le persone con cui ti piacerebbe lavorare e scegli quante persone in tutto: l'AI aggiunge chi ha le competenze che mancano, oppure nessuno se vuoi lavorare solo con loro." },
   { genera: true, sel: "#secGenera .domanda-gen:nth-child(3)", testo: "<b>Più indicazioni</b>, se vuoi: B2B o B2C, su quale competenza basarla, il settore. Se no decide l'AI." },
-  { genera: true, sel: "#secGenera .pulsanti-gen", testo: "<b>Pubblica in bacheca</b> mette subito la tua idea così com'è. <b>Sviluppa con l'AI</b> ti propone cinque idee con la squadra; ogni generazione costa <b>1 credito</b>." },
+  { genera: true, sel: "#secGenera .pulsanti-gen", testo: "<b>Pubblica in bacheca</b> mette subito la tua idea così com'è. <b>Sviluppa con l'AI</b> ti propone cinque idee con un possibile gruppo; ogni generazione costa <b>1 credito</b>." },
   { sel: ".griglia-bacheca", testo: "La <b>bacheca</b>: le idee di tutti. Le tue sono in blu, quelle private in giallo. Se un post ha più idee, scorri coi puntini; con <b>Mi interessa</b> ti candidi e lo vedono tutti; sotto ogni idea puoi lasciare un <b>commento</b>." },
   { sel: ".annuncio-riga", testo: "Hai una direzione ma non ancora un'idea? Scrivila qui: la vedono tutti nella sezione <b>Annunci</b>." },
   { sel: ".precedenti", apri: ".precedenti", facoltativo: true, testo: "In fondo alla bacheca, in <b>Le tue idee</b>, ritrovi tutte le proposte che l'AI ha scritto per te." },
